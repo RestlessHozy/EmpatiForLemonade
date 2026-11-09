@@ -1,0 +1,20 @@
+// ARCHIVE ONLY · NOT COMPILED
+// Condensed record of the v3.1 "Mauve / Teal / Clinical Mono" theme tokens that were
+// replaced by the v4 "Soft Daylight" system (see /FRONTEND_DESIGN.md).
+
+// Color.kt (v3.1)
+// Mauve  50..900  F6F1F9 EADFF2 D5BEE5 B794D0 986CB7 7B4F97 663D82 512F6A 3C224F 281536   (primary = Mauve500 / dark Mauve300)
+// Teal   50..800  EAF6F4 C8E9E4 9DD7CF 4BAFA4 2E9C8F 21857B 17665E 104943                  (secondary = Teal600)
+// Amber  50..800  FCF4E6 F7E2BE D99A2B B57E1C 8A5D10 5E3F0A                                (tertiary / "Sedang")
+// Coral  50..800  FCEEEB F7D4CE E06A57 C64F3D 9E3A2B 6E271C                                (error / "Tinggi")
+// Light neutrals  WarmOffWhite FBF9F7 · Surface F7F4F0 · Low F3EFEA · Variant ECE6DF · High E5DFD7 · Text 221A26 · Muted 665B70 · Border E2DAD0
+// Dark neutrals   DarkBg 15111A · Surface 1F1926 · Low 1B1521 · Variant 2B2235 · High 352B41 · Text F3EFF7 · Muted BBB0C7 · Border 3B2F4A
+
+// Type.kt (v3.1)
+// HeadingFont = Plus Jakarta Sans (Medium/SemiBold/Bold)  -> display/headline/title/labelLarge
+// BodyFont    = Inter (Normal/Medium/SemiBold)            -> body
+// MonoFont    = JetBrains Mono                            -> labelMedium / labelSmall (ALL-CAPS badges, counters, chips)
+// Scale: display 30/36 · headline 26/32, 22/29, 19/26 · title 18/24, 16/22, 14/20 · body 15/22, 14/20, 12/17 · label 14/20, 11/15 mono, 10/14 mono
+
+// Theme.kt (v3.1)
+// Shapes: 8 / 12 / 16 / 22 / 28 dp. Cards = 1dp outlineVariant border on `surface`, 22dp radius, no elevation.

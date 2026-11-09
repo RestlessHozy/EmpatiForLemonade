@@ -1,0 +1,517 @@
+package com.example.empati.ui.screens
+
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AlternateEmail
+import androidx.compose.material.icons.rounded.Business
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material.icons.rounded.WorkOutline
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.empati.EmpatiViewModel
+import com.example.empati.data.UserProfile
+import com.example.empati.data.auth.AsnNipValidator
+import com.example.empati.data.auth.NipValidationResult
+import com.example.empati.data.auth.UserGenderOption
+import com.example.empati.data.auth.UserOccupationCategory
+import com.example.empati.data.db.EmpatiDatabase
+import com.example.empati.ui.components.GhostButton
+import com.example.empati.ui.components.PrimaryButton
+import com.example.empati.ui.components.SectionChip
+import com.example.empati.ui.components.TonalCard
+import com.example.empati.ui.theme.Coral50
+import com.example.empati.ui.theme.Coral600
+import com.example.empati.ui.theme.MonoFont
+import com.example.empati.ui.theme.Teal50
+import com.example.empati.ui.theme.Teal700
+
+private enum class AuthMode { LOGIN, REGISTER }
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun AuthScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
+    var mode by remember { mutableStateOf(AuthMode.LOGIN) }
+    var accountIdInput by remember { mutableStateOf(EmpatiDatabase.DEMO_ACCOUNT_ID) }
+    var pinInput by remember { mutableStateOf(EmpatiDatabase.DEMO_PIN) }
+    var fullName by remember { mutableStateOf("") }
+    var selectedGender by remember { mutableStateOf(UserGenderOption.FEMALE.label) }
+    var selectedCategory by remember { mutableStateOf(UserOccupationCategory.GENERAL.label) }
+    var domisiliOrTempat by remember { mutableStateOf("") }
+    var pekerjaanOrPeran by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val trimmedId = accountIdInput.trim()
+    val identityValidation = remember(trimmedId) {
+        if (trimmedId.isNotEmpty()) AsnNipValidator.validateGeneralIdentity(trimmedId)
+        else null
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .safeDrawingPadding()
+            .padding(horizontal = 20.dp)
+    ) {
+        Spacer(Modifier.height(18.dp))
+        SectionChip(text = "AKSES PENGGUNA · SEMUA KALANGAN")
+        Spacer(Modifier.height(10.dp))
+        Text(
+            text = if (mode == AuthMode.LOGIN) "Masuk ke AI-EMPATI" else "Daftar Akun Baru",
+            style = MaterialTheme.typography.headlineMedium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = "Skrining hipertensi & kesejahteraan psikososial yang terbuka bagi seluruh kalangan masyarakat dengan privasi lokal terenkripsi.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Spacer(Modifier.height(18.dp))
+
+        // Tab Switcher Masuk / Daftar
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            AuthModeTab(
+                label = "Masuk Akun",
+                selected = mode == AuthMode.LOGIN,
+                onClick = {
+                    mode = AuthMode.LOGIN
+                    errorMessage = null
+                },
+                modifier = Modifier.weight(1f)
+            )
+            AuthModeTab(
+                label = "Daftar Baru",
+                selected = mode == AuthMode.REGISTER,
+                onClick = {
+                    mode = AuthMode.REGISTER
+                    errorMessage = null
+                    if (accountIdInput == EmpatiDatabase.DEMO_ACCOUNT_ID) {
+                        accountIdInput = ""
+                        pinInput = ""
+                    }
+                },
+                modifier = Modifier.weight(1f)
+            )
+        }
+
+        Spacer(Modifier.height(16.dp))
+
+        // Kartu Form Utama
+        TonalCard(
+            containerColor = MaterialTheme.colorScheme.surface,
+            borderColor = MaterialTheme.colorScheme.outlineVariant,
+            shape = RoundedCornerShape(22.dp),
+            contentPadding = PaddingValues(18.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "ID AKUN (EMAIL / NO. HP / USERNAME / NIK)",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(6.dp))
+            OutlinedTextField(
+                value = accountIdInput,
+                onValueChange = {
+                    accountIdInput = it.take(50)
+                    errorMessage = null
+                },
+                singleLine = true,
+                textStyle = TextStyle(
+                    fontFamily = MonoFont,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    letterSpacing = 0.3.sp
+                ),
+                placeholder = {
+                    Text(
+                        text = "nama@email.com / 0812... / username",
+                        fontFamily = MonoFont,
+                        fontSize = 13.sp
+                    )
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.AlternateEmail,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                supportingText = {
+                    Text(
+                        text = "Bebas menggunakan Email, Nomor HP, Username, NIK, atau NIP",
+                        fontFamily = MonoFont,
+                        fontSize = 10.sp
+                    )
+                },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Live Smart Identity Inspector
+            AnimatedVisibility(visible = identityValidation != null) {
+                when (val v = identityValidation) {
+                    is NipValidationResult.Valid -> {
+                        Surface(
+                            color = Teal50,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Teal700.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.CheckCircle,
+                                    contentDescription = null,
+                                    tint = Teal700,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                val badgeText = if (v.metadata.identityKind == "NIP 18 Digit") {
+                                    "TERDETEKSI ${v.metadata.identityKind.uppercase()} · LAHIR ${v.metadata.birthDateFormatted} · ${v.metadata.genderLabel.uppercase()}"
+                                } else {
+                                    "FORMAT TERVERIFIKASI · ${v.metadata.identityKind.uppercase()}"
+                                }
+                                Text(
+                                    text = badgeText,
+                                    fontFamily = MonoFont,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = Teal700
+                                )
+                            }
+                        }
+                    }
+
+                    is NipValidationResult.Invalid -> {
+                        Surface(
+                            color = Coral50,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, Coral600.copy(alpha = 0.25f)),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 6.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.ErrorOutline,
+                                    contentDescription = null,
+                                    tint = Coral600,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = v.reason,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Coral600
+                                )
+                            }
+                        }
+                    }
+
+                    null -> Unit
+                }
+            }
+
+            if (mode == AuthMode.REGISTER) {
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "JENIS KELAMIN",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    UserGenderOption.entries.forEach { gender ->
+                        val selected = selectedGender == gender.label
+                        Surface(
+                            onClick = { selectedGender = gender.label },
+                            color = if (selected) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerLow,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(
+                                1.dp,
+                                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f)
+                                else MaterialTheme.colorScheme.outlineVariant
+                            )
+                        ) {
+                            Text(
+                                text = gender.label,
+                                fontFamily = MonoFont,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "LATAR BELAKANG / AKTIVITAS UTAMA",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(8.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    UserOccupationCategory.entries.forEach { cat ->
+                        val selected = selectedCategory == cat.label
+                        Surface(
+                            onClick = { selectedCategory = cat.label },
+                            color = if (selected) MaterialTheme.colorScheme.primaryContainer
+                            else MaterialTheme.colorScheme.surfaceContainerLow,
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(
+                                1.dp,
+                                if (selected) MaterialTheme.colorScheme.primary.copy(alpha = 0.35f)
+                                else MaterialTheme.colorScheme.outlineVariant
+                            )
+                        ) {
+                            Text(
+                                text = cat.label,
+                                fontFamily = MonoFont,
+                                fontSize = 11.sp,
+                                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+                                else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(14.dp))
+                OutlinedTextField(
+                    value = fullName,
+                    onValueChange = {
+                        fullName = it
+                        errorMessage = null
+                    },
+                    singleLine = true,
+                    label = { Text("Nama Lengkap / Panggilan") },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.Person, contentDescription = null)
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = domisiliOrTempat,
+                    onValueChange = {
+                        domisiliOrTempat = it
+                        errorMessage = null
+                    },
+                    singleLine = true,
+                    label = { Text("Kota Domisili / Tempat Beraktivitas") },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.Business, contentDescription = null)
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = pekerjaanOrPeran,
+                    onValueChange = {
+                        pekerjaanOrPeran = it
+                        errorMessage = null
+                    },
+                    singleLine = true,
+                    label = { Text("Pekerjaan / Peran Sehari-hari") },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.WorkOutline, contentDescription = null)
+                    },
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            OutlinedTextField(
+                value = pinInput,
+                onValueChange = {
+                    pinInput = it
+                    errorMessage = null
+                },
+                singleLine = true,
+                label = { Text("PIN / Kata Sandi Privasi (Min. 6 Karakter)") },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.Lock,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                },
+                visualTransformation = PasswordVisualTransformation(),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            errorMessage?.let { msg ->
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = msg,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        // Pita Jaminan Isolasi Database & Pseudonimisasi
+        Surface(
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(16.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.VerifiedUser,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "Identitas akun Anda dienkripsi menjadi pseudonim satu arah (subject_hash) sehingga terpisah penuh dari log sistem pakar CF maupun modul RAG.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
+
+        PrimaryButton(
+            text = if (mode == AuthMode.LOGIN) "Masuk ke AI-EMPATI" else "Daftarkan & Masuk",
+            onClick = {
+                if (mode == AuthMode.LOGIN) {
+                    val err = vm.loginAsn(trimmedId, pinInput)
+                    errorMessage = err
+                } else {
+                    if (fullName.isBlank() || domisiliOrTempat.isBlank() || pekerjaanOrPeran.isBlank()) {
+                        errorMessage = "Lengkapi Nama, Domisili/Tempat Aktivitas, dan Pekerjaan/Peran Anda."
+                    } else {
+                        val newProfile = UserProfile(
+                            name = fullName.trim(),
+                            nip = trimmedId,
+                            instansi = domisiliOrTempat.trim(),
+                            jabatan = pekerjaanOrPeran.trim(),
+                            jenisAsn = selectedCategory,
+                            golongan = selectedGender
+                        )
+                        errorMessage = vm.registerAsn(newProfile, pinInput)
+                    }
+                }
+            }
+        )
+
+        Spacer(Modifier.height(10.dp))
+        GhostButton(
+            text = "Masuk Cepat Akun Demo (Ratna Andari)",
+            onClick = vm::loginDemoAsn
+        )
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+@Composable
+private fun AuthModeTab(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        onClick = onClick,
+        color = if (selected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = RoundedCornerShape(12.dp),
+        modifier = modifier
+    ) {
+        Box(
+            modifier = Modifier.padding(vertical = 10.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                color = if (selected) MaterialTheme.colorScheme.onSurface
+                else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}

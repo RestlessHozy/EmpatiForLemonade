@@ -1,0 +1,386 @@
+package com.example.empati.ui.screens
+
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.example.empati.EmpatiViewModel
+import com.example.empati.data.cf.AnswerValue
+import com.example.empati.data.cf.CfQuestion
+import com.example.empati.data.cf.QuestionKind
+import com.example.empati.data.cf.ScreeningModule
+import com.example.empati.data.cf.likertLabels
+import com.example.empati.ui.components.BackIconButton
+import com.example.empati.ui.components.LockNotice
+import com.example.empati.ui.components.PrimaryButton
+import com.example.empati.ui.components.SectionChip
+
+private data class QuestionStepState(
+    val module: ScreeningModule,
+    val index: Int,
+    val question: CfQuestion
+)
+
+@Composable
+fun QuestionnaireScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
+    val module = vm.activeModule
+    val questions = vm.currentQuestions()
+    val index = vm.dualIndex
+    val question = vm.currentQuestion()
+    val answer = vm.answerFor(question.id)
+    val rawProgress = (index + 1) / questions.size.toFloat()
+
+    val animatedProgress by animateFloatAsState(
+        targetValue = rawProgress,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "questionProgress"
+    )
+
+    val isAnswered = answer != AnswerValue.Unanswered
+    val stepState = QuestionStepState(module = module, index = index, question = question)
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding()
+            .padding(horizontal = 20.dp)
+    ) {
+        Spacer(Modifier.height(10.dp))
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            BackIconButton(onClick = vm::previousDualQuestion)
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = moduleIndicator(module),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "${index + 1} / ${questions.size}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { animatedProgress },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp),
+                    color = if (module == ScreeningModule.HYPERTENSION)
+                        MaterialTheme.colorScheme.primary
+                    else
+                        MaterialTheme.colorScheme.secondary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                    strokeCap = StrokeCap.Round
+                )
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        AnimatedContent(
+            targetState = stepState,
+            modifier = Modifier.weight(1f),
+            transitionSpec = {
+                val forward = targetState.module != initialState.module ||
+                    targetState.index >= initialState.index
+                if (forward) {
+                    (slideInHorizontally(
+                        animationSpec = tween(280, easing = FastOutSlowInEasing),
+                        initialOffsetX = { it / 5 }
+                    ) + fadeIn(tween(240))) togetherWith
+                        (slideOutHorizontally(
+                            animationSpec = tween(220, easing = FastOutSlowInEasing),
+                            targetOffsetX = { -it / 6 }
+                        ) + fadeOut(tween(180)))
+                } else {
+                    (slideInHorizontally(
+                        animationSpec = tween(280, easing = FastOutSlowInEasing),
+                        initialOffsetX = { -it / 5 }
+                    ) + fadeIn(tween(240))) togetherWith
+                        (slideOutHorizontally(
+                            animationSpec = tween(220, easing = FastOutSlowInEasing),
+                            targetOffsetX = { it / 6 }
+                        ) + fadeOut(tween(180)))
+                }.using(SizeTransform(clip = false))
+            },
+            label = "questionTransition"
+        ) { state ->
+            val currentAnswer = vm.answerFor(state.question.id)
+            val selectedDichotomy = (currentAnswer as? AnswerValue.Dichotomy)?.value
+            val selectedLikert = (currentAnswer as? AnswerValue.Likert)?.value
+
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                SectionChip(
+                    text = state.question.category,
+                    containerColor = if (state.module == ScreeningModule.HYPERTENSION)
+                        MaterialTheme.colorScheme.primaryContainer
+                    else
+                        MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = if (state.module == ScreeningModule.HYPERTENSION)
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    else
+                        MaterialTheme.colorScheme.onSecondaryContainer
+                )
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = state.question.text,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                if (state.question.sensitive) {
+                    Spacer(Modifier.height(14.dp))
+                    LockNotice()
+                }
+                Spacer(Modifier.height(22.dp))
+
+                if (state.question.kind == QuestionKind.DICHOTOMY) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        OptionRow(
+                            label = "Ya",
+                            subtitle = "Sesuai dengan kondisi saya",
+                            selected = selectedDichotomy == true,
+                            onClick = { vm.answerDual(state.question.id, AnswerValue.Dichotomy(true)) }
+                        )
+                        OptionRow(
+                            label = "Tidak",
+                            subtitle = "Tidak sesuai dengan kondisi saya",
+                            selected = selectedDichotomy == false,
+                            onClick = { vm.answerDual(state.question.id, AnswerValue.Dichotomy(false)) }
+                        )
+                    }
+                } else {
+                    val labels = likertLabels(state.module)
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        labels.forEachIndexed { i, label ->
+                            OptionRow(
+                                label = label,
+                                subtitle = null,
+                                selected = selectedLikert == (i + 1),
+                                onClick = { vm.answerDual(state.question.id, AnswerValue.Likert(i + 1)) }
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(74.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            this@Column.AnimatedVisibility(
+                visible = isAnswered,
+                enter = fadeIn(tween(220)) + slideInVertically(
+                    initialOffsetY = { it / 3 },
+                    animationSpec = spring(stiffness = Spring.StiffnessMediumLow)
+                ),
+                exit = fadeOut(tween(150)) + slideOutVertically(targetOffsetY = { it / 3 })
+            ) {
+                PrimaryButton(
+                    text = if (index == questions.lastIndex) "Lihat Ringkasan Modul" else "Selanjutnya",
+                    onClick = vm::nextDualQuestion
+                )
+            }
+        }
+    }
+}
+
+private fun moduleIndicator(module: ScreeningModule): String = when (module) {
+    ScreeningModule.HYPERTENSION -> "Modul Hipertensi"
+    ScreeningModule.GBV -> "Modul Kesejahteraan & KBG"
+}
+
+@Composable
+private fun OptionRow(
+    label: String,
+    subtitle: String?,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.985f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "optionScale"
+    )
+
+    val containerColor by animateColorAsState(
+        targetValue = if (selected)
+            MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        else
+            MaterialTheme.colorScheme.surface,
+        animationSpec = tween(180),
+        label = "optionBg"
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (selected)
+            MaterialTheme.colorScheme.primary
+        else
+            MaterialTheme.colorScheme.outlineVariant,
+        animationSpec = tween(180),
+        label = "optionBorder"
+    )
+    val barHeight by animateDpAsState(
+        targetValue = if (selected) 36.dp else 22.dp,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "optionBarHeight"
+    )
+    val barColor by animateColorAsState(
+        targetValue = if (selected)
+            MaterialTheme.colorScheme.primary
+        else
+            MaterialTheme.colorScheme.outline,
+        animationSpec = tween(180),
+        label = "optionBarColor"
+    )
+
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape = RoundedCornerShape(18.dp),
+        color = containerColor,
+        border = BorderStroke(
+            width = if (selected) 1.5.dp else 1.dp,
+            color = borderColor
+        ),
+        modifier = Modifier
+            .fillMaxWidth()
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 15.dp, horizontal = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                Modifier
+                    .width(4.dp)
+                    .height(barHeight)
+                    .background(barColor, RoundedCornerShape(2.dp))
+            )
+            Spacer(Modifier.width(14.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (subtitle != null) {
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Spacer(Modifier.width(12.dp))
+            Box(
+                modifier = Modifier
+                    .size(24.dp)
+                    .background(
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
+                        shape = CircleShape
+                    )
+                    .border(
+                        width = if (selected) 0.dp else 1.5.dp,
+                        color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                        shape = CircleShape
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = selected,
+                    enter = scaleIn(spring(stiffness = Spring.StiffnessMedium)) + fadeIn(tween(120)),
+                    exit = scaleOut(tween(100)) + fadeOut(tween(100))
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Check,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+

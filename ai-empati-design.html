@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI-EMPATI — Android App UI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    /* Mauve primary — dusty plum, avoids cliché pink */
+    --mauve-50:#F3EDF7; --mauve-100:#E6D9EF; --mauve-200:#CFB5E0;
+    --mauve-300:#B18BC9; --mauve-400:#9868B3; --mauve-500:#7B4F97;
+    --mauve-600:#6B3F88; --mauve-700:#573272; --mauve-800:#432657;
+    /* Teal secondary */
+    --teal-50:#E4F3F1; --teal-100:#C4E6E1; --teal-400:#4BAFA4;
+    --teal-500:#2E9C8F; --teal-600:#21857B; --teal-700:#1A6B63;
+    /* Amber (Sedang) */
+    --amber-50:#FBF1E0; --amber-500:#D99A2B; --amber-600:#B57E1C; --amber-700:#8F6314;
+    /* Coral (Tinggi) */
+    --coral-50:#FBE9E6; --coral-500:#E06A57; --coral-600:#C64F3D; --coral-700:#A43E2F;
+
+    /* Light theme */
+    --bg:#F7F4F1; --surface:#FFFFFF; --surface-2:#F0EAE4;
+    --text:#2A2130; --text-2:#6F6478; --border:#E6DED6;
+    --on-primary:#FFFFFF;
+
+    --shadow-float:0 12px 32px rgba(67,38,87,.16), 0 2px 6px rgba(67,38,87,.08);
+    --r-card:16px; --r-sheet:24px; --r-btn:14px;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{background:#EAE5DF; color:var(--text);}
+  body{
+    font-family:"Plus Jakarta Sans",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+    line-height:1.5;
+  }
+  .serif{font-family:"Lora",Georgia,serif;}
+
+  /* ===== Browser page chrome ===== */
+  .page{padding:32px 20px 64px; max-width:1680px; margin:0 auto;}
+  .page-head{display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:16px; margin-bottom:28px;}
+  .page-head h1{font-family:"Lora",serif; font-size:30px; font-weight:600; letter-spacing:-.01em; color:#2A2130;}
+  .page-head p{color:#6F6478; font-size:14px; max-width:620px; margin-top:6px;}
+  .legend{display:flex; flex-wrap:wrap; gap:10px;}
+
+  /* Design tokens strip */
+  .tokens{display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:16px; margin-bottom:36px;}
+  .token-card{background:#FFFFFF; border:1px solid #E6DED6; border-radius:16px; padding:18px;}
+  .token-card h3{font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:#8A8090; margin-bottom:14px; font-weight:600;}
+  .swatches{display:flex; flex-wrap:wrap; gap:8px;}
+  .swatch{width:44px; height:44px; border-radius:12px; position:relative; box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);}
+  .swatch small{position:absolute; bottom:-16px; left:0; font-size:9px; color:#8A8090; white-space:nowrap;}
+  .type-row{display:flex; align-items:baseline; gap:12px; padding:7px 0; border-bottom:1px dashed #E6DED6;}
+  .type-row:last-child{border-bottom:0;}
+  .type-row .sample{font-family:"Lora",serif;}
+  .type-row .meta{margin-left:auto; font-size:10px; color:#8A8090;}
+
+  /* ===== Gallery ===== */
+  .section-label{font-size:12px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:#8A8090; margin:34px 0 16px;}
+  .gallery{display:grid; grid-template-columns:repeat(auto-fill,minmax(350px,1fr)); gap:36px 28px; align-items:start;}
+  .frame{display:flex; flex-direction:column; align-items:center; gap:12px;}
+  .frame > .caption{font-size:13px; font-weight:600; color:#4A4050; text-align:center;}
+  .frame > .caption small{display:block; font-weight:400; color:#8A8090; font-size:11px; margin-top:2px;}
+
+  /* ===== Phone device ===== */
+  .phone{
+    width:360px; border-radius:44px; background:#141018;
+    padding:10px; box-shadow:0 24px 60px rgba(20,16,24,.35), 0 4px 14px rgba(20,16,24,.18);
+    position:relative;
+  }
+  .screen{
+    width:100%; border-radius:34px; overflow:hidden; background:var(--bg);
+    display:flex; flex-direction:column; position:relative; height:720px;
+  }
+  /* Punch-hole camera */
+  .screen::before{
+    content:""; position:absolute; top:12px; left:50%; transform:translateX(-50%);
+    width:11px; height:11px; border-radius:50%; background:#141018; z-index:50;
+  }
+  .statusbar{
+    flex:0 0 auto; display:flex; align-items:center; justify-content:space-between;
+    padding:16px 22px 8px; font-size:13px; font-weight:600; color:var(--text); z-index:20;
+  }
+  .statusbar .icons{display:flex; align-items:center; gap:6px;}
+  .statusbar svg{display:block;}
+
+  .content{flex:1 1 auto; overflow:hidden; position:relative;}
+  .scroll{overflow-y:auto; scrollbar-width:none;}
+  .scroll::-webkit-scrollbar{display:none;}
+
+  .gesturebar{
+    flex:0 0 auto; display:flex; justify-content:center; padding:8px 0 10px;
+  }
+  .gesturebar span{width:108px; height:4px; border-radius:99px; background:var(--border);}
+
+  /* ===== Bottom nav ===== */
+  .bottomnav{
+    flex:0 0 auto; display:flex; align-items:center; justify-content:space-around;
+    padding:10px 8px calc(10px + env(safe-area-inset-bottom));
+    background:var(--surface); border-top:1px solid var(--border);
+  }
+  .bottomnav .bn{display:flex; flex-direction:column; align-items:center; gap:4px; min-width:48px; min-height:48px; justify-content:center; color:var(--text-2); font-size:10px; font-weight:600;}
+  .bottomnav .bn.active{color:var(--mauve-600);}
+  .bottomnav .bn svg{width:22px; height:22px;}
+
+  /* ===== Components ===== */
+  .card{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-card);}
+  .pad{padding:18px;}
+  .btn{display:inline-flex; align-items:center; justify-content:center; gap:8px; min-height:48px; border-radius:var(--r-btn); font-weight:600; font-size:14px; border:0; cursor:pointer; font-family:inherit; width:100%; transition:transform .12s ease, box-shadow .12s ease;}
+  .btn:active{transform:scale(.98);}
+  .btn-primary{background:var(--mauve-500); color:var(--on-primary);}
+  .btn-ghost{background:transparent; color:var(--mauve-600);}
+  .btn:focus-visible{outline:3px solid var(--mauve-300); outline-offset:2px;}
+  .chip{display:inline-flex; align-items:center; gap:6px; min-height:36px; padding:0 14px; border-radius:99px; background:var(--surface-2); color:var(--text); border:1px solid var(--border); font-size:12px; font-weight:600; cursor:pointer;}
+  .badge{display:inline-flex; align-items:center; gap:6px; padding:5px 12px; border-radius:99px; font-size:11px; font-weight:700;}
+  .badge .dot{width:7px; height:7px; border-radius:50%;}
+  .b-low{background:var(--teal-50); color:var(--teal-700);} .b-low .dot{background:var(--teal-500);}
+  .b-med{background:var(--amber-50); color:var(--amber-700);} .b-med .dot{background:var(--amber-500);}
+  .b-high{background:var(--coral-50); color:var(--coral-700);} .b-high .dot{background:var(--coral-500);}
+  .section-chip{display:inline-flex; align-items:center; padding:6px 14px; border-radius:99px; background:var(--mauve-50); color:var(--mauve-700); font-size:12px; font-weight:700;}
+
+  .iconwrap{width:48px; height:48px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
+  .iw-mauve{background:var(--mauve-50); color:var(--mauve-600);}
+  .iw-teal{background:var(--teal-50); color:var(--teal-600);}
+
+  /* ===== Splash ===== */
+  .splash{display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; height:100%; padding:32px;}
+  .logo-wrap{position:relative; width:150px; height:150px; display:flex; align-items:center; justify-content:center; margin-bottom:34px;}
+  .logo-ring{position:absolute; inset:0; border-radius:50%; border:2px solid var(--teal-500); border-top-color:transparent; animation:spin 2.4s linear infinite; opacity:.85;}
+  .logo-ring.ring2{inset:-14px; border-color:var(--mauve-200); border-top-color:transparent; animation-duration:3.6s; opacity:.5;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  @media (prefers-reduced-motion:reduce){.logo-ring{animation:none;}}
+  .splash .appname{font-size:34px; font-weight:600; color:var(--mauve-700); letter-spacing:.02em;}
+  .splash .tagline{font-size:14px; color:var(--text-2); margin-top:10px; max-width:230px; line-height:1.55;}
+
+  /* ===== Onboarding ===== */
+  .ob{display:flex; flex-direction:column; height:100%; padding:34px 24px 24px;}
+  .ob .ill{flex:0 0 auto; display:flex; align-items:center; justify-content:center; height:220px; margin-bottom:14px;}
+  .ob h2{font-size:24px; font-weight:600; color:var(--text); margin-bottom:10px;}
+  .ob p{font-size:14px; color:var(--text-2); line-height:1.65;}
+  .ob .dots{display:flex; gap:7px; margin:auto 0 22px;}
+  .ob .dots i{width:8px; height:8px; border-radius:99px; background:var(--border);}
+  .ob .dots i.on{background:var(--mauve-500); width:24px;}
+  .ob .skip{align-self:flex-end; font-size:13px; font-weight:600; color:var(--text-2); background:none; border:0; cursor:pointer; margin-top:8px;}
+
+  /* ===== Home ===== */
+  .home{padding:8px 18px 18px;}
+  .home-top{display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; padding-top:4px;}
+  .home-top .greet small{display:block; font-size:12px; color:var(--text-2); font-weight:500;}
+  .home-top .greet strong{font-family:"Lora",serif; font-size:22px; font-weight:600; color:var(--text);}
+  .avatar{width:44px; height:44px; border-radius:50%; background:var(--mauve-500); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:14px; letter-spacing:.02em;}
+  .risk-card{border-radius:var(--r-card); padding:20px; margin-bottom:16px; background:var(--surface); border:1px solid var(--border);}
+  .risk-card .rc-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;}
+  .risk-card .rc-head h3{font-size:13px; font-weight:600; color:var(--text-2);}
+  .risk-score{display:flex; align-items:center; gap:16px;}
+  .mini-gauge{width:66px; height:66px; flex:0 0 auto;}
+  .risk-score .meta .cat{font-family:"Lora",serif; font-size:20px; font-weight:600; color:var(--text);}
+  .risk-score .meta .sub{font-size:12px; color:var(--text-2); margin-top:2px;}
+  .risk-card .foot{display:flex; justify-content:space-between; align-items:center; margin-top:14px; padding-top:14px; border-top:1px solid var(--border); font-size:12px; color:var(--text-2);}
+  .risk-card .foot a{color:var(--mauve-600); font-weight:700; text-decoration:none;}
+  .feature-grid{display:grid; grid-template-columns:1fr 1fr; gap:14px;}
+  .feature{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-card); padding:18px 16px; display:flex; flex-direction:column; gap:14px; min-height:132px;}
+  .feature h4{font-size:15px; font-weight:700; color:var(--text); line-height:1.3;}
+  .feature p{font-size:12px; color:var(--text-2); margin-top:auto;}
+  .empty-risk{display:flex; flex-direction:column; align-items:center; text-align:center; gap:12px; padding:10px 0;}
+  .empty-risk h3{font-size:17px; font-weight:700; color:var(--text);}
+  .empty-risk p{font-size:13px; color:var(--text-2);}
+  .empty-risk .btn{max-width:220px;}
+
+  /* ===== Consent ===== */
+  .consent{padding:10px 18px 18px; display:flex; flex-direction:column; height:100%;}
+  .lock-badge{width:56px; height:56px; border-radius:18px; background:var(--mauve-50); color:var(--mauve-600); display:flex; align-items:center; justify-content:center; margin:8px 0 16px;}
+  .consent h2{font-family:"Lora",serif; font-size:22px; font-weight:600; margin-bottom:6px;}
+  .consent .lead{font-size:13px; color:var(--text-2); margin-bottom:16px;}
+  .consent-doc{flex:1 1 auto; overflow-y:auto; scrollbar-width:none; border:1px solid var(--border); border-radius:var(--r-card); padding:16px; background:var(--surface); font-size:13px; color:var(--text-2); line-height:1.7; margin-bottom:16px;}
+  .consent-doc::-webkit-scrollbar{display:none;}
+  .consent-doc h4{font-size:13px; color:var(--text); margin:12px 0 4px; font-weight:700;}
+  .consent-doc h4:first-child{margin-top:0;}
+  .consent .actions{display:flex; flex-direction:column; gap:10px;}
+
+  /* ===== Questionnaire ===== */
+  .quiz{display:flex; flex-direction:column; height:100%; padding:6px 18px 18px;}
+  .quiz-top{display:flex; align-items:center; gap:10px; margin-bottom:14px;}
+  .icon-btn{width:48px; height:48px; border-radius:14px; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; color:var(--text); cursor:pointer; flex:0 0 auto;}
+  .progress-info{flex:1; text-align:center;}
+  .progress-info .ptxt{font-size:12px; font-weight:700; color:var(--text-2); margin-bottom:8px;}
+  .pbar{height:8px; border-radius:99px; background:var(--surface-2); overflow:hidden;}
+  .pbar i{display:block; height:100%; width:12.5%; background:var(--mauve-500); border-radius:99px; transition:width .3s ease;}
+  .quiz-body{flex:1 1 auto; display:flex; flex-direction:column;}
+  .quiz-body .section-chip{margin-bottom:16px; align-self:flex-start;}
+  .quiz-body h2{font-family:"Lora",serif; font-size:23px; font-weight:600; line-height:1.35; margin-bottom:18px;}
+  .sensitive{display:flex; align-items:center; gap:8px; font-size:12px; color:var(--teal-700); background:var(--teal-50); border-radius:10px; padding:9px 12px; margin-bottom:16px; font-weight:600;}
+  .options{display:flex; flex-direction:column; gap:11px;}
+  .opt{display:flex; align-items:center; gap:14px; width:100%; min-height:56px; padding:14px 16px; border-radius:14px; background:var(--surface); border:1px solid var(--border); border-left:4px solid var(--mauve-300); cursor:pointer; text-align:left; font-family:inherit; font-size:14px; font-weight:600; color:var(--text); transition:border-color .15s ease, background .15s ease;}
+  .opt .radio{width:20px; height:20px; border-radius:50%; border:2px solid var(--border); flex:0 0 auto; display:flex; align-items:center; justify-content:center;}
+  .opt.sel{border-color:var(--mauve-500); background:var(--mauve-50);}
+  .opt.sel .radio{border-color:var(--mauve-500);}
+  .opt.sel .radio::after{content:""; width:10px; height:10px; border-radius:50%; background:var(--mauve-500);}
+  .quiz .btn{margin-top:18px; display:none;}
+  .quiz .btn.show{display:flex;}
+
+  /* ===== Result ===== */
+  .result{padding:10px 18px 22px;}
+  .res-gauge{display:flex; flex-direction:column; align-items:center; padding:10px 0 20px;}
+  .res-gauge .cat{font-family:"Lora",serif; font-size:25px; font-weight:600; margin-top:12px; color:var(--text);}
+  .res-gauge .score{font-size:13px; color:var(--text-2); margin-top:2px;}
+  .insights{display:flex; flex-direction:column; gap:12px; margin-bottom:20px;}
+  .insight{display:flex; gap:13px; padding:14px; border-radius:var(--r-card); background:var(--surface); border:1px solid var(--border);}
+  .insight h4{font-size:14px; font-weight:700; color:var(--text); margin-bottom:3px;}
+  .insight p{font-size:12px; color:var(--text-2); line-height:1.55;}
+  .insight .ico{flex:0 0 auto;}
+  .rec{border-radius:var(--r-card); background:var(--surface-2); border:1px solid var(--border); padding:16px; margin-bottom:20px;}
+  .rec h4{font-size:14px; font-weight:700; color:var(--text); margin-bottom:10px;}
+  .rec ul{list-style:none; display:flex; flex-direction:column; gap:9px;}
+  .rec li{display:flex; gap:10px; font-size:13px; color:var(--text-2); line-height:1.5;}
+  .rec li::before{content:""; width:6px; height:6px; border-radius:50%; background:var(--teal-500); flex:0 0 auto; margin-top:7px;}
+  .result .actions{display:flex; flex-direction:column; gap:10px;}
+
+  /* ===== Chat ===== */
+  .chat{display:flex; flex-direction:column; height:100%;}
+  .chat-head{flex:0 0 auto; display:flex; align-items:center; gap:12px; padding:6px 18px 14px; border-bottom:1px solid var(--border);}
+  .chat-head .bot-avatar{width:42px; height:42px; border-radius:50%; background:var(--mauve-500); color:#fff; display:flex; align-items:center; justify-content:center; position:relative;}
+  .online-dot{position:absolute; bottom:-1px; right:-1px; width:11px; height:11px; border-radius:50%; background:var(--teal-500); border:2px solid var(--surface);}
+  .chat-head h2{font-size:16px; font-weight:700; color:var(--text);}
+  .chat-head p{font-size:11px; color:var(--text-2);}
+  .chat-scroll{flex:1 1 auto; overflow-y:auto; scrollbar-width:none; padding:16px 16px 12px; display:flex; flex-direction:column; gap:12px;}
+  .chat-scroll::-webkit-scrollbar{display:none;}
+  .disclaimer{align-self:center; max-width:290px; text-align:center; font-size:11px; color:var(--text-2); background:var(--surface-2); border:1px solid var(--border); border-radius:99px; padding:8px 14px; margin-bottom:4px;}
+  .msg{display:flex; gap:8px; max-width:82%;}
+  .msg .bub{padding:12px 14px; font-size:13px; line-height:1.55; border-radius:16px;}
+  .msg.user{align-self:flex-end; justify-content:flex-end;}
+  .msg.user .bub{background:var(--mauve-500); color:#fff; border-bottom-right-radius:6px;}
+  .msg.bot{align-self:flex-start;}
+  .msg.bot .bub{background:var(--surface); border:1px solid var(--border); color:var(--text); border-bottom-left-radius:6px;}
+  .msg.bot .mini-ava{width:26px; height:26px; border-radius:50%; background:var(--mauve-500); color:#fff; display:flex; align-items:center; justify-content:center; font-size:10px; font-weight:700; flex:0 0 auto; margin-top:2px;}
+  .quick{flex:0 0 auto; display:flex; gap:8px; padding:4px 16px 10px; overflow-x:auto; scrollbar-width:none;}
+  .quick::-webkit-scrollbar{display:none;}
+  .quick .chip{white-space:nowrap;}
+  .inputbar{flex:0 0 auto; display:flex; gap:10px; padding:6px 16px 16px;}
+  .inputbar input{flex:1; min-height:48px; border-radius:24px; border:1px solid var(--border); background:var(--surface); padding:0 18px; font-family:inherit; font-size:14px; color:var(--text);}
+  .inputbar input:focus{outline:3px solid var(--mauve-300); outline-offset:1px;}
+  .sendbtn{width:48px; height:48px; border-radius:50%; background:var(--teal-500); color:#fff; border:0; display:flex; align-items:center; justify-content:center; cursor:pointer; flex:0 0 auto;}
+
+  /* ===== History ===== */
+  .history{padding:8px 18px 18px;}
+  .history h2{font-family:"Lora",serif; font-size:24px; font-weight:600; margin-bottom:18px;}
+  .timeline{display:flex; flex-direction:column; gap:12px;}
+  .titem{display:flex; align-items:center; gap:14px; padding:15px 16px; border-radius:var(--r-card); background:var(--surface); border:1px solid var(--border);}
+  .titem .t-ico{width:42px; height:42px; border-radius:12px; background:var(--surface-2); color:var(--text-2); display:flex; align-items:center; justify-content:center; flex:0 0 auto;}
+  .titem .t-info{flex:1;}
+  .titem .t-info strong{display:block; font-size:14px; color:var(--text); font-weight:700;}
+  .titem .t-info span{font-size:12px; color:var(--text-2);}
+  .titem .chev{color:var(--text-2);}
+  .empty-state{display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px; padding:50px 20px;}
+  .empty-state .ill{width:120px; height:120px; border-radius:24px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; color:var(--text-2);}
+  .empty-state h3{font-size:17px; font-weight:700; color:var(--text);}
+  .empty-state p{font-size:13px; color:var(--text-2); max-width:240px;}
+
+  /* ===== Profile ===== */
+  .profile{padding:8px 18px 24px;}
+  .prof-head{display:flex; align-items:center; gap:16px; padding:14px 0 22px;}
+  .prof-head .avatar{width:64px; height:64px; font-size:20px;}
+  .prof-head h2{font-family:"Lora",serif; font-size:22px; font-weight:600;}
+  .prof-head p{font-size:12px; color:var(--text-2);}
+  .field{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-card); padding:14px 16px; margin-bottom:10px;}
+  .field label{display:block; font-size:11px; font-weight:600; color:var(--text-2); letter-spacing:.02em; margin-bottom:3px;}
+  .field .val{font-size:14px; color:var(--text); font-weight:600; display:flex; justify-content:space-between; align-items:center;}
+  .field .edit{color:var(--mauve-600); font-size:12px; font-weight:700; background:none; border:0; cursor:pointer;}
+  .setting-list{background:var(--surface); border:1px solid var(--border); border-radius:var(--r-card); margin:12px 0; overflow:hidden;}
+  .setting{display:flex; align-items:center; gap:13px; padding:15px 16px; border-bottom:1px solid var(--border); min-height:52px;}
+  .setting:last-child{border-bottom:0;}
+  .setting .s-ico{color:var(--mauve-600); flex:0 0 auto;}
+  .setting span{flex:1; font-size:14px; font-weight:600; color:var(--text);}
+  .setting .chev{color:var(--text-2);}
+  .danger{margin-top:24px; text-align:center; font-size:13px; font-weight:600; color:var(--coral-600); background:none; border:0; cursor:pointer; width:100%; padding:8px;}
+
+  /* ===== Dark mode ===== */
+  .screen.dark{--bg:#1A1520; --surface:#2A2035; --surface-2:#241B2E; --text:#F2EDF5; --text-2:#B9AEC5; --border:#3A2E49; --on-primary:#FFFFFF;}
+  .screen.dark .opt.sel{background:rgba(123,79,151,.18);}
+  .screen.dark .risk-card{background:#2A2035;}
+
+  .small .phone{width:320px;}
+  .small .screen{height:640px;}
+
+  @media (max-width:720px){
+    .page{padding:20px 12px 48px;}
+    .gallery{grid-template-columns:1fr;}
+    .phone{width:min(360px,92vw);}
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="page-head">
+    <div>
+      <h1>AI-EMPATI</h1>
+      <p>Skrining risiko hipertensi untuk perempuan ASN — aplikasi Android Material You yang memadukan skrining ahli &amp; chatbot kesehatan. Bahasa Indonesia.</p>
+    </div>
+    <div class="legend">
+      <span class="badge b-low"><i class="dot"></i>Rendah</span>
+      <span class="badge b-med"><i class="dot"></i>Sedang</span>
+      <span class="badge b-high"><i class="dot"></i>Tinggi</span>
+    </div>
+  </header>
+
+  <!-- Design tokens -->
+  <div class="tokens">
+    <div class="token-card">
+      <h3>Palet warna</h3>
+      <div class="swatches" style="padding-bottom:8px">
+        <div class="swatch" style="background:#7B4F97"><small>Mauve</small></div>
+        <div class="swatch" style="background:#6B3F88"><small>Mauve-600</small></div>
+        <div class="swatch" style="background:#2E9C8F"><small>Teal</small></div>
+        <div class="swatch" style="background:#D99A2B"><small>Amber</small></div>
+        <div class="swatch" style="background:#E06A57"><small>Coral</small></div>
+        <div class="swatch" style="background:#F7F4F1; width:44px; height:44px; border:1px solid #E6DED6"><small>Bg #F7F4F1</small></div>
+        <div class="swatch" style="background:#1A1520"><small>Dark #1A1520</small></div>
+        <div class="swatch" style="background:#2A2035"><small>Card #2A2035</small></div>
+      </div>
+    </div>
+    <div class="token-card">
+      <h3>Tipografi</h3>
+      <div class="type-row"><span class="sample serif" style="font-size:24px">Headline</span><span class="meta">Lora · 24sp</span></div>
+      <div class="type-row"><span class="sample serif" style="font-size:18px">Judul</span><span class="meta">Lora · 18sp</span></div>
+      <div class="type-row"><span style="font-size:14px; font-weight:600">Isi teks</span><span class="meta">Plus Jakarta · 14sp</span></div>
+      <div class="type-row"><span style="font-size:12px">Keterangan</span><span class="meta">Plus Jakarta · 12sp</span></div>
+    </div>
+  </div>
+
+  <!-- ===================== SCREENS ===================== -->
+
+  <div class="section-label">1 · Splash</div>
+  <div class="gallery">
+    <div class="frame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>08:42</span><span class="icons">SVG</span></div>
+        <div class="content splash">
+          <div class="logo-wrap">
+            <span class="logo-ring ring2"></span>
+            <span class="logo-ring"></span>
+            <!-- Logo: shield + female silhouette, mauve -->
+            <svg width="96" height="96" viewBox="0 0 96 96" fill="none" aria-label="Logo AI-EMPATI">
+              <path d="M48 7 L82 20 V46 C82 67 67 81 48 89 C29 81 14 67 14 46 V20 Z" fill="#7B4F97" opacity=".96"/>
+              <path d="M48 7 L82 20 V46 C82 67 67 81 48 89 C29 81 14 67 14 46 V20 Z" stroke="#6B3F88" stroke-width="2"/>
+              <!-- female silhouette -->
+              <circle cx="48" cy="37" r="8.5" fill="#F7F4F1"/>
+              <path d="M33 76 C33 60 40 52 48 52 C56 52 63 60 63 76" stroke="#F7F4F1" stroke-width="6.5" stroke-linecap="round"/>
+              <path d="M48 66 L48 80" stroke="#F7F4F1" stroke-width="4.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <div class="appname serif">AI-EMPATI</div>
+          <div class="tagline">Skrining Kesehatan Berbasis Kepedulian</div>
+        </div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Splash / Loading <small>Lingkaran teal berputar halus saat memuat</small></div>
+    </div>
+  </div>
+
+  <div class="section-label">2 · Onboarding (3 slide, dapat digeser)</div>
+  <div class="gallery">
+    <!-- Slide 1 -->
+    <div class="frame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>08:42</span><span class="icons">SVG</span></div>
+        <div class="content"><div class="ob">
+          <button class="skip">Lewati</button>
+          <div class="ill">
+            <svg width="170" height="170" viewBox="0 0 170 170" fill="none">
+              <circle cx="85" cy="85" r="76" stroke="#B18BC9" stroke-width="2" stroke-dasharray="3 6"/>
+              <circle cx="85" cy="85" r="60" stroke="#E6D9EF" stroke-width="1.5"/>
+              <circle cx="85" cy="64" r="14" stroke="#7B4F97" stroke-width="2.5"/>
+              <path d="M54 138 C54 112 66 98 85 98 C104 98 116 112 116 138" stroke="#7B4F97" stroke-width="2.5" stroke-linecap="round"/>
+              <path d="M85 128 L85 146" stroke="#7B4F97" stroke-width="2.5" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h2 class="serif">Ruang Aman untuk Anda</h2>
+          <p>Jawaban Anda dienkripsi dan hanya digunakan untuk skrining kesehatan. Tidak seorang pun dapat melihat data Anda tanpa izin Anda.</p>
+          <div class="dots"><i class="on"></i><i></i><i></i></div>
+        </div></div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Onboarding — Slide 1 <small>Privasi &amp; perlindungan data</small></div>
+    </div>
+
+    <!-- Slide 2 -->
+    <div class="frame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>08:42</span><span class="icons">SVG</span></div>
+        <div class="content"><div class="ob">
+          <button class="skip">Lewati</button>
+          <div class="ill">
+            <svg width="170" height="170" viewBox="0 0 170 170" fill="none">
+              <path d="M85 118 C85 92 72 79 85 62 C98 79 85 92 85 118 Z" fill="#E6D9EF"/>
+              <path d="M85 118 C85 92 72 79 85 62 C98 79 85 92 85 118 Z" stroke="#7B4F97" stroke-width="2.5" stroke-linejoin="round"/>
+              <path d="M85 22 L120 36 V72 C120 101 104 118 85 132 C66 118 50 101 50 72 V36 Z" fill="#F3EDF7"/>
+              <path d="M85 22 L120 36 V72 C120 101 104 118 85 132 C66 118 50 101 50 72 V36 Z" stroke="#7B4F97" stroke-width="2.5" stroke-linejoin="round"/>
+              <path d="M85 57 L90 68 L103 69 L93 76 L96 89 L85 82 L74 89 L77 76 L67 69 L80 68 Z" fill="#2E9C8F"/>
+            </svg>
+          </div>
+          <h2 class="serif">Skrining Risiko Hipertensi</h2>
+          <p>Jawab beberapa pertanyaan untuk mengetahui risiko Anda. Hasilnya membantu Anda memahami faktor penyebabnya.</p>
+          <div class="dots"><i></i><i class="on"></i><i></i></div>
+        </div></div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Onboarding — Slide 2 <small>Jantung + perisai</small></div>
+    </div>
+
+    <!-- Slide 3 -->
+    <div class="frame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>08:42</span><span class="icons">SVG</span></div>
+        <div class="content"><div class="ob">
+          <button class="skip">Lewati</button>
+          <div class="ill">
+            <svg width="170" height="170" viewBox="0 0 170 170" fill="none">
+              <path d="M42 70 C42 50 56 40 74 42 C74 42 78 46 85 50 C92 46 96 42 96 42 C114 40 128 50 128 70 C128 94 104 112 85 124 C66 112 42 94 42 70 Z" fill="#E6D9EF"/>
+              <path d="M42 70 C42 50 56 40 74 42 C74 42 78 46 85 50 C92 46 96 42 96 42 C114 40 128 50 128 70 C128 94 104 112 85 124 C66 112 42 94 42 70 Z" stroke="#7B4F97" stroke-width="2.5" stroke-linejoin="round"/>
+              <path d="M85 78 C85 74 78 70 78 63 C78 57 83 53 85 53 C87 53 92 57 92 63 C92 70 85 74 85 78 Z" fill="#2E9C8F"/>
+              <path d="M52 100 L76 92" stroke="#7B4F97" stroke-width="2" stroke-linecap="round"/>
+              <path d="M118 100 L94 92" stroke="#7B4F97" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </div>
+          <h2 class="serif">Tanya AI-EMPATI</h2>
+          <p>Konsultasikan pertanyaan seputar kesehatan Anda kapan saja, dalam ruang yang aman dan terbatas.</p>
+          <div class="dots"><i></i><i></i><i class="on"></i></div>
+          <button class="btn btn-primary">Mulai Sekarang</button>
+        </div></div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Onboarding — Slide 3 <small>CTA penuh</small></div>
+    </div>
+  </div>
+
+  <div class="section-label">3 · Home Dashboard</div>
+  <div class="gallery">
+    <!-- Home light (screened) -->
+    <div class="frame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>08:42</span><span class="icons">SVG</span></div>
+        <div class="content scroll"><div class="home">
+          <div class="home-top">
+            <div class="greet"><small>Selamat pagi,</small><strong>Ibu Ratna Andari</strong></div>
+            <div class="avatar">RA</div>
+          </div>
+
+          <div class="risk-card">
+            <div class="rc-head"><h3>Hasil skrining terakhir</h3><span class="badge b-med"><i class="dot"></i>Sedang</span></div>
+            <div class="risk-score">
+              <svg class="mini-gauge" viewBox="0 0 66 66">
+                <circle cx="33" cy="33" r="28" fill="none" stroke="#E6DED6" stroke-width="7"/>
+                <circle cx="33" cy="33" r="28" fill="none" stroke="#D99A2B" stroke-width="7" stroke-linecap="round" stroke-dasharray="109.9 175.9" transform="rotate(-90 33 33)"/>
+                <text x="33" y="38" text-anchor="middle" font-size="15" font-weight="700" fill="#2A2130">62</text>
+              </svg>
+              <div class="meta">
+                <div class="cat">Risiko Sedang</div>
+                <div class="sub">12 Okt 2025 · 09:31</div>
+              </div>
+            </div>
+            <div class="foot"><span>Skor keseluruhan</span><a href="#">Lihat detail</a></div>
+          </div>
+
+          <div class="feature-grid">
+            <div class="feature">
+              <div class="iconwrap iw-mauve">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg>
+              </div>
+              <h4>Mulai Skrining</h4>
+              <p>Isi kuesioner risiko</p>
+            </div>
+            <div class="feature">
+              <div class="iconwrap iw-teal">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H5l2-3a8 8 0 1 1 14-5z"/><path d="M12 8v4"/><path d="M12 12h4"/></svg>
+              </div>
+              <h4>Tanya AI-EMPATI</h4>
+              <p>Konsultasi kesehatan</p>
+            </div>
+          </div>
+        </div></div>
+
+        <div class="bottomnav">
+          <div class="bn active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a1 1 0 0 1 1 1v14l-4-2-4 2V6a1 1 0 0 1 1-1z"/></svg>Skrining</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H5l2-3a8 8 0 1 1 14-5z"/></svg>Chat</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Riwayat</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</div>
+        </div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Home — Light <small>Hasil terakhir: Sedang</small></div>
+    </div>
+
+    <!-- Home dark (screened) -->
+    <div class="frame">
+      <div class="phone"><div class="screen dark">
+        <div class="statusbar"><span>20:15</span><span class="icons">SVG</span></div>
+        <div class="content scroll"><div class="home">
+          <div class="home-top">
+            <div class="greet"><small>Selamat malam,</small><strong>Ibu Ratna Andari</strong></div>
+            <div class="avatar">RA</div>
+          </div>
+
+          <div class="risk-card">
+            <div class="rc-head"><h3>Hasil skrining terakhir</h3><span class="badge b-med"><i class="dot"></i>Sedang</span></div>
+            <div class="risk-score">
+              <svg class="mini-gauge" viewBox="0 0 66 66">
+                <circle cx="33" cy="33" r="28" fill="none" stroke="#3A2E49" stroke-width="7"/>
+                <circle cx="33" cy="33" r="28" fill="none" stroke="#D99A2B" stroke-width="7" stroke-linecap="round" stroke-dasharray="109.9 175.9" transform="rotate(-90 33 33)"/>
+                <text x="33" y="38" text-anchor="middle" font-size="15" font-weight="700" fill="#F2EDF5">62</text>
+              </svg>
+              <div class="meta">
+                <div class="cat">Risiko Sedang</div>
+                <div class="sub">12 Okt 2025 · 09:31</div>
+              </div>
+            </div>
+            <div class="foot"><span>Skor keseluruhan</span><a href="#">Lihat detail</a></div>
+          </div>
+
+          <div class="feature-grid">
+            <div class="feature">
+              <div class="iconwrap iw-mauve">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg>
+              </div>
+              <h4>Mulai Skrining</h4>
+              <p>Isi kuesioner risiko</p>
+            </div>
+            <div class="feature">
+              <div class="iconwrap iw-teal">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H5l2-3a8 8 0 1 1 14-5z"/><path d="M12 8v4"/><path d="M12 12h4"/></svg>
+              </div>
+              <h4>Tanya AI-EMPATI</h4>
+              <p>Konsultasi kesehatan</p>
+            </div>
+          </div>
+        </div></div>
+
+        <div class="bottomnav">
+          <div class="bn active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a1 1 0 0 1 1 1v14l-4-2-4 2V6a1 1 0 0 1 1-1z"/></svg>Skrining</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H5l2-3a8 8 0 1 1 14-5z"/></svg>Chat</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Riwayat</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</div>
+        </div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Home — Dark <small>Latar #1A1520 · kartu #2A2035</small></div>
+    </div>
+
+    <!-- Home empty state -->
+    <div class="frame small">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>08:42</span><span class="icons">SVG</span></div>
+        <div class="content scroll"><div class="home">
+          <div class="home-top">
+            <div class="greet"><small>Selamat pagi,</small><strong>Ibu Ratna Andari</strong></div>
+            <div class="avatar">RA</div>
+          </div>
+          <div class="risk-card">
+            <div class="rc-head"><h3>Hasil skrining terakhir</h3></div>
+            <div class="empty-risk">
+              <h3>Belum ada data skrining</h3>
+              <p>Mulai skrining pertama Anda untuk mengetahui risiko hipertensi.</p>
+              <button class="btn btn-primary">Mulai Skrining</button>
+            </div>
+          </div>
+          <div class="feature-grid">
+            <div class="feature">
+              <div class="iconwrap iw-mauve">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7z"/><path d="M9 12l2 2 4-4"/></svg>
+              </div>
+              <h4>Mulai Skrining</h4>
+              <p>Isi kuesioner risiko</p>
+            </div>
+            <div class="feature">
+              <div class="iconwrap iw-teal">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H5l2-3a8 8 0 1 1 14-5z"/><path d="M12 8v4"/><path d="M12 12h4"/></svg>
+              </div>
+              <h4>Tanya AI-EMPATI</h4>
+              <p>Konsultasi kesehatan</p>
+            </div>
+          </div>
+        </div></div>
+        <div class="bottomnav">
+          <div class="bn active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a1 1 0 0 1 1 1v14l-4-2-4 2V6a1 1 0 0 1 1-1z"/></svg>Skrining</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H5l2-3a8 8 0 1 1 14-5z"/></svg>Chat</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Riwayat</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</div>
+        </div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Home — Empty state <small>Belum ada data skrining</small></div>
+    </div>
+  </div>
+
+  <div class="section-label">4 · Persetujuan (Informed Consent)</div>
+  <div class="gallery">
+    <div class="frame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>08:42</span><span class="icons">SVG</span></div>
+        <div class="content"><div class="consent">
+          <div class="lock-badge">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          </div>
+          <h2 class="serif">Persetujuan Skrining</h2>
+          <p class="lead">Mohon baca dengan saksama sebelum melanjutkan.</p>
+          <div class="consent-doc">
+            <h4>1. Tujuan</h4>
+            Skrining ini menilai risiko hipertensi Anda, termasuk faktor pengalaman kekerasan berbasis gender. Hasilnya bukan diagnosis medis.
+            <h4>2. Data yang dikumpulkan</h4>
+            Jawaban kuesioner kesehatan, informasi tekanan darah bila tersedia, dan riwayat yang relevan.
+            <h4>3. Kerahasiaan</h4>
+            Data Anda dienkripsi dan disimpan secara lokal. Hanya Anda yang dapat mengakses hasil skrining melalui kunci keamanan perangkat.
+            <h4>4. Hak Anda</h4>
+            Anda dapat berhenti kapan saja dan menghapus seluruh data Anda tanpa konsekuensi apa pun.
+            <h4>5. Bantuan darurat</h4>
+            Jika Anda merasa tidak aman, hubungi layanan SAPA 129 atau tenaga kesehatan terdekat.
+          </div>
+          <div class="actions">
+            <button class="btn btn-primary">Saya Setuju</button>
+            <button class="btn btn-ghost">Batalkan</button>
+          </div>
+        </div></div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Persetujuan <small>Dokumen yang dapat digulir + ikon gembok</small></div>
+    </div>
+  </div>
+
+  <div class="section-label">5 · Kuesioner Skrining</div>
+  <div class="gallery">
+    <div class="frame" id="quizFrame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>08:43</span><span class="icons">SVG</span></div>
+        <div class="content"><div class="quiz">
+          <div class="quiz-top">
+            <button class="icon-btn" aria-label="Kembali">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+            </button>
+            <div class="progress-info">
+              <div class="ptxt">Pertanyaan 3 dari 24</div>
+              <div class="pbar"><i style="width:12.5%"></i></div>
+            </div>
+            <div style="width:48px"></div>
+          </div>
+          <div class="quiz-body">
+            <span class="section-chip">Faktor Risiko</span>
+            <h2 class="serif">Apakah Anda pernah mengalami kekerasan fisik, verbal, atau emosional dari pasangan atau orang terdekat?</h2>
+            <div class="sensitive">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              Jawaban Anda aman &amp; rahasia
+            </div>
+            <div class="options" id="quizOptions">
+              <button class="opt"><span class="radio"></span>Tidak pernah</button>
+              <button class="opt"><span class="radio"></span>Jarang</button>
+              <button class="opt"><span class="radio"></span>Kadang-kadang</button>
+              <button class="opt"><span class="radio"></span>Sering</button>
+              <button class="opt"><span class="radio"></span>Sangat sering</button>
+            </div>
+            <button class="btn btn-primary" id="quizNext">Lanjut</button>
+          </div>
+        </div></div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Kuesioner <small>Sentuh opsi untuk memunculkan tombol "Lanjut"</small></div>
+    </div>
+  </div>
+
+  <div class="section-label">6 · Hasil Skrining</div>
+  <div class="gallery">
+    <div class="frame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>08:45</span><span class="icons">SVG</span></div>
+        <div class="content scroll"><div class="result">
+          <div class="res-gauge">
+            <svg width="180" height="180" viewBox="0 0 180 180">
+              <circle cx="90" cy="90" r="74" fill="none" stroke="#F0EAE4" stroke-width="15"/>
+              <circle cx="90" cy="90" r="74" fill="none" stroke="#D99A2B" stroke-width="15" stroke-linecap="round" stroke-dasharray="288.2 464.9" transform="rotate(-90 90 90)"/>
+              <text x="90" y="86" text-anchor="middle" font-size="40" font-weight="700" fill="#2A2130" font-family="Lora,serif">62</text>
+              <text x="90" y="108" text-anchor="middle" font-size="12" fill="#6F6478">dari 100</text>
+            </svg>
+            <div class="cat">Risiko Sedang</div>
+            <div class="score">Skor keseluruhan: 62 dari 100</div>
+          </div>
+
+          <div class="insights">
+            <div class="insight">
+              <div class="iconwrap iw-teal ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
+              <div><h4>Tekanan darah</h4><p>Tekanan darah Anda cenderung tinggi (130/85). Perlu dipantau secara berkala.</p></div>
+            </div>
+            <div class="insight">
+              <div class="iconwrap iw-mauve ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.8 4.6a5.5 5.5 0 0 0-7.8 0L12 5.6l-1-1a5.5 5.5 0 0 0-7.8 7.8l1 1L12 21l7.8-7.6 1-1a5.5 5.5 0 0 0 0-7.8z"/></svg></div>
+              <div><h4>Pengalaman stres &amp; kekerasan</h4><p>Pengalaman kekerasan dapat meningkatkan risiko hipertensi. Anda tidak sendirian.</p></div>
+            </div>
+            <div class="insight">
+              <div class="iconwrap iw-mauve ico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg></div>
+              <div><h4>Riwayat keluarga</h4><p>Ada riwayat hipertensi dalam keluarga, sehingga pemantauan dini lebih disarankan.</p></div>
+            </div>
+          </div>
+
+          <div class="rec">
+            <h4>Rekomendasi</h4>
+            <ul>
+              <li>Konsultasikan hasil ini kepada dokter atau puskesmas terdekat.</li>
+              <li>Kurangi asupan garam dan perbanyak buah serta sayur.</li>
+              <li>Lakukan aktivitas fisik ringan minimal 30 menit sehari.</li>
+              <li>Kelola stres dengan istirahat dan dukungan sosial yang sehat.</li>
+            </ul>
+          </div>
+
+          <div class="actions">
+            <button class="btn btn-primary">Simpan Hasil</button>
+            <button class="btn btn-ghost">Tanya AI-EMPATI tentang Hasil Ini</button>
+          </div>
+        </div></div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Hasil Skrining <small>Ring gauge + kartu wawasan + rekomendasi</small></div>
+    </div>
+  </div>
+
+  <div class="section-label">7 · Chat AI-EMPATI</div>
+  <div class="gallery">
+    <div class="frame" id="chatFrame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>09:02</span><span class="icons">SVG</span></div>
+        <div class="content"><div class="chat">
+          <div class="chat-head">
+            <div class="bot-avatar"><span class="online-dot"></span><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H5l2-3a8 8 0 1 1 14-5z"/><path d="M8 11h8M8 8h5"/></svg></div>
+            <div><h2>AI-EMPATI</h2><p>Asisten Kesehatan — Hipertensi &amp; Kekerasan Gender</p></div>
+          </div>
+          <div class="chat-scroll" id="chatScroll">
+            <div class="disclaimer">Saya hanya menjawab pertanyaan seputar hipertensi &amp; kesehatan gender</div>
+            <div class="msg bot">
+              <div class="mini-ava">AI</div>
+              <div class="bub">Halo, Ibu Ratna. Saya siap membantu Anda memahami hipertensi dan faktor risikonya. Apa yang ingin Anda tanyakan?</div>
+            </div>
+            <div class="msg user"><div class="bub">Apa itu hipertensi?</div></div>
+            <div class="msg bot">
+              <div class="mini-ava">AI</div>
+              <div class="bub">Hipertensi adalah kondisi tekanan darah yang terus-menerus tinggi (≥140/90 mmHg). Kondisi ini sering tidak bergejala, tetapi dapat memicu penyakit jantung dan stroke bila tidak dikelola.</div>
+            </div>
+          </div>
+          <div class="quick">
+            <button class="chip">Apa itu hipertensi?</button>
+            <button class="chip">Lihat hasil skrining saya</button>
+            <button class="chip">Cara mencegah hipertensi?</button>
+          </div>
+          <div class="inputbar">
+            <input type="text" id="chatInput" placeholder="Tulis pertanyaan..." aria-label="Tulis pertanyaan">
+            <button class="sendbtn" id="chatSend" aria-label="Kirim">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/></svg>
+            </button>
+          </div>
+        </div></div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Chat <small>Coba kirim pesan lewat kolom input</small></div>
+    </div>
+  </div>
+
+  <div class="section-label">8 · Riwayat</div>
+  <div class="gallery">
+    <div class="frame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>09:10</span><span class="icons">SVG</span></div>
+        <div class="content scroll"><div class="history">
+          <h2 class="serif">Riwayat</h2>
+          <div class="timeline">
+            <div class="titem">
+              <div class="t-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+              <div class="t-info"><strong>12 Okt 2025</strong><span>Skrining lengkap</span></div>
+              <span class="badge b-med"><i class="dot"></i>Sedang</span>
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+            <div class="titem">
+              <div class="t-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+              <div class="t-info"><strong>28 Agu 2025</strong><span>Skrining lengkap</span></div>
+              <span class="badge b-low"><i class="dot"></i>Rendah</span>
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+            <div class="titem">
+              <div class="t-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+              <div class="t-info"><strong>15 Jul 2025</strong><span>Skrining lengkap</span></div>
+              <span class="badge b-low"><i class="dot"></i>Rendah</span>
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+        </div></div>
+        <div class="bottomnav">
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a1 1 0 0 1 1 1v14l-4-2-4 2V6a1 1 0 0 1 1-1z"/></svg>Skrining</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H5l2-3a8 8 0 1 1 14-5z"/></svg>Chat</div>
+          <div class="bn active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Riwayat</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</div>
+        </div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Riwayat <small>Terbaru di atas · badge warna</small></div>
+    </div>
+
+    <!-- History empty -->
+    <div class="frame small">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>09:10</span><span class="icons">SVG</span></div>
+        <div class="content"><div class="history">
+          <h2 class="serif">Riwayat</h2>
+          <div class="empty-state">
+            <div class="ill">
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a1 1 0 0 1 1 1v14l-4-2-4 2V6a1 1 0 0 1 1-1z"/><path d="M9 8h6M9 12h6"/></svg>
+            </div>
+            <h3>Belum ada riwayat skrining</h3>
+            <p>Hasil skrining Anda akan muncul di sini setelah Anda menyelesaikan kuesioner.</p>
+          </div>
+        </div></div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Riwayat — Empty state <small>Clipboard kosong</small></div>
+    </div>
+  </div>
+
+  <div class="section-label">9 · Profil</div>
+  <div class="gallery">
+    <div class="frame">
+      <div class="phone"><div class="screen">
+        <div class="statusbar"><span>09:12</span><span class="icons">SVG</span></div>
+        <div class="content scroll"><div class="profile">
+          <div class="prof-head">
+            <div class="avatar">RA</div>
+            <div><h2 class="serif">Ratna Andari</h2><p>Anggota aktif</p></div>
+          </div>
+
+          <div class="field"><label>Nama</label><div class="val">Ratna Andari<button class="edit">Ubah</button></div></div>
+          <div class="field"><label>NIP</label><div class="val">19850312 201001 2 014<button class="edit">Ubah</button></div></div>
+          <div class="field"><label>Instansi</label><div class="val">BKD Kota Bandung<button class="edit">Ubah</button></div></div>
+          <div class="field"><label>Jabatan</label><div class="val">Analis Kepegawaian Muda<button class="edit">Ubah</button></div></div>
+
+          <div class="setting-list">
+            <div class="setting">
+              <span class="s-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg></span>
+              <span>Keamanan</span><span style="font-size:12px;color:var(--text-2)">PIN / Biometrik</span>
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+            <div class="setting">
+              <span class="s-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg></span>
+              <span>Notifikasi</span>
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+            <div class="setting">
+              <span class="s-ico"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg></span>
+              <span>Tentang Aplikasi</span>
+              <svg class="chev" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+          </div>
+
+          <button class="danger">Hapus Semua Data Saya</button>
+        </div></div>
+        <div class="bottomnav">
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Home</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5h6a1 1 0 0 1 1 1v14l-4-2-4 2V6a1 1 0 0 1 1-1z"/></svg>Skrining</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-8 8H5l2-3a8 8 0 1 1 14-5z"/></svg>Chat</div>
+          <div class="bn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Riwayat</div>
+          <div class="bn active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>Profil</div>
+        </div>
+        <div class="gesturebar"><span></span></div>
+      </div></div>
+      <div class="caption">Profil <small>Info ASN · pengaturan · zona berbahaya</small></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Replace placeholder "SVG" in status bars with real Android status icons
+  document.querySelectorAll('.statusbar .icons').forEach(el => {
+    el.innerHTML = '<svg width="16" height="11" viewBox="0 0 16 11" fill="currentColor"><rect x="0" y="6" width="3" height="5" rx="0.5"/><rect x="4.5" y="4" width="3" height="7" rx="0.5"/><rect x="9" y="2" width="3" height="9" rx="0.5"/><rect x="13.5" y="0" width="3" height="11" rx="0.5"/></svg>'
+      + '<svg width="15" height="11" viewBox="0 0 15 11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M1 3.5a9 9 0 0 1 13 0"/><path d="M3.5 6a5.5 5.5 0 0 1 8 0"/><path d="M6 8.5a2 2 0 0 1 3 0"/></svg>'
+      + '<svg width="22" height="11" viewBox="0 0 22 11" fill="none" stroke="currentColor" stroke-width="1"><rect x="0.5" y="0.5" width="17" height="10" rx="2.5"/><rect x="19" y="3.5" width="2" height="4" rx="1" fill="currentColor" stroke="none"/><rect x="2" y="2" width="12" height="7" rx="1.2" fill="currentColor" stroke="none"/></svg>';
+  });
+
+  // Questionnaire: select option -> reveal "Lanjut"
+  const opts = document.querySelectorAll('#quizOptions .opt');
+  const nextBtn = document.getElementById('quizNext');
+  opts.forEach(o => o.addEventListener('click', () => {
+    opts.forEach(x => x.classList.remove('sel'));
+    o.classList.add('sel');
+    nextBtn.classList.add('show');
+  }));
+
+  // Chat: send message
+  const chatScroll = document.getElementById('chatScroll');
+  const chatInput = document.getElementById('chatInput');
+  const chatSend = document.getElementById('chatSend');
+  function sendChat(){
+    const v = chatInput.value.trim();
+    if(!v) return;
+    const u = document.createElement('div');
+    u.className = 'msg user';
+    u.innerHTML = '<div class="bub"></div>';
+    u.querySelector('.bub').textContent = v;
+    chatScroll.appendChild(u);
+    chatInput.value = '';
+    setTimeout(() => {
+      const b = document.createElement('div');
+      b.className = 'msg bot';
+      b.innerHTML = '<div class="mini-ava">AI</div><div class="bub"></div>';
+      b.querySelector('.bub').textContent = 'Terima kasih atas pertanyaannya. Informasi ini bersifat edukatif, bukan pengganti konsultasi dokter. Apakah ada hal lain yang ingin Anda ketahui?';
+      chatScroll.appendChild(b);
+      chatScroll.scrollTop = chatScroll.scrollHeight;
+    }, 350);
+    chatScroll.scrollTop = chatScroll.scrollHeight;
+  }
+  chatSend.addEventListener('click', sendChat);
+  chatInput.addEventListener('keydown', e => { if(e.key === 'Enter') sendChat(); });
+</script>
+</body>
+</html>

@@ -1,0 +1,496 @@
+package com.example.empati.ui.components
+
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.empati.data.RiskLevel
+import com.example.empati.data.label
+import com.example.empati.ui.theme.Amber50
+import com.example.empati.ui.theme.Amber500
+import com.example.empati.ui.theme.Amber700
+import com.example.empati.ui.theme.Coral50
+import com.example.empati.ui.theme.Coral500
+import com.example.empati.ui.theme.Coral700
+import com.example.empati.ui.theme.Lora
+import com.example.empati.ui.theme.MonoFont
+import com.example.empati.ui.theme.Teal50
+import com.example.empati.ui.theme.Teal500
+import com.example.empati.ui.theme.Teal700
+
+fun riskColor(level: RiskLevel): Color = when (level) {
+    RiskLevel.LOW -> Teal500
+    RiskLevel.MEDIUM -> Amber500
+    RiskLevel.HIGH -> Coral500
+    RiskLevel.VERY_HIGH -> Coral700
+}
+
+fun riskContainer(level: RiskLevel): Color = when (level) {
+    RiskLevel.LOW -> Teal50
+    RiskLevel.MEDIUM -> Amber50
+    RiskLevel.HIGH -> Coral50
+    RiskLevel.VERY_HIGH -> Coral50
+}
+
+fun riskOnContainer(level: RiskLevel): Color = when (level) {
+    RiskLevel.LOW -> Teal700
+    RiskLevel.MEDIUM -> Amber700
+    RiskLevel.HIGH -> Coral700
+    RiskLevel.VERY_HIGH -> Coral700
+}
+
+@Composable
+fun RiskBadge(level: RiskLevel, modifier: Modifier = Modifier) {
+    Surface(
+        shape = CircleShape,
+        color = riskContainer(level),
+        border = BorderStroke(1.dp, riskColor(level).copy(alpha = 0.22f)),
+        modifier = modifier
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(7.dp)
+                    .background(riskColor(level), CircleShape)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = level.label.uppercase(),
+                color = riskOnContainer(level),
+                fontFamily = MonoFont,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp
+            )
+        }
+    }
+}
+
+@Composable
+fun SectionChip(
+    text: String,
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimaryContainer
+) {
+    Surface(
+        shape = CircleShape,
+        color = containerColor,
+        modifier = modifier
+    ) {
+        Text(
+            text = text,
+            color = contentColor,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+        )
+    }
+}
+
+@Composable
+fun PrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    trailingIcon: ImageVector? = Icons.AutoMirrored.Rounded.ArrowForward,
+    containerColor: Color = MaterialTheme.colorScheme.primary,
+    contentColor: Color = MaterialTheme.colorScheme.onPrimary
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed && enabled) 0.975f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow
+        ),
+        label = "primaryBtnScale"
+    )
+
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        interactionSource = interactionSource,
+        shape = RoundedCornerShape(18.dp),
+        contentPadding = PaddingValues(horizontal = 22.dp, vertical = 14.dp),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = containerColor,
+            contentColor = contentColor,
+            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            disabledContentColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+        ),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(54.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+        if (trailingIcon != null) {
+            Spacer(Modifier.width(8.dp))
+            Icon(
+                imageVector = trailingIcon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun GhostButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    contentColor: Color = MaterialTheme.colorScheme.primary
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = spring(stiffness = Spring.StiffnessMediumLow),
+        label = "ghostBtnScale"
+    )
+
+    TextButton(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape = RoundedCornerShape(18.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(50.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+    ) {
+        Text(
+            text = text,
+            color = contentColor,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.SemiBold
+        )
+    }
+}
+
+@Composable
+fun BackIconButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier.size(48.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                contentDescription = "Kembali",
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun TonalCard(
+    modifier: Modifier = Modifier,
+    containerColor: Color = MaterialTheme.colorScheme.surface,
+    borderColor: Color = MaterialTheme.colorScheme.outlineVariant,
+    shape: RoundedCornerShape = RoundedCornerShape(22.dp),
+    onClick: (() -> Unit)? = null,
+    contentPadding: PaddingValues = PaddingValues(20.dp),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    if (onClick != null) {
+        val interactionSource = remember { MutableInteractionSource() }
+        val isPressed by interactionSource.collectIsPressedAsState()
+        val scale by animateFloatAsState(
+            targetValue = if (isPressed) 0.985f else 1f,
+            animationSpec = spring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow
+            ),
+            label = "cardScale"
+        )
+        Surface(
+            onClick = onClick,
+            interactionSource = interactionSource,
+            shape = shape,
+            color = containerColor,
+            border = BorderStroke(1.dp, borderColor),
+            modifier = modifier.graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+        ) {
+            Column(modifier = Modifier.padding(contentPadding), content = content)
+        }
+    } else {
+        Surface(
+            shape = shape,
+            color = containerColor,
+            border = BorderStroke(1.dp, borderColor),
+            modifier = modifier
+        ) {
+            Column(modifier = Modifier.padding(contentPadding), content = content)
+        }
+    }
+}
+
+@Composable
+fun GaugeRing(
+    score: Int,
+    color: Color,
+    trackColor: Color,
+    textColor: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 180.dp,
+    stroke: Dp = 15.dp
+) {
+    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val strokePx = stroke.toPx()
+            val inset = strokePx / 2f
+            val arcSize = Size(this.size.width - strokePx, this.size.height - strokePx)
+            val topLeft = Offset(inset, inset)
+            drawArc(
+                color = trackColor,
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx, cap = StrokeCap.Round)
+            )
+            drawArc(
+                color = color,
+                startAngle = -90f,
+                sweepAngle = 360f * score.coerceIn(0, 100) / 100f,
+                useCenter = false,
+                topLeft = topLeft,
+                size = arcSize,
+                style = Stroke(width = strokePx, cap = StrokeCap.Round)
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                text = "$score",
+                fontSize = 40.sp,
+                fontFamily = Lora,
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
+            Text(
+                text = "dari 100",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+fun EmpatiLogo(size: Dp, animated: Boolean = false, modifier: Modifier = Modifier) {
+    val transition = rememberInfiniteTransition(label = "logoTransition")
+    val angle by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(3200, easing = LinearEasing)),
+        label = "ringAngle"
+    )
+    val pulse by transition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "logoPulse"
+    )
+
+    val primaryContainer = MaterialTheme.colorScheme.primaryContainer
+    val primary = MaterialTheme.colorScheme.primary
+    val secondary = MaterialTheme.colorScheme.secondary
+    val outlineVariant = MaterialTheme.colorScheme.outlineVariant
+
+    Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        if (animated) {
+            Canvas(
+                Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { rotationZ = angle }
+            ) {
+                val strokePx = 3.5.dp.toPx()
+                val inset = strokePx / 2f
+                drawArc(
+                    color = outlineVariant,
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = Size(this.size.width - strokePx, this.size.height - strokePx),
+                    style = Stroke(width = 1.5.dp.toPx())
+                )
+                drawArc(
+                    color = secondary,
+                    startAngle = -90f,
+                    sweepAngle = 110f,
+                    useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = Size(this.size.width - strokePx, this.size.height - strokePx),
+                    style = Stroke(width = strokePx, cap = StrokeCap.Round)
+                )
+            }
+        }
+        Box(
+            Modifier
+                .size(size * 0.84f)
+                .graphicsLayer {
+                    if (animated) {
+                        scaleX = pulse
+                        scaleY = pulse
+                    }
+                }
+                .background(primaryContainer, CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Shield,
+                contentDescription = null,
+                tint = primary,
+                modifier = Modifier.size(size * 0.56f)
+            )
+            Icon(
+                imageVector = Icons.Rounded.Person,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(size * 0.26f)
+            )
+        }
+    }
+}
+
+@Composable
+fun LockNotice(modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.2f)),
+        modifier = modifier
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = "Jawaban Anda aman & dirahasiakan di perangkat ini",
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                style = MaterialTheme.typography.labelMedium
+            )
+        }
+    }
+}
+
+@Composable
+fun EmpatiAvatar(initials: String, size: Dp = 44.dp, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primaryContainer)
+            .border(1.5.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.25f), CircleShape),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = initials,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            fontFamily = Lora,
+            fontWeight = FontWeight.Bold,
+            fontSize = (size.value * 0.34f).sp
+        )
+    }
+}
+
+fun greetingForHour(hour: Int): String = when (hour) {
+    in 5..10 -> "Selamat pagi"
+    in 11..14 -> "Selamat siang"
+    in 15..18 -> "Selamat sore"
+    else -> "Selamat malam"
+}
+

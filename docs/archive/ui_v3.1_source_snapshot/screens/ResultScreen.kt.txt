@@ -1,0 +1,733 @@
+package com.example.empati.ui.screens
+
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.rounded.BookmarkAdded
+import androidx.compose.material.icons.rounded.CheckCircleOutline
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.MonitorHeart
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.SupportAgent
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.empati.EmpatiViewModel
+import com.example.empati.data.presentation.PresentationTone
+import com.example.empati.data.presentation.UserResultPresenter
+import com.example.empati.ui.components.BackIconButton
+import com.example.empati.ui.components.GhostButton
+import com.example.empati.ui.components.PrimaryButton
+import com.example.empati.ui.components.SectionChip
+import com.example.empati.ui.components.TonalCard
+import com.example.empati.ui.theme.Amber50
+import com.example.empati.ui.theme.Amber700
+import com.example.empati.ui.theme.BodyFont
+import com.example.empati.ui.theme.HeadingFont
+import com.example.empati.ui.theme.MonoFont
+import com.example.empati.ui.theme.Teal50
+import com.example.empati.ui.theme.Teal700
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun ModuleResultScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
+    val presentation = vm.currentModulePresentation() ?: return
+    val findings = if (presentation.isHypertension) {
+        presentation.factorsToNote
+    } else {
+        presentation.identifiedCategories
+    }
+    var selectedTag by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .safeDrawingPadding()
+            .padding(horizontal = 20.dp)
+    ) {
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            BackIconButton(onClick = vm::onBack)
+            SectionChip(
+                text = if (presentation.isHypertension) "MODUL HIPERTENSI" else "MODUL KBG",
+                containerColor = if (presentation.isHypertension)
+                    MaterialTheme.colorScheme.primaryContainer
+                else
+                    MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = if (presentation.isHypertension)
+                    MaterialTheme.colorScheme.onPrimaryContainer
+                else
+                    MaterialTheme.colorScheme.onSecondaryContainer
+            )
+        }
+
+        Spacer(Modifier.height(18.dp))
+
+        // Kartu Ringkasan Klinis Utama (Minimalis & Terpadu)
+        TonalCard(
+            containerColor = MaterialTheme.colorScheme.surface,
+            borderColor = MaterialTheme.colorScheme.outlineVariant,
+            shape = RoundedCornerShape(22.dp),
+            contentPadding = PaddingValues(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                StatusPill(label = presentation.statusLabel, tone = presentation.tone)
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surfaceContainerLow,
+                            RoundedCornerShape(10.dp)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (presentation.isHypertension)
+                            Icons.Rounded.MonitorHeart
+                        else
+                            Icons.Rounded.Shield,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = presentation.title,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = presentation.conclusion,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            if (findings.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = if (presentation.isHypertension) "FAKTOR TERIDENTIFIKASI" else "INDIKASI TERIDENTIFIKASI",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(Modifier.height(10.dp))
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    findings.forEach { item ->
+                        ClinicalTagChip(
+                            text = item,
+                            onClick = { selectedTag = item }
+                        )
+                    }
+                }
+            }
+
+            if (presentation.protectiveFactors.isNotEmpty()) {
+                Spacer(Modifier.height(16.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Spacer(Modifier.height(14.dp))
+                ProtectiveStrengthSection(items = presentation.protectiveFactors)
+            }
+        }
+
+        if (presentation.supportNote != null) {
+            Spacer(Modifier.height(12.dp))
+            SupportStrip(note = presentation.supportNote)
+        }
+
+        Spacer(Modifier.height(12.dp))
+        ActionPlanCard(
+            title = "TINDAK LANJUT DISARANKAN",
+            items = presentation.recommendations
+        )
+
+        if (!presentation.isComplete) {
+            Spacer(Modifier.height(12.dp))
+            CompactNotice(text = "Sebagian pertanyaan belum terjawab. Lengkapi untuk hasil optimal.")
+        }
+
+        Spacer(Modifier.height(22.dp))
+        if (presentation.isHypertension) {
+            PrimaryButton(text = "Lanjut ke Modul KBG", onClick = vm::proceedToGbv)
+        } else {
+            PrimaryButton(text = "Lihat Ringkasan Terintegrasi", onClick = vm::goToIntegrated)
+        }
+
+        Spacer(Modifier.height(14.dp))
+        MinimalDisclaimer(text = presentation.disclaimer)
+        Spacer(Modifier.height(20.dp))
+    }
+
+    selectedTag?.let { tag ->
+        ClinicalDetailBottomSheet(
+            tag = tag,
+            onAskAi = {
+                selectedTag = null
+                vm.askAboutResult()
+            },
+            onDismiss = { selectedTag = null }
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun IntegratedResultScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
+    val presentation = vm.integratedPresentation() ?: return
+    var selectedTag by remember { mutableStateOf<String?>(null) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .verticalScroll(rememberScrollState())
+            .safeDrawingPadding()
+            .padding(horizontal = 20.dp)
+    ) {
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            BackIconButton(onClick = vm::onBack)
+            SectionChip(text = "RINGKASAN AKHIR")
+        }
+
+        Spacer(Modifier.height(18.dp))
+
+        // 1. Kartu Klasifikasi Utama + Matriks Status 2 Modul
+        TonalCard(
+            containerColor = MaterialTheme.colorScheme.surface,
+            borderColor = MaterialTheme.colorScheme.outlineVariant,
+            shape = RoundedCornerShape(22.dp),
+            contentPadding = PaddingValues(20.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "KLASIFIKASI SKRINING",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = presentation.categoryLabel,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.height(6.dp))
+            Text(
+                text = presentation.summary,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // Matriks Status 2 Kolom (Menggantikan 2 Kartu Paragraf Panjang)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                ModuleStatusCell(
+                    moduleCode = "HIPERTENSI",
+                    statusLabel = presentation.hypertension.statusLabel,
+                    tone = presentation.hypertension.tone,
+                    modifier = Modifier.weight(1f)
+                )
+                ModuleStatusCell(
+                    moduleCode = "KESEJAHTERAAN",
+                    statusLabel = presentation.gbv.statusLabel,
+                    tone = presentation.gbv.tone,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = presentation.relationshipExplanation,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            }
+        }
+
+        // 2. Faktor Kunci & Faktor Pelindung (Ringkas & Seimbang)
+        if (presentation.factors.isNotEmpty() || presentation.protectiveFactors.isNotEmpty()) {
+            Spacer(Modifier.height(12.dp))
+            TonalCard(
+                containerColor = MaterialTheme.colorScheme.surface,
+                borderColor = MaterialTheme.colorScheme.outlineVariant,
+                shape = RoundedCornerShape(20.dp),
+                contentPadding = PaddingValues(18.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                if (presentation.factors.isNotEmpty()) {
+                    Text(
+                        text = "FAKTOR KUNCI",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        presentation.factors.forEach { factor ->
+                            ClinicalTagChip(
+                                text = factor,
+                                onClick = { selectedTag = factor }
+                            )
+                        }
+                    }
+                }
+
+                if (presentation.factors.isNotEmpty() && presentation.protectiveFactors.isNotEmpty()) {
+                    Spacer(Modifier.height(14.dp))
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    Spacer(Modifier.height(14.dp))
+                }
+
+                if (presentation.protectiveFactors.isNotEmpty()) {
+                    ProtectiveStrengthSection(items = presentation.protectiveFactors)
+                }
+            }
+        }
+
+        // 3. Tindak Lanjut Klinis
+        Spacer(Modifier.height(12.dp))
+        ActionPlanCard(
+            title = "REKOMENDASI UTAMA",
+            items = presentation.recommendations
+        )
+
+        Spacer(Modifier.height(22.dp))
+        PrimaryButton(
+            text = "Simpan ke Riwayat",
+            onClick = vm::saveDualResult,
+            trailingIcon = Icons.Rounded.BookmarkAdded
+        )
+        Spacer(Modifier.height(6.dp))
+        GhostButton(
+            text = "Tanyakan ke AI-EMPATI",
+            onClick = vm::askAboutResult
+        )
+
+        Spacer(Modifier.height(12.dp))
+        MinimalDisclaimer(text = presentation.disclaimer)
+        Spacer(Modifier.height(20.dp))
+    }
+
+    selectedTag?.let { tag ->
+        ClinicalDetailBottomSheet(
+            tag = tag,
+            onAskAi = {
+                selectedTag = null
+                vm.askAboutResult()
+            },
+            onDismiss = { selectedTag = null }
+        )
+    }
+}
+
+@Composable
+private fun ModuleStatusCell(
+    moduleCode: String,
+    statusLabel: String,
+    tone: PresentationTone,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = modifier
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Text(
+                text = moduleCode,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(Modifier.height(8.dp))
+            StatusPill(label = statusLabel, tone = tone)
+        }
+    }
+}
+
+@Composable
+private fun ClinicalTagChip(
+    text: String,
+    onClick: () -> Unit
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 11.dp, vertical = 7.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(5.dp)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+            )
+            Spacer(Modifier.width(7.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                fontFamily = BodyFont,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(Modifier.width(6.dp))
+            Icon(
+                imageVector = Icons.Outlined.Info,
+                contentDescription = "Informasi $text",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ProtectiveStrengthSection(items: List<String>) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = "FAKTOR PELINDUNG YANG SUDAH BAIK",
+            style = MaterialTheme.typography.labelSmall,
+            fontFamily = MonoFont,
+            color = MaterialTheme.colorScheme.secondary
+        )
+        Spacer(Modifier.height(10.dp))
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items.take(5).forEach { factor ->
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f))
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.CheckCircleOutline,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = factor,
+                            style = MaterialTheme.typography.bodySmall,
+                            fontFamily = BodyFont,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun ClinicalDetailBottomSheet(
+    tag: String,
+    onAskAi: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val detail = remember(tag) { UserResultPresenter.explainClinicalTag(tag) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 28.dp)
+        ) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+            ) {
+                Text(
+                    text = detail.categoryBadge,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontFamily = MonoFont,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                )
+            }
+
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = detail.tag,
+                style = MaterialTheme.typography.titleLarge,
+                fontFamily = HeadingFont,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(Modifier.height(10.dp))
+            Text(
+                text = detail.explanation,
+                style = MaterialTheme.typography.bodyMedium,
+                fontFamily = BodyFont,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+
+            Spacer(Modifier.height(12.dp))
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = detail.linkageReminder,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = BodyFont,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            }
+
+            Spacer(Modifier.height(20.dp))
+            PrimaryButton(
+                text = "Mengerti",
+                onClick = onDismiss
+            )
+            Spacer(Modifier.height(8.dp))
+            GhostButton(
+                text = "Diskusikan di Tanya AI-EMPATI",
+                onClick = onAskAi
+            )
+        }
+    }
+}
+
+@Composable
+private fun ActionPlanCard(
+    title: String,
+    items: List<String>
+) {
+    TonalCard(
+        containerColor = MaterialTheme.colorScheme.surface,
+        borderColor = MaterialTheme.colorScheme.outlineVariant,
+        shape = RoundedCornerShape(20.dp),
+        contentPadding = PaddingValues(18.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Text(
+            text = title,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.height(12.dp))
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            items.forEach { item ->
+                Row(verticalAlignment = Alignment.Top) {
+                    Icon(
+                        imageVector = Icons.Rounded.CheckCircleOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier
+                            .padding(top = 2.dp)
+                            .size(16.dp)
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        text = item,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SupportStrip(note: String) {
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.25f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.SupportAgent,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = note,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompactNotice(text: String) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.Info,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(15.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun MinimalDisclaimer(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp)
+    )
+}
+
+@Composable
+private fun StatusPill(label: String, tone: PresentationTone) {
+    val (container, content) = when (tone) {
+        PresentationTone.POSITIVE -> Teal50 to Teal700
+        PresentationTone.ATTENTION -> Amber50 to Amber700
+        PresentationTone.INCOMPLETE -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+        PresentationTone.NEUTRAL -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Surface(
+        shape = CircleShape,
+        color = container,
+        border = BorderStroke(1.dp, content.copy(alpha = 0.2f))
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+        ) {
+            Box(
+                Modifier
+                    .size(6.dp)
+                    .background(content, CircleShape)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = label.uppercase(),
+                color = content,
+                fontFamily = MonoFont,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.4.sp
+            )
+        }
+    }
+}
+
+

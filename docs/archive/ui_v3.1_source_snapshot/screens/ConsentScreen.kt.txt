@@ -1,0 +1,199 @@
+package com.example.empati.ui.screens
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Assignment
+import androidx.compose.material.icons.rounded.GppGood
+import androidx.compose.material.icons.rounded.HealthAndSafety
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.SupportAgent
+import androidx.compose.material.icons.rounded.VerifiedUser
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.example.empati.ui.components.BackIconButton
+import com.example.empati.ui.components.GhostButton
+import com.example.empati.ui.components.PrimaryButton
+import com.example.empati.ui.components.SectionChip
+import com.example.empati.ui.components.TonalCard
+
+private data class ConsentItem(
+    val icon: ImageVector,
+    val title: String,
+    val body: String
+)
+
+private val consentItems = listOf(
+    ConsentItem(
+        icon = Icons.Rounded.HealthAndSafety,
+        title = "Tujuan Skrining",
+        body = "Skrining ini membantu mengenali faktor risiko hipertensi dari sisi kesehatan, gaya hidup, tekanan stres harian, serta pengalaman kekerasan berbasis gender. Hasilnya bersifat edukatif bagi semua kalangan, bukan diagnosis medis."
+    ),
+    ConsentItem(
+        icon = Icons.AutoMirrored.Rounded.Assignment,
+        title = "Cakupan Informasi",
+        body = "Anda akan menjawab pertanyaan mengenai riwayat tekanan darah, kebiasaan harian, kondisi stres, serta pengalaman relasi interpersonal di lingkungan kerja, sosial, maupun rumah tangga."
+    ),
+    ConsentItem(
+        icon = Icons.Rounded.Lock,
+        title = "Kerahasiaan & Penyimpanan Lokal",
+        body = "Seluruh jawaban disimpan secara privat di dalam perangkat ini. Tidak ada pengiriman data ke server eksternal."
+    ),
+    ConsentItem(
+        icon = Icons.Rounded.VerifiedUser,
+        title = "Kendali Penuh Pengguna",
+        body = "Partisipasi bersifat sukarela. Anda dapat menghentikan pengisian kapan saja atau menghapus seluruh riwayat data melalui menu Profil."
+    ),
+    ConsentItem(
+        icon = Icons.Rounded.SupportAgent,
+        title = "Layanan Bantuan Darurat",
+        body = "Apabila Anda merasa tidak aman atau membutuhkan pendampingan segera, hubungi layanan SAPA 129 atau tenaga kesehatan terdekat."
+    )
+)
+
+@Composable
+fun ConsentScreen(onAgree: () -> Unit, onCancel: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding()
+            .padding(horizontal = 20.dp)
+    ) {
+        Spacer(Modifier.height(10.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            BackIconButton(onClick = onCancel)
+            SectionChip(text = "INFORMED CONSENT")
+        }
+
+        Spacer(Modifier.height(18.dp))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(52.dp)
+                    .background(
+                        MaterialTheme.colorScheme.primaryContainer,
+                        RoundedCornerShape(16.dp)
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.GppGood,
+                    contentDescription = "Privasi",
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text(
+                    text = "Persetujuan Skrining",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    text = "Mohon pahami komitmen kerahasiaan berikut.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
+
+        TonalCard(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentPadding = PaddingValues(0.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                consentItems.forEachIndexed { index, item ->
+                    ConsentSection(item = item)
+                    if (index < consentItems.lastIndex) {
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(16.dp))
+        PrimaryButton(text = "Saya Memahami & Setuju", onClick = onAgree)
+        Spacer(Modifier.height(6.dp))
+        GhostButton(text = "Batalkan", onClick = onCancel)
+        Spacer(Modifier.height(10.dp))
+    }
+}
+
+@Composable
+private fun ConsentSection(item: ConsentItem) {
+    Row(verticalAlignment = Alignment.Top) {
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .background(
+                    MaterialTheme.colorScheme.surfaceContainerLow,
+                    RoundedCornerShape(11.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = item.icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(19.dp)
+            )
+        }
+        Spacer(Modifier.width(14.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = item.title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = item.body,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+

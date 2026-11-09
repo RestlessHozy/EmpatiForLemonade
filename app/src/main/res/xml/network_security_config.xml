@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- Izinkan koneksi HTTPS dan koneksi HTTP lokal/LAN ke daemon Ollama (127.0.0.1, 10.0.2.2, 192.168.x.x) -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>
