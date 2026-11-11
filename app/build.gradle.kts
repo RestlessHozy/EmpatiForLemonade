@@ -13,6 +13,9 @@ val localProps = Properties().apply {
 }
 val openRouterKey: String =
     (localProps.getProperty("OPENROUTER_API_KEY") ?: System.getenv("OPENROUTER_API_KEY") ?: "").trim()
+val lemonadeBaseUrl: String =
+    (localProps.getProperty("LEMONADE_BASE_URL") ?: System.getenv("LEMONADE_BASE_URL")
+        ?: "http://10.0.2.2:13305").trim()
 
 android {
     namespace = "com.example.empati"
@@ -38,6 +41,11 @@ android {
             "String",
             "SUPABASE_URL",
             "\"https://qnvcuhmvrrffzdxxdloc.supabase.co\""
+        )
+        buildConfigField(
+            "String",
+            "LEMONADE_BASE_URL",
+            "\"${lemonadeBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\""
         )
     }
 
