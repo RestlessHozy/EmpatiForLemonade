@@ -133,12 +133,21 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun buildChatUseCase(): EmpatiChatUseCase = EmpatiChatUseCase(
         gateway = GroundedChatGateway(
-            ChatModel { systemPrompt, userPrompt ->
+            model = ChatModel { systemPrompt, userPrompt ->
                 lemonadeClient.chatCompletion(
                     messages = listOf(
                         com.example.empati.data.lemonade.ChatMessage("system", systemPrompt),
                         com.example.empati.data.lemonade.ChatMessage("user", userPrompt)
                     )
+                ).getOrThrow().text
+            },
+            streamer = { systemPrompt, userPrompt, onDelta ->
+                lemonadeClient.streamChatCompletion(
+                    messages = listOf(
+                        com.example.empati.data.lemonade.ChatMessage("system", systemPrompt),
+                        com.example.empati.data.lemonade.ChatMessage("user", userPrompt)
+                    ),
+                    onDelta = onDelta
                 ).getOrThrow().text
             }
         ),
@@ -467,24 +476,35 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         isChatGenerating = true
 
         viewModelScope.launch {
+            val assistantIndex = chatMessages.size
+            chatMessages = chatMessages + ChatMessage(isUser = false, text = "")
+            val partial = StringBuilder()
             val replyResult = withContext(Dispatchers.IO) {
-                buildChatUseCase().reply(clean, richSnapshot)
+                buildChatUseCase().replyStreaming(clean, richSnapshot) { delta ->
+                    partial.append(delta)
+                    val updated = chatMessages.toMutableList()
+                    if (assistantIndex in updated.indices) {
+                        updated[assistantIndex] = updated[assistantIndex].copy(text = partial.toString())
+                        chatMessages = updated
+                    }
+                }
+            }
+            val settled = chatMessages.toMutableList()
+            if (assistantIndex in settled.indices) {
+                settled[assistantIndex] = settled[assistantIndex].copy(
+                    text = if (replyResult.isPartial) {
+                        replyResult.text + " Jawaban ini belum selesai."
+                    } else {
+                        replyResult.text
+                    },
+                    modelBadge = if (replyResult.isPartial) "SEBAGIAN" else null
+                )
+                chatMessages = settled
             }
             store.appendChatExchange(clean, replyResult)
             viewModelScope.launch(Dispatchers.IO) {
                 store.syncChatExchangeToSupabase(clean, replyResult)
             }
-            val badge = if (replyResult.usedOllamaLlm) {
-                "LLM · ${replyResult.modelName.uppercase()}"
-            } else {
-                "AI ASISTEN · TERBATAS"
-            }
-            chatMessages = chatMessages + ChatMessage(
-                isUser = false,
-                text = replyResult.text,
-                retrievedChunks = emptyList(),
-                modelBadge = badge
-            )
             if (replyResult.usedOllamaLlm && !ollamaStatus.isReachable) {
                 ollamaStatus = ollamaStatus.copy(
                     isReachable = true,
