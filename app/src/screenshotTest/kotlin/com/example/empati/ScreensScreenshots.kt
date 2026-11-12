@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
 import com.example.empati.data.cf.AnswerValue
 import com.example.empati.data.cf.ScreeningModule
+import com.example.empati.data.speech.VoiceInputState
 import com.example.empati.ui.screens.BottomNavBar
 import com.example.empati.ui.screens.ChatContent
 import com.example.empati.ui.screens.ConsentScreenContent
@@ -247,5 +248,47 @@ fun ChatThinkingWithDraft() = PreviewTheme {
         onSend = {},
         onQuickReply = {},
         onCitationClick = {}
+    )
+}
+
+@PreviewTest
+@PhoneLightDark
+@Composable
+fun ChatVoiceRecording() = PreviewTheme {
+    ChatContent(
+        messages = Fixtures.chat.take(3),
+        isGenerating = false,
+        llmReachable = true,
+        input = "",
+        onInputChange = {},
+        onSend = {},
+        onQuickReply = {},
+        onCitationClick = {},
+        voiceState = VoiceInputState.Recording(startedAtMs = 0, elapsedMs = 7_000),
+        onVoiceClick = {},
+        onVoiceStop = {},
+        onVoiceCancel = {},
+        onVoiceDismiss = {}
+    )
+}
+
+@PreviewTest
+@PhoneLightDark
+@Composable
+fun ChatVoicePermissionDenied() = PreviewTheme {
+    ChatContent(
+        messages = Fixtures.chat.take(2),
+        isGenerating = false,
+        llmReachable = true,
+        input = "",
+        onInputChange = {},
+        onSend = {},
+        onQuickReply = {},
+        onCitationClick = {},
+        voiceState = VoiceInputState.PermissionDenied,
+        onVoiceClick = {},
+        onVoiceStop = {},
+        onVoiceCancel = {},
+        onVoiceDismiss = {}
     )
 }

@@ -45,6 +45,9 @@ import com.example.empati.data.rag.OllamaConnectionStatus
 import com.example.empati.data.rag.OllamaRagService
 import com.example.empati.data.research.ResearchRecord
 import com.example.empati.data.research.ResearchRecordFactory
+import com.example.empati.data.speech.AndroidVoiceRecorder
+import com.example.empati.data.speech.VoiceInputController
+import com.example.empati.data.speech.VoiceInputState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -101,6 +104,21 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         private set
 
     private val lemonadeClient = LemonadeUnifiedClient()
+
+    private val voiceRecorder = AndroidVoiceRecorder()
+
+    private val voiceController = VoiceInputController(
+        recorder = voiceRecorder,
+        transcribe = { wav ->
+            withContext(Dispatchers.IO) {
+                lemonadeClient.transcribeAudio(wav = wav, language = "id")
+            }.map { it.text }
+        },
+        onStateChange = { voiceState = it }
+    )
+
+    var voiceState by mutableStateOf<VoiceInputState>(VoiceInputState.Idle)
+        private set
 
     private val corpusIndex: LocalCorpusIndex by lazy {
         LocalCorpusIndex(
@@ -284,6 +302,8 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         integrated = null
         activeModule = ScreeningModule.HYPERTENSION
         dualIndex = 0
+        voiceController.cancel()
+        voiceController.reset()
         backStack.clear()
     }
 
@@ -514,6 +534,38 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
             }
             isChatGenerating = false
         }
+    }
+
+    // ---- Voice input ----
+
+    fun requestVoicePermission() {
+        voiceController.requestPermission()
+    }
+
+    fun onVoicePermissionResult(granted: Boolean) {
+        voiceController.onPermissionResult(granted)
+    }
+
+    fun stopVoiceRecording() {
+        viewModelScope.launch { voiceController.stop() }
+    }
+
+    fun tickVoiceRecording() {
+        viewModelScope.launch { voiceController.onTick() }
+    }
+
+    fun cancelVoiceRecording() {
+        voiceController.cancel()
+    }
+
+    fun resetVoiceInput() {
+        voiceController.reset()
+    }
+
+    override fun onCleared() {
+        voiceController.cancel()
+        voiceRecorder.release()
+        super.onCleared()
     }
 
     fun updateProfile(p: UserProfile) {

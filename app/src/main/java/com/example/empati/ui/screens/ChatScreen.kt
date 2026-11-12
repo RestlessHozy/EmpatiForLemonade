@@ -1,7 +1,12 @@
 package com.example.empati.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
@@ -51,8 +56,12 @@ import androidx.compose.material.icons.automirrored.rounded.Article
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.Mic
+import androidx.compose.material.icons.rounded.MicOff
+import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material.icons.rounded.SupportAgent
 import androidx.compose.material.icons.rounded.Verified
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -62,6 +71,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -77,9 +87,13 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -89,9 +103,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.empati.EmpatiViewModel
 import com.example.empati.data.ChatMessage
 import com.example.empati.data.rag.RagTopicScope
+import com.example.empati.data.speech.VoiceInputState
 import com.example.empati.data.triage.ReferenceChunk
 import com.example.empati.ui.components.EmpatiLogo
 import com.example.empati.ui.components.EmpatiSurfaces
@@ -106,8 +122,10 @@ import com.example.empati.ui.theme.EmpatiMetricStyle
 import com.example.empati.ui.theme.EmpatiMotion
 import com.example.empati.ui.theme.EmpatiSpace
 import com.example.empati.ui.theme.LocalReducedMotion
+import com.example.empati.ui.theme.ToneColors
 import com.example.empati.ui.theme.empati
 import com.example.empati.ui.theme.softShadow
+import kotlinx.coroutines.delay
 
 private val quickReplies = listOf(
     "Apa itu hipertensi?",
@@ -131,9 +149,51 @@ fun ChatScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
     var input by remember { mutableStateOf("") }
     var selectedChunk by remember { mutableStateOf<ReferenceChunk?>(null) }
     val isImeVisible = WindowInsets.isImeVisible
+    val context = LocalContext.current
+    val voiceState = vm.voiceState
+    val micPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted -> vm.onVoicePermissionResult(granted) }
 
     LaunchedEffect(Unit) {
         vm.refreshOllamaStatus()
+    }
+
+    LaunchedEffect(voiceState) {
+        if (voiceState is VoiceInputState.Ready) {
+            input = voiceState.text
+            vm.resetVoiceInput()
+        }
+    }
+
+    LaunchedEffect(voiceState is VoiceInputState.Recording) {
+        while (vm.voiceState is VoiceInputState.Recording) {
+            delay(1_000)
+            vm.tickVoiceRecording()
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose { vm.cancelVoiceRecording() }
+    }
+
+    val onVoiceClick: () -> Unit = {
+        when (vm.voiceState) {
+            is VoiceInputState.Recording -> vm.stopVoiceRecording()
+            VoiceInputState.RequestingPermission, is VoiceInputState.Transcribing -> Unit
+            else -> {
+                val granted = ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) == PackageManager.PERMISSION_GRANTED
+                vm.requestVoicePermission()
+                if (granted) {
+                    vm.onVoicePermissionResult(true)
+                } else {
+                    micPermission.launch(Manifest.permission.RECORD_AUDIO)
+                }
+            }
+        }
     }
 
     LaunchedEffect(vm.chatMessages.size, vm.isChatGenerating) {
@@ -164,7 +224,12 @@ fun ChatScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
         onCitationClick = { chunk -> selectedChunk = chunk },
         modifier = modifier,
         onRefreshStatus = vm::refreshOllamaStatus,
-        listState = listState
+        listState = listState,
+        voiceState = voiceState,
+        onVoiceClick = onVoiceClick,
+        onVoiceStop = vm::stopVoiceRecording,
+        onVoiceCancel = vm::cancelVoiceRecording,
+        onVoiceDismiss = vm::resetVoiceInput
     )
 
     selectedChunk?.let { chunk ->
@@ -195,7 +260,12 @@ fun ChatContent(
     onCitationClick: (ReferenceChunk) -> Unit,
     modifier: Modifier = Modifier,
     onRefreshStatus: () -> Unit = {},
-    listState: LazyListState = rememberLazyListState()
+    listState: LazyListState = rememberLazyListState(),
+    voiceState: VoiceInputState = VoiceInputState.Idle,
+    onVoiceClick: () -> Unit = {},
+    onVoiceStop: () -> Unit = {},
+    onVoiceCancel: () -> Unit = {},
+    onVoiceDismiss: () -> Unit = {}
 ) {
     val reduced = LocalReducedMotion.current
 
@@ -257,10 +327,21 @@ fun ChatContent(
                 }
             }
 
+            VoiceStatusStrip(
+                state = voiceState,
+                onStop = onVoiceStop,
+                onCancel = onVoiceCancel,
+                onRetry = onVoiceClick,
+                onDismiss = onVoiceDismiss,
+                modifier = Modifier.padding(horizontal = ChatGutter, vertical = EmpatiSpace.xxs)
+            )
+
             ChatComposer(
                 value = input,
                 onValueChange = onInputChange,
-                onSend = onSend
+                onSend = onSend,
+                voiceState = voiceState,
+                onVoiceClick = onVoiceClick
             )
         }
     }
@@ -669,10 +750,18 @@ private fun ChatComposer(
     value: String,
     onValueChange: (String) -> Unit,
     onSend: () -> Unit,
+    voiceState: VoiceInputState,
+    onVoiceClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val colors = MaterialTheme.colorScheme
-    val canSend = value.isNotBlank()
+    val voiceBusy = voiceState is VoiceInputState.Recording || voiceState is VoiceInputState.Transcribing
+    val canSend = value.isNotBlank() && !voiceBusy
+    val placeholder = when (voiceState) {
+        is VoiceInputState.Recording -> "Sedang merekam… ketuk tombol berhenti bila selesai."
+        is VoiceInputState.Transcribing -> "Sedang memproses rekaman Anda…"
+        else -> "Ceritakan yang Anda rasakan atau tanyakan sesuatu…"
+    }
     val clipboardManager = LocalClipboardManager.current
     val context = LocalContext.current
     val sendContainer by animateColorAsState(
@@ -708,6 +797,8 @@ private fun ChatComposer(
                 .border(1.dp, EmpatiSurfaces.hairline(), barShape)
                 .padding(6.dp)
         ) {
+            VoiceActionButton(state = voiceState, onClick = onVoiceClick)
+            Spacer(Modifier.width(6.dp))
             Box(
                 modifier = Modifier
                     .weight(1f)
@@ -720,6 +811,7 @@ private fun ChatComposer(
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
+                    enabled = !voiceBusy,
                     textStyle = MaterialTheme.typography.bodyMedium.copy(color = colors.onSurface),
                     cursorBrush = SolidColor(colors.primary),
                     singleLine = true,
@@ -731,7 +823,7 @@ private fun ChatComposer(
                         Box(contentAlignment = Alignment.CenterStart) {
                             if (value.isEmpty()) {
                                 Text(
-                                    text = "Ceritakan yang Anda rasakan atau tanyakan sesuatu…",
+                                    text = placeholder,
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = colors.onSurfaceVariant
                                 )
@@ -792,6 +884,278 @@ private fun ChatComposer(
             }
         }
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Voice input
+// ═══════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun VoiceStatusStrip(
+    state: VoiceInputState,
+    onStop: () -> Unit,
+    onCancel: () -> Unit,
+    onRetry: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    when (state) {
+        VoiceInputState.Idle,
+        VoiceInputState.RequestingPermission,
+        is VoiceInputState.Ready -> Unit
+
+        is VoiceInputState.Recording -> Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = EmpatiSurfaces.inset(),
+            modifier = modifier.fillMaxWidth()
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(start = 14.dp, end = 6.dp, top = 4.dp, bottom = 4.dp)
+            ) {
+                RecordingDot(tint = MaterialTheme.empati.concerned.accent)
+                Spacer(Modifier.width(EmpatiSpace.xs))
+                Text(
+                    text = "Merekam… ${formatElapsed(state.elapsedMs)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                TextAction(text = "Selesai", onClick = onStop)
+                TextAction(text = "Batalkan", onClick = onCancel)
+            }
+        }
+
+        is VoiceInputState.Transcribing -> Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = EmpatiSurfaces.inset(),
+            modifier = modifier
+                .fillMaxWidth()
+                .semantics { liveRegion = LiveRegionMode.Polite }
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+            ) {
+                BreathingDots(color = MaterialTheme.empati.presence.accent)
+                Spacer(Modifier.width(EmpatiSpace.sm))
+                Text(
+                    text = if (state.timedOut) {
+                        "Batas 60 detik tercapai. Sedang memproses rekaman…"
+                    } else {
+                        "Sedang memproses rekaman Anda…"
+                    },
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+        }
+
+        VoiceInputState.PermissionDenied -> VoiceNotice(
+            title = "Izin mikrofon ditolak",
+            text = "Tidak masalah, Anda tetap bisa mengetik cerita Anda. Ketuk coba lagi bila ingin merekam.",
+            icon = Icons.Rounded.MicOff,
+            tone = MaterialTheme.empati.attentive,
+            primaryLabel = "Coba lagi",
+            onPrimary = onRetry,
+            onDismiss = onDismiss,
+            modifier = modifier
+        )
+
+        VoiceInputState.Cancelled -> VoiceNotice(
+            title = "Rekaman dibatalkan",
+            text = "Tidak ada yang dikirim. Anda bisa mulai merekam lagi kapan saja.",
+            icon = Icons.Rounded.MicOff,
+            tone = MaterialTheme.empati.neutral,
+            primaryLabel = "Rekam lagi",
+            onPrimary = onRetry,
+            onDismiss = onDismiss,
+            modifier = modifier
+        )
+
+        is VoiceInputState.Error -> VoiceNotice(
+            title = "Rekaman belum berhasil",
+            text = state.message,
+            icon = Icons.Rounded.MicOff,
+            tone = MaterialTheme.empati.attentive,
+            primaryLabel = "Coba lagi",
+            onPrimary = onRetry,
+            onDismiss = onDismiss,
+            modifier = modifier
+        )
+    }
+}
+
+@Composable
+private fun VoiceActionButton(
+    state: VoiceInputState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val recording = state is VoiceInputState.Recording
+    val busy = state is VoiceInputState.RequestingPermission || state is VoiceInputState.Transcribing
+    val label = when (state) {
+        is VoiceInputState.Recording -> "Hentikan rekaman"
+        VoiceInputState.RequestingPermission -> "Meminta izin mikrofon"
+        is VoiceInputState.Transcribing -> "Sedang memproses rekaman"
+        else -> "Rekam pesan suara"
+    }
+
+    Surface(
+        onClick = onClick,
+        enabled = !busy,
+        interactionSource = interactionSource,
+        shape = CircleShape,
+        color = if (recording) MaterialTheme.colorScheme.primary else EmpatiSurfaces.inset(),
+        border = androidx.compose.foundation.BorderStroke(1.dp, EmpatiSurfaces.hairline()),
+        modifier = modifier
+            .size(EmpatiSpace.touchTarget)
+            .semantics { contentDescription = label }
+            .pressScale(interactionSource, 0.92f, !busy)
+            .focusHalo(interactionSource, CircleShape)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (busy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    imageVector = if (recording) Icons.Rounded.Stop else Icons.Rounded.Mic,
+                    contentDescription = null,
+                    tint = if (recording) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+                    modifier = Modifier.size(EmpatiSpace.md)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordingDot(tint: Color, modifier: Modifier = Modifier) {
+    val reduced = LocalReducedMotion.current
+    val pulse by rememberInfiniteTransition(label = "recordingPulse").animateFloat(
+        initialValue = 1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = EmpatiMotion.EaseInOutSoft),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "recordingPulseValue"
+    )
+    Box(
+        modifier = modifier
+            .size(10.dp)
+            .graphicsLayer { alpha = if (reduced) 1f else pulse }
+            .background(tint, CircleShape)
+    )
+}
+
+@Composable
+private fun VoiceNotice(
+    title: String,
+    text: String,
+    icon: ImageVector,
+    tone: ToneColors,
+    primaryLabel: String,
+    onPrimary: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = tone.container,
+        modifier = modifier
+            .fillMaxWidth()
+            .semantics { liveRegion = LiveRegionMode.Polite }
+    ) {
+        Column(modifier = Modifier.padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 4.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = tone.onContainer,
+                    modifier = Modifier
+                        .padding(top = 1.dp)
+                        .size(20.dp)
+                )
+                Spacer(Modifier.width(12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = tone.onContainer
+                    )
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = text,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = tone.onContainer
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextAction(
+                    text = "Tutup",
+                    onClick = onDismiss,
+                    color = tone.onContainer
+                )
+                TextAction(
+                    text = primaryLabel,
+                    onClick = onPrimary,
+                    color = tone.onContainer,
+                    emphasized = true
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TextAction(
+    text: String,
+    onClick: () -> Unit,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    emphasized: Boolean = false
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    Surface(
+        onClick = onClick,
+        interactionSource = interactionSource,
+        shape = CircleShape,
+        color = Color.Transparent,
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .pressScale(interactionSource, 0.96f)
+            .focusHalo(interactionSource, CircleShape)
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = if (emphasized) FontWeight.SemiBold else FontWeight.Medium,
+                color = color
+            )
+        }
+    }
+}
+
+private fun formatElapsed(elapsedMs: Long): String {
+    val seconds = (elapsedMs / 1_000).coerceAtLeast(0)
+    return "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
