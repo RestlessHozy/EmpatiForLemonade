@@ -1,330 +1,193 @@
-# 🛡️ SRYA Emora (v4.1 — Soft Daylight Design System & Inklusif Semua Kalangan)
+# Empati
 
-**Skrining Risiko Hipertensi & Kesejahteraan Psikososial Berbasis AI untuk Semua Kalangan**
+Empati adalah aplikasi Android untuk skrining risiko hipertensi dan kesejahteraan psikososial, lalu percakapan lanjutan dengan asisten yang berjalan di Lemonade Server pada perangkat yang sama. Skrining memakai Certainty Factor deterministik. Percakapan memakai model bahasa lokal untuk menarasikan hasil itu dan potongan rujukan yang ditemukan lewat embedding, sehingga angka risiko tetap berasal dari kode, bukan dari model.
 
-> Aplikasi Android berbasis sistem pakar *Certainty Factor* dua modul yang mengidentifikasi risiko hipertensi, gaya hidup, stres harian/pekerjaan, dan keterkaitan pengalaman Kekerasan Berbasis Gender (KBG) bagi **seluruh lapisan masyarakat** (pekerja kantoran, wiraswasta, mahasiswa, ibu rumah tangga, tenaga medis/pendidik, maupun ASN), dirancang dengan sistem desain **"Soft Daylight" (v4.1)** dan dilengkapi chatbot konsultasi **SRYA Emora** berbasis **LLM Murni (OpenRouter + Supabase Edge Function `empati-chat`)** ber-guardrail ketat pada ranah Kesehatan, Psikologi, dan Kekerasan. Mendukung penuh kebutuhan riset disertasi (*Skrining Risiko Hipertensi Berbasis Gender*).
+Aplikasi ini dibuat untuk submisi AMD Lemonade Developer Challenge 2026 dan untuk penelitian disertasi tentang skrining hipertensi berbasis gender. Repositori berisi aplikasi Android, korpus rujukan, dua skrip PowerShell untuk menyiapkan server dan mengukur latensi, serta catatan arsitektur.
 
----
+## Status
 
-## 📋 Daftar Isi
+Yang sudah berjalan di kode:
 
-- [Tentang](#tentang)
-- [Fitur Utama](#fitur-utama)
-- [Arsitektur](#arsitektur)
-- [Tech Stack](#tech-stack)
-- [Struktur Proyek](#struktur-proyek)
-- [Prasyarat](#prasyarat)
-- [Instalasi & Build](#instalasi--build)
-- [Pengujian](#pengujian)
-- [Alur Aplikasi](#alur-aplikasi)
-- [Sistem Pakar Certainty Factor](#sistem-pakar-certainty-factor)
-- [Privasi & Keamanan](#privasi--keamanan)
-- [Roadmap](#roadmap)
-- [Lisensi](#lisensi)
+- Skrining dua modul, 16 pertanyaan hipertensi dan 10 pertanyaan kekerasan berbasis gender, dengan mesin Certainty Factor dan analisis integrasi.
+- Klien Lemonade tunggal di port 13305 untuk chat, embedding, transkripsi, dan sintesis suara. Nama model tidak ada di kode aplikasi, hanya alias.
+- Retrieval lokal dengan penyimpanan vektor, ambang skor, dan chip sitasi untuk potongan yang disebut dalam jawaban.
+- Chat streaming, pemulihan jawaban parsial, guardrail keluaran, serta status capability yang membedakan server mati, model dimuat, dan model sibuk.
+- Input suara 16 kHz mono dengan batas 60 detik dan output suara dengan cache mp3.
+- 50 unit test JVM dan 44 preview screenshot Compose.
 
----
+Yang belum selesai dan tidak diklaim selesai:
 
-## Tentang
-
-**AI-EMPATI** (*Aplikasi Identifikasi — Evaluasi Mandiri dan Pemantauan Ancaman Tekanan darah tInggi*) adalah aplikasi skrining kesehatan inklusif yang dirancang **untuk semua kalangan masyarakat** di Indonesia (dengan dukungan atribut demografi & kohort riset disertasi). Aplikasi ini menggabungkan:
-
-1. **Skrining hipertensi** — menilai faktor risiko riwayat kesehatan, gaya hidup, dan psikososial harian/pekerjaan.
-2. **Skrining KBG & kesejahteraan interpersonal** — mengidentifikasi pengalaman kekerasan fisik, psikologis, seksual, ekonomi, dan digital di lingkungan rumah tangga, kerja, maupun sosial.
-3. **Analisis terintegrasi** — mengeksplorasi pola keterkaitan antara stres kronis/pengalaman KBG dan risiko hipertensi *(bukan kausalitas)*.
-4. **Chatbot AI-EMPATI berbasis LLM Murni (`qwen2.5:3b-instruct`)** — menjawab pertanyaan seputar **Kesehatan** (hipertensi, tekanan darah, nutrisi, olahraga), **Psikologi** (stres, kecemasan, kualitas tidur), dan **Perlindungan Kekerasan** (KBG/KDRT & layanan SAPA 129) secara alami, utuh, dan tanpa tempelan korpus kaku.
-
-> [!IMPORTANT]
-> Aplikasi ini adalah alat skrining edukatif, **bukan alat diagnosis medis**. Seluruh nilai bobot pakar (MB/MD) masih bersifat *placeholder* dan memerlukan validasi tenaga kesehatan sebelum digunakan secara klinis.
-
----
-
-## Fitur Utama
-
-| Fitur | Deskripsi |
-|---|---|
-| 🩺 **Skrining Dual-Modul Inklusif** | 26 pertanyaan universal: 16 hipertensi (M01–M16) + 10 KBG & keamanan relasi (K01–K10) |
-| 🧠 **Certainty Factor Engine** | Inferensi per sub-hipotesis dengan formula CF kombinasi + faktor pelindung (*protective factors*) & penyelarasan status risiko lintas layar (`Rendah · Batas Wajar`, `Sedang · Perlu Pemantauan`, `Tinggi · Perlu Perhatian`, `Sangat Tinggi · Perlu Perhatian`) |
-| 📊 **Analisis Terintegrasi** | 6 kategori klasifikasi kualitatif + `StateOrb` afektif + `FindingChip` interaktif dengan `FindingDetailSheet` (`ModalBottomSheet`) |
-| 💬 **Chatbot SRYA Emora (OpenRouter + Edge Proxy + Ergonomi Chatbox & Analisis Hasil Skrining)** | Generator LLM murni via **OpenRouter (`openrouter/free` & `:free` models)** & **Supabase Edge Function (`empati-chat`)** yang mampu memperkenalkan dirinya secara hangat (`"siapa anda"`), menganalisis serta menyimpulkan hasil skrining pengguna secara mendalam (`"analisis hasil screening saya"`, `"apa yang bisa anda simpulkan dari hasil screening saya"`), dilengkapi kenyamanan pengetikan (*chatbox & placeholder selalu berada di atas keyboard via `imePadding`*) serta opsi salin teks menyeluruh (`SelectionContainer` & `ContentCopy` pada bubble dan chatbox) |
-| 🔒 **Privasi & Kontrol Layar Fleksibel** | Enkripsi satu arah `subject_hash` & PBKDF2, firewall privasi input, Row-Level Security (RLS) Supabase, penghapusan akun penuh (lokal + cloud), serta izin screenshot/screen-record aktif dengan kode `FLAG_SECURE` yang tetap disimpan (`ENABLE_SCREENSHOT_PROTECTION = false`) bila ingin diaktifkan kembali di masa depan |
-| 📱 **Sistem Desain "Soft Daylight" (v4.1)** | Arsitektur warna 3-lapis (Sage/Clay/Mist/Stone + `MaterialTheme.empati`), tipografi 3-suara (`Fraunces`, `Inter`, `JetBrains Mono`), `LocalReducedMotion`, & aksesibilitas WCAG 2.2 (48dp + `focusHalo`) |
-| 📋 **Riwayat Skrining Sinkron** | Timeline hasil tersimpan otomatis secara lokal & konsisten antara layar Hasil, Beranda, dan Riwayat |
-| 🪪 **Portal Auth Multi-Format Siap Pakai (Tanpa Akun Demo)** | Login & registrasi bersih siap produksi menggunakan **Email**, **No. HP**, **Username**, **NIK (16 digit)**, atau **NIP (18 digit)** untuk semua gender & profesi |
-| 🗄️ **Hybrid SQLite v4 + Supabase Cloud Sync (Persisten Tanpa Skrining)** | 4 domain tabel SQLite lokal (`DB_VERSION = 4`) + sinkronisasi otomatis & pemulihan akun lintas perangkat ke **Supabase Postgres (`empati-research`: `user_accounts`, `research_cf_records`, `research_chat_logs`)** sehingga data akun & profil pengguna tetap tersimpan utuh meskipun pengguna belum melakukan skrining |
-| 🔬 **Data Penelitian Terisolasi** | Output teknis CF berversi (`kb_version`) tersimpan melalui pseudonim `subject_hash` |
-
----
+- Angka benchmark di `docs/BENCHMARK_EVALUATION.md` masih kosong. Belum ada pengukuran yang dijalankan di perangkat Strix Halo untuk repositori ini.
+- Belum ada gerbang persetujuan pengguna untuk fallback cloud Supabase.
+- Indeks vektor disimpan sebagai JSON di SharedPreferences, bukan blob float32 di SQLite seperti rencana awal.
+- Chip sitasi memakai nama penerbit sebagai sinyal, jadi satu penyebutan penerbit dapat menandai beberapa potongan dari penerbit yang sama.
+- Guardrail belum menolak semua angka 0 sampai 100 yang berdiri sendiri dan belum memverifikasi bahwa level risiko yang disebut model sama dengan keluaran mesin CF. Aturan angka yang lebih ketat perlu dirancang hati-hati karena angka klinis sah seperti 140/90 dan 129 akan ikut terkena.
+- Status jalur cadangan tampil di layar chat, belum di layar Profil seperti rencana awal.
+- Bobot Certainty Factor masih placeholder dan belum divalidasi tenaga kesehatan.
+- Belum ada CI, signing release, atau audit keamanan pihak ketiga.
 
 ## Arsitektur
 
-```
-┌──────────────────────────────────────────────────┐
-│                     UI Layer                      │
-│  Jetpack Compose (Material 3)                     │
-│  Screens: Splash → Onboarding → Consent →         │
-│           Questionnaire → Result → Chat → Profile │
-├──────────────────────────────────────────────────┤
-│                  ViewModel                        │
-│  EmpatiViewModel (state, navigasi, logika UI)     │
-├──────────────────────────────────────────────────┤
-│                  Domain Layer                     │
-│  ┌────────────────┐  ┌─────────────────────────┐ │
-│  │ CF Engine       │  │ Chat Engine             │ │
-│  │ • InputParser   │  │ • Keyword matching      │ │
-│  │ • KnowledgeBase │  │ • Intent classification │ │
-│  │ • Inference     │  │ • Context injection     │ │
-│  │ • ResultGen     │  └─────────────────────────┘ │
-│  └────────────────┘                               │
-├──────────────────────────────────────────────────┤
-│                Presentation Layer                 │
-│  UserResultPresenter (model internal → bahasa     │
-│  awam, tanpa CF/MB/MD)                            │
-├──────────────────────────────────────────────────┤
-│                  Data Layer                       │
-│  ScreeningStore (SharedPreferences)               │
-│  ResearchModels (penyimpanan data penelitian)     │
-└──────────────────────────────────────────────────┘
-```
+```mermaid
+flowchart LR
+    subgraph device[Perangkat Android]
+        UI[Compose UI]
+        VM[EmpatiViewModel]
+        CF[Mesin Certainty Factor]
+        IDX[Indeks embedding lokal]
+        VIN[VoiceInputController]
+        VOUT[SpeechPlaybackController]
+    end
 
----
+    subgraph lemonade[Lemonade Server :13305]
+        LLM[empati-llm]
+        EMB[empati-embed]
+        STT[empati-stt]
+        TTS[empati-tts]
+    end
 
-## Tech Stack
-
-| Komponen | Versi |
-|---|---|
-| **Kotlin** | 2.2.10 |
-| **Android Gradle Plugin** | 9.5.0 |
-| **Jetpack Compose BOM** | 2026.02.01 |
-| **Material 3** | via BOM |
-| **Lifecycle ViewModel Compose** | 2.6.1 |
-| **Min SDK** | 24 (Android 7.0) |
-| **Target / Compile SDK** | 37 |
-| **Build System** | Gradle 9.6 (Kotlin DSL) |
-| **Testing** | JUnit 4, Compose UI Test |
-
----
-
-## Struktur Proyek
-
-```
-Empati/
-├── app/src/main/java/com/example/empati/
-│   ├── MainActivity.kt              # Entry point, FLAG_SECURE
-│   ├── EmpatiApp.kt                 # Root composable & routing
-│   ├── EmpatiViewModel.kt           # State management & navigation
-│   ├── data/
-│   │   ├── Models.kt                # Data class: Question, ScreeningResult, UserProfile
-│   │   ├── ChatEngine.kt            # Rule-based chatbot
-│   │   ├── ScreeningEngine.kt       # Mesin skor legacy (v1)
-│   │   ├── ScreeningQuestions.kt     # Bank pertanyaan legacy
-│   │   ├── ScreeningStore.kt        # Persistensi lokal (SharedPreferences)
-│   │   ├── auth/
-│   │   │   └── AsnNipValidator.kt   # Validasi identitas multi-format (Email/HP/Username/NIK/NIP) & subject_hash
-│   │   ├── db/
-│   │   │   └── EmpatiDatabase.kt    # Multi-domain SQLite v3 (Zero-Collision)
-│   │   ├── cloud/
-│   │   │   └── SupabaseCloudSyncService.kt # Sinkronisasi Cloud Supabase (research_cf_records & research_chat_logs) + proxy empati-chat
-│   │   ├── rag/
-│   │   │   ├── RagKnowledgeRepository.kt # Korpus RAG dasar & ScreeningContextSnapshot
-│   │   │   ├── WebRagSearchService.kt    # Live Internet RAG (Wikipedia Medis ID & PubMed/EuropePMC)
-│   │   │   └── OllamaRagService.kt       # Integrasi OpenRouter + Supabase Edge Function + Ollama lokal & Guardrails klinis
-│   │   ├── cf/                      # 🧠 Certainty Factor Engine (v2)
-│   │   │   ├── CfModels.kt          #    Domain models & enums
-│   │   │   ├── CfQuestions.kt       #    26 pertanyaan dual-modul
-│   │   │   ├── CfInputParser.kt     #    Parser jawaban → CF user
-│   │   │   ├── CfKnowledgeBase.kt   #    Rules: MB, MD per hipotesis
-│   │   │   ├── CfInferenceEngine.kt #    Inferensi & kombinasi CF
-│   │   │   └── CfResultGenerator.kt #    Analisis terintegrasi
-│   │   ├── presentation/
-│   │   │   ├── UserPresentation.kt  #    Model presentasi (user-safe)
-│   │   │   └── UserResultPresenter.kt#   Translator internal → awam
-│   │   └── research/
-│   │       └── ResearchModels.kt    #    Data penelitian (CF lengkap)
-│   └── ui/
-│       ├── components/Components.kt  # Komponen UI reusable
-│       ├── screens/                  # Layar-layar aplikasi
-│       │   ├── SplashScreen.kt
-│       │   ├── OnboardingScreen.kt
-│       │   ├── AuthScreen.kt         # Login & Registrasi Inklusif (Email, No. HP, Username, NIK, NIP)
-│       │   ├── ConsentScreen.kt
-│       │   ├── HomeScreen.kt
-│       │   ├── QuestionnaireScreen.kt
-│       │   ├── ResultScreen.kt
-│       │   ├── ChatScreen.kt
-│       │   ├── HistoryScreen.kt
-│       │   ├── ProfileScreen.kt
-│       │   └── MainScaffold.kt
-│       └── theme/
-│           ├── Color.kt              # Palet "Soft Daylight" v4 (Sage, Clay, Mist, Honey, Terra, Berry, Stone)
-│           ├── Theme.kt              # Material 3 ColorScheme, EmpatiColors (MaterialTheme.empati), EmpatiShapes
-│           ├── Tokens.kt             # EmpatiSpace, EmpatiIcon, EmpatiElevation, EmpatiMotion, LocalReducedMotion
-│           └── Type.kt               # 3-Voice Typography (Fraunces, Inter + tnum, JetBrains Mono)
-├── app/src/main/res/font/            # Bundled variable TTF fonts
-│   ├── fraunces.ttf                  # DisplayFont (Fraunces soft-serif opsz=72, SOFT=100, WONK=0)
-│   ├── inter.ttf                     # BodyFont & EmpatiNumeralStyle (Inter)
-│   └── jetbrains_mono.ttf            # MetricFont / EmpatiMetricStyle (JetBrains Mono)
-├── app/src/test/                     # Unit tests (49 tests)
-│   ├── auth/AsnAndRagArchitectureTest.kt # 11 test identitas multi-format, PBKDF2, subject_hash, payload Supabase/OpenRouter, & LLM guardrails
-│   ├── cf/CfEngineTest.kt           # 30 test CF engine
-│   └── presentation/UserPresentationTest.kt  # 7 test presentasi & penyelarasan status risiko
-├── supabase/                         # Infrastruktur Cloud Supabase (empati-research)
-│   ├── migrations/20261108000001_create_empati_research_schema.sql
-│   └── functions/empati-chat/index.ts # Edge Function proxy OpenRouter (Free-Tier Smart Router openrouter/free)
-├── app/proguard-rules.pro            # Aturan minifikasi R8/ProGuard untuk APK rilis
-├── build.gradle.kts                  # Root build config
-├── settings.gradle.kts
-├── gradle.properties
-├── project_analysis.md
-├── FRONTEND_DESIGN.md
-├── TYPOGRAPHY_AND_CLINICAL_UX.md
-├── PROJECT_CONTEXT_SUMMARY.md
-├── DATABASE_AUTH_AND_RAG_ARCHITECTURE.md
-├── EXPERT_SYSTEM.md
-└── CHANGELOG.md
+    EDGE[(Supabase Edge Function)]
+    UI --> VM
+    VM --> CF
+    VM --> IDX
+    VM --> VIN
+    VM --> VOUT
+    VIN --> STT
+    VM --> EMB
+    VM --> LLM
+    VOUT --> TTS
+    VM -. Lemonade gagal .-> EDGE
 ```
 
----
+Pembagian tugasnya sengaja kaku. `CfEngine` menghitung level, kategori dominan, dan faktor protektif. `HybridTriageBridge` mengubah hasil itu menjadi konteks `empati.screening_context/v1` untuk model. `EmpatiPromptBuilder` menyusun prompt dengan potongan rujukan. `AnswerGuardrail` memeriksa teks akhir sebelum ditampilkan. Model tidak menghitung ulang angka dan tidak menentukan diagnosis.
 
-## Prasyarat
+Alur chat ada di `EmpatiChatUseCase`, dengan port untuk gateway, retriever, dan sumber konteks triage. `GroundedChatGateway` memanggil Lemonade, meneruskan prompt yang sama ke Supabase Edge Function bila Lemonade gagal, lalu jatuh ke penyusun offline. `ChatFallbackLadder` menguji urutan itu.
 
-- **Android Studio** Ladybug (2025.x) atau lebih baru
-- **JDK 11+**
-- **Android SDK** dengan API level 37
+## Menjalankan
 
----
+Prasyarat:
 
-## Instalasi & Build
+- Android Studio dengan SDK 37 dan JDK 17 atau lebih baru.
+- PowerShell 7.
+- Lemonade Server yang mendukung endpoint `/v1/chat/completions`, `/v1/embeddings`, `/v1/audio/transcriptions`, dan `/v1/audio/speech`.
+- Perangkat AMD dengan driver yang sudah mendukung Lemonade. Emulator Android juga bisa dipakai dengan host `10.0.2.2`.
+
+Siapkan server:
+
+```powershell
+pwsh ./scripts/setup-empati-lemonade.ps1
+```
+
+Skrip mengatur `host=0.0.0.0`, menarik lima model, memasang alias, memeriksa `/v1/models`, lalu menjalankan `lemonade bench` dan `scripts/bench-empati.ps1`. Pakai `-LocalOnly` untuk tetap di `127.0.0.1`, `-SkipPull` bila model sudah ada, dan `-DryRun` untuk melihat perintah tanpa mengeksekusi. Bila server dibuka ke LAN, batasi jaringannya dan set `LEMONADE_API_KEY` di server.
+
+Konfigurasi build ada di `local.properties`:
+
+```properties
+LEMONADE_BASE_URL=http://10.0.2.2:13305
+LEMONADE_API_KEY=
+```
+
+`LEMONADE_BASE_URL` dan `LEMONADE_API_KEY` juga bisa datang dari variabel lingkungan. Keduanya masuk ke `BuildConfig`, jadi host dan port tidak perlu diubah di kode. Untuk perangkat fisik lewat USB, jalankan `adb reverse tcp:13305 tcp:13305` dan pakai `http://127.0.0.1:13305`. Bila memakai IP LAN, tambahkan IP itu ke `app/src/main/res/xml/network_security_config.xml`; konfigurasi bawaan hanya mengizinkan HTTP polos ke `10.0.2.2`, `127.0.0.1`, dan `localhost`.
+
+Build dan pasang:
 
 ```bash
-# Clone repositori
-git clone <repository-url>
-cd Empati
-
-# Build debug APK
 ./gradlew assembleDebug
-
-# Install ke perangkat/emulator
 ./gradlew installDebug
 ```
 
----
+## Model dan alias
+
+Alias adalah kontrak antara aplikasi dan server. Ganti model cukup di server, tanpa membangun ulang APK.
+
+| Alias | Model | Kegunaan |
+|---|---|---|
+| `empati-llm` | `Qwen3-4B-GGUF` | Chat utama |
+| `empati-llm-backup` | `Qwen3-1.7B-GGUF` | Cadangan yang disiapkan skrip |
+| `empati-embed` | `nomic-embed-text-v1-GGUF` | Embedding korpus dan kueri |
+| `empati-stt` | `Whisper-Large-v3-Turbo` | Transkripsi suara |
+| `empati-tts` | `kokoro-v1` | Sintesis suara |
+
+Aplikasi memakai empat alias yang tercantum di kontraknya. Alias cadangan disiapkan untuk failover manual di sisi server; aplikasi tetap memanggil `empati-llm`. Detail endpoint dan alasan pemilihan model ada di `docs/research/lemonade-omnimodal-spec.md`.
 
 ## Pengujian
 
 ```bash
-# Jalankan seluruh unit test
-./gradlew test
-
-# Jalankan test spesifik
-./gradlew test --tests "com.example.empati.cf.CfEngineTest"
-./gradlew test --tests "com.example.empati.presentation.UserPresentationTest"
+./gradlew testDebugUnitTest
+./gradlew updateDebugScreenshotTest
 ```
 
-**Status pengujian saat ini:** 49 unit test JVM + 7 instrumented SQLite test ✅
+Unit test mencakup Certainty Factor, presentasi hasil, kontrak HTTP Lemonade, parsing SSE, guardrail, fallback ladder, retrieval dan sitasi, state machine input suara, cache dan pemutaran suara, serta status capability. Preview screenshot mencakup alur onboarding, hasil, chat, kontrol suara, dan status server.
 
-| Suite | Jumlah Test | Cakupan |
-|---|---|---|
-| `CfEngineTest` | 30 | Parser, mapping, reverse scoring, validasi, formula CF, hasil modul, integrasi, determinisme |
-| `UserPresentationTest` | 7 | Bahasa awam, penyelarasan status risiko (`Sedang · Perlu Pemantauan` s/d `Sangat Tinggi · Perlu Perhatian`), faktor protektif, penjelasan tag klinis, Zero-Leak |
-| `AsnAndRagArchitectureTest` | 12 | Validasi identitas multi-format (Email, No. HP, Username, NIK, NIP semua gender), PBKDF2-HMAC-SHA256 salt acak, pseudonimisasi `subject_hash`, respons perkenalan diri `"siapa anda"` & penolakan topik yang manusiawi, persistensi akun tanpa skrining (`user_accounts`), Pure Scoped LLM guardrails |
-| `EmpatiDatabaseInstrumentedTest` (`androidTest`) | 7 | Operasi SQLite sungguhan (`DB_VERSION = 4` tanpa akun demo): registrasi & persistensi profil tanpa skrining, login multi-format, penolakan duplikat/PIN salah, isolasi riwayat antar-akun, hapus data per pengguna |
+Pemeriksaan cepat skrip tanpa Lemonade terpasang:
 
----
-
-## Alur Aplikasi
-
-```
-Splash → Onboarding (3 slide) → Home Dashboard
-                                       │
-                              ┌────────┼────────┐
-                              ▼        ▼        ▼
-                          Skrining   Chat    Riwayat
-                              │
-                     Informed Consent
-                              │
-                  Kuesioner Hipertensi (M01–M16)
-                              │
-                    Hasil Modul Hipertensi
-                              │
-                    Kuesioner KBG (K01–K10)
-                              │
-                      Hasil Modul KBG
-                              │
-                   Analisis Terintegrasi
-                              │
-                        Simpan Hasil
+```powershell
+pwsh ./scripts/tests/verify-dryrun.ps1
 ```
 
----
+## Benchmark
 
-## Sistem Pakar Certainty Factor
+`scripts/bench-empati.ps1` mengukur chat, embedding, transkripsi, dan TTS, lalu menulis `docs/BENCHMARK_RESULTS.md`. Metodologi, template tabel, dan analisis batas memori Strix Halo ada di `docs/BENCHMARK_EVALUATION.md`. Berkas hasil tidak disimpan di repositori karena bergantung pada mesin yang dipakai.
 
-### Formula Inti
+## Privasi dan jalur data keluar
 
-| Operasi | Formula |
-|---|---|
-| CF pakar | `MB - MD` |
-| CF evidence | `CF_User × CF_Rule` |
-| Kombinasi (keduanya +) | $CF_1 + CF_2 \times (1 - CF_1)$ |
-| Kombinasi (keduanya −) | $CF_1 + CF_2 \times (1 + CF_1)$ |
-| Kombinasi (konflik) | $\frac{CF_1 + CF_2}{1 - \min(\|CF_1\|, \|CF_2\|)}$ |
+Jalur utama aplikasi berjalan di perangkat. Rekaman tidak dikirim ke layanan pihak ketiga. Audio balasan disimpan di cache internal dan diputar lewat MediaPlayer.
 
-### Sub-Hipotesis
+Ada dua jalur keluar yang perlu diketahui operator:
 
-**Modul Hipertensi:**
-- Riwayat & Genetik
-- Kondisi Medis
-- Gaya Hidup
-- Faktor Psikososial
+- Bila Lemonade gagal, `GroundedChatGateway` dapat memanggil Supabase Edge Function `empati-chat`. Prompt yang dikirim berisi konteks skrining dan potongan rujukan. Saat ini jalur ini aktif tanpa gerbang persetujuan.
+- Alur akun menyinkronkan data penelitian dan profil ke Supabase setelah login. Data penelitian memakai `subject_hash`, bukan identitas langsung.
 
-**Modul KBG:**
-- Fisik · Psikologis · Seksual · Ekonomi · Digital
+Untuk pemakaian yang benar-benar luring, jalankan aplikasi tanpa konfigurasi Supabase dan hapus pemanggilan sinkronisasi pada alur akun, atau blokir jaringan pada perangkat. Langkah itu belum dibungkus sebagai sakelar aplikasi dan masih menjadi pekerjaan produksi.
 
-### Klasifikasi Terintegrasi
+## Pemakaian di klinik, kampus, dan layanan konseling
 
-| Kategori | Deskripsi |
-|---|---|
-| Hipertensi Murni Gaya Hidup | Risiko tinggi hipertensi tanpa indikasi KBG |
-| Hipertensi + Indikasi KBG | Pola keterkaitan pengalaman KBG dan risiko hipertensi |
-| Hipertensi + Riwayat Medis | Dominasi faktor riwayat/kondisi medis |
-| Indikasi KBG Tanpa Hipertensi | Ada indikasi KBG, risiko hipertensi rendah |
-| Risiko Rendah | Tidak ada indikasi signifikan |
-| Inconclusive | Data belum lengkap untuk kesimpulan |
+Klinik kecil bisa menempatkan satu server di ruang perawat dan memasang APK di tablet konsultasi. Kampus bisa memakai satu server untuk beberapa laboratorium, dengan catatan kapasitas perlu diukur untuk akses bersamaan. Layanan konseling bisa memakai alur suara untuk klien yang lebih nyaman bercerita lisan, lalu menyimpan hasil skrining secara lokal.
 
----
+Biaya operasional utama ada pada perangkat dan listrik, bukan langganan model. Lisensi MIT mengizinkan perubahan untuk kebutuhan lokal, termasuk mengganti korpus rujukan atau menambah pertanyaan skrining. Panduan pemasangan ada di bagian Menjalankan, dan skrip penyiapan tidak memerlukan akun cloud.
 
-## Privasi & Keamanan
+## Menuju produksi
 
-- 📸 **Screenshot & Screen Record Fleksibel (`ENABLE_SCREENSHOT_PROTECTION = false`)** — aplikasi mengizinkan tangkapan dan perekaman layar secara default, namun kode `WindowManager.LayoutParams.FLAG_SECURE` di `MainActivity.kt` tetap dipertahankan agar dapat diaktifkan kembali kapan saja di masa depan.
-- 💾 **Penyimpanan Hybrid Terenkripsi** — riwayat skrining disimpan di SQLite perangkat (`empati_multi_domain.db` v4) dan akun/profil pengguna disinkronkan secara aman ke Supabase (`user_accounts`) dengan kredensial ter-hash PBKDF2-HMAC-SHA256.
-- 🏷️ **Penanda privasi** — pertanyaan KBG menampilkan notifikasi kerahasiaan
-- 🔬 **Pemisahan data & Pseudonimisasi (`subject_hash`)** — output penelitian (CF teknis) dipisahkan dari identitas asli menggunakan kode samaran satu arah (`sub_<20-hex>`)
-- 🗑️ **Kendali Penghapusan Penuh** — tombol *"Hapus seluruh data akun & riwayat saya"* menghapus data dari perangkat lokal maupun tabel `user_accounts` di Cloud Supabase
-- 👤 **Bahasa sehari-hari yang hangat & manusiawi** — pengguna hanya melihat kesimpulan empatik yang mudah dipahami, tanpa skor CF/MB/MD atau kalimat kaku (*AI-slop*)
+Urutan yang saya sarankan sebelum dipakai di luar demo:
 
----
-
-## Roadmap
-
-- [ ] Validasi bobot klinis (MB/MD) bersama tenaga kesehatan
-- [x] Integrasi chatbot dengan LLM lokal Ollama (`qwen2.5:3b-instruct` / `empati-qwen2.5:3b`) ber-guardrail ketat
-- [x] Transformasi inklusif untuk semua kalangan masyarakat (dukungan multi-format ID & multi-profesi)
-- [x] Sistem Desain **EMPATI "Soft Daylight" (v4.0)** dengan palet Sage/Clay/Mist/Stone & nada afektif `MaterialTheme.empati`
-- [x] Sistem Tipografi 3-Suara (`Fraunces`, `Inter` + angka tabular `tnum`, `JetBrains Mono`)
-- [x] Redesain hasil skrining dengan `StateOrb`, `FindingChip` interaktif (`FindingDetailSheet`), & `StrengthsCard` (*Yang sudah baik*)
-- [ ] Enkripsi penyimpanan lokal penuh (SQLCipher)
-- [ ] Mekanisme ekspor/hapus data yang lebih granular
-- [ ] Instrumental test (UI test) untuk alur end-to-end
-
----
+1. Validasi bobot Certainty Factor bersama tenaga kesehatan dan catat versi basis aturan.
+2. Tambahkan sakelar persetujuan cloud, lalu matikan fallback Supabase secara bawaan.
+3. Pindahkan indeks vektor ke SQLite sebagai blob float32 dengan panjang dan hash, sesuai spesifikasi.
+4. Perketat guardrail angka dan tambahkan uji kepatuhan terhadap level risiko.
+5. Ukur TTFT, latensi STT dan TTS, serta pemakaian memori pada perangkat target, lalu simpan hasilnya.
+6. Siapkan CI untuk unit test, screenshot test, dan pemeriksaan dry-run skrip.
+7. Ganti signing debug dengan kunci rilis, aktifkan R8 penuh, dan audit izin serta lalu lintas jaringan.
+8. Tambahkan instrumented test untuk alur suara dan pemutaran audio di perangkat nyata.
 
 ## Lisensi
 
-*Silakan tambahkan lisensi yang sesuai.*
+MIT. Teks lengkap ada di `LICENSE`.
 
----
+## Struktur repositori
 
-<p align="center">
-  <sub>Dibuat untuk mendukung kesehatan tekanan darah & kesejahteraan psikososial masyarakat Indonesia 🇮🇩</sub>
-</p>
+```text
+app/                     Aplikasi Android (Kotlin, Compose)
+  src/main/java/com/example/empati/
+    data/chat/           Orkestrasi chat, gateway, guardrail, fallback
+    data/lemonade/       Klien HTTP, konfigurasi, status, kapabilitas
+    data/retrieval/      Embedding, indeks lokal, pemilih sitasi
+    data/speech/         Rekaman, transkripsi, cache dan pemutaran TTS
+    data/triage/         Skema konteks dan penyusun prompt
+    data/rag/            Korpus rujukan dan adaptor lama
+    ui/                  Layar dan komponen Soft Daylight
+  src/test/              50 unit test JVM
+  src/screenshotTest/    44 preview screenshot Compose
+docs/
+  adr/                   Keputusan arsitektur
+  specs/                 Spesifikasi tiket
+  research/              Catatan endpoint Lemonade
+  BENCHMARK_EVALUATION.md
+  YOUTUBE_DEMO_SCRIPT.md
+scripts/
+  setup-empati-lemonade.ps1
+  bench-empati.ps1
+  tests/verify-dryrun.ps1
+supabase/                Skema riset dan Edge Function
+```
 
+Dokumen lain di akar repositori, seperti `FRONTEND_DESIGN.md` dan `EXPERT_SYSTEM.md`, menjelaskan sistem desain dan mesin pakar secara terpisah.

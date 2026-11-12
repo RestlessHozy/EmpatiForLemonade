@@ -17,3 +17,4 @@ app/build/
 supabase/.temp/
 .temp/
 gradle-test.log
+docs/BENCHMARK_RESULTS.md
