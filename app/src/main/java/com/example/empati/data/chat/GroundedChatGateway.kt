@@ -16,7 +16,8 @@ fun interface ChatModel {
  * berasal dari potongan rujukan; bila tidak ada, prompt meminta penolakan.
  */
 class GroundedChatGateway(
-    private val model: ChatModel
+    private val model: ChatModel,
+    private val cloud: (() -> String)? = null
 ) : ConversationGateway {
 
     override fun generate(query: String, context: ChatRequestContext): ChatReplyResult =
@@ -33,16 +34,20 @@ class GroundedChatGateway(
             chunks = context.chunks
         )
 
-        val raw = runCatching { model.complete(EmpatiPromptBuilder.SYSTEM_PROMPT, userPrompt) }
-            .getOrElse {
-                return ChatReplyResult(
-                    text = "Maaf, model lokal belum bisa dihubungi saat ini. Saya belum bisa " +
-                        "menyusun jawaban yang lengkap. Coba lagi sebentar lagi, atau buka menu " +
-                        "skrining kalau ingin meninjau hasil Anda.",
-                    modelName = "fallback-bounded",
-                    referenceChunks = context.chunks
-                )
-            }
+        val raw = try {
+            model.complete(EmpatiPromptBuilder.SYSTEM_PROMPT, userPrompt)
+        } catch (error: Exception) {
+            val outcome = ChatFallbackLadder(
+                lemonade = { throw error },
+                cloud = cloud
+            ).answer()
+            val guarded = AnswerGuardrail.enforce(outcome.text, gbvIndicated)
+            return ChatReplyResult(
+                text = guarded.text,
+                modelName = if (outcome.route == ChatRoute.CLOUD) "cloud-fallback" else "fallback-bounded",
+                referenceChunks = context.chunks
+            )
+        }
 
         val guarded = AnswerGuardrail.enforce(raw, gbvIndicated)
         return ChatReplyResult(
