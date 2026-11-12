@@ -16,3 +16,4 @@ app/build/
 *.aab
 supabase/.temp/
 .temp/
+gradle-test.log
