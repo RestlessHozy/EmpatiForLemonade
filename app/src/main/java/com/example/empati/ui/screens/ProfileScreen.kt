@@ -47,9 +47,12 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.LaunchedEffect
 import com.example.empati.EmpatiViewModel
 import com.example.empati.MainActivity
 import com.example.empati.data.UserProfile
+import com.example.empati.data.lemonade.LemonadeStatus
+import com.example.empati.data.lemonade.LemonadeStatusPresenter
 import com.example.empati.data.initials
 import com.example.empati.ui.components.EmpatiAvatar
 import com.example.empati.ui.components.EmpatiSurfaces
@@ -82,12 +85,16 @@ enum class ProfileField(val label: String, val icon: ImageVector) {
 
 @Composable
 fun ProfileScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
+    LaunchedEffect(Unit) { vm.refreshLemonadeStatus() }
     ProfileScreenContent(
         profile = vm.profile,
         onUpdateProfile = vm::updateProfile,
         onLogout = vm::logoutAsn,
         onClearAllData = vm::clearAllData,
-        modifier = modifier
+        modifier = modifier,
+        lemonadeStatus = vm.lemonadeStatus,
+        lemonadeError = vm.lemonadeError,
+        onRefreshLemonade = vm::refreshLemonadeStatus
     )
 }
 
@@ -107,7 +114,10 @@ fun ProfileScreenContent(
     onClearAllData: () -> Unit,
     modifier: Modifier = Modifier,
     initialEditingField: ProfileField? = null,
-    initialShowDeleteConfirm: Boolean = false
+    initialShowDeleteConfirm: Boolean = false,
+    lemonadeStatus: LemonadeStatus? = null,
+    lemonadeError: String? = null,
+    onRefreshLemonade: () -> Unit = {}
 ) {
     var editingField by remember { mutableStateOf(initialEditingField) }
     var editValue by remember {
@@ -176,6 +186,16 @@ fun ProfileScreenContent(
         Spacer(Modifier.height(EmpatiSpace.xl))
 
         Reveal(modifier = Modifier.fillMaxWidth(), index = 2) {
+            LemonadeStatusSection(
+                status = lemonadeStatus,
+                error = lemonadeError,
+                onRefresh = onRefreshLemonade
+            )
+        }
+
+        Spacer(Modifier.height(EmpatiSpace.xl))
+
+        Reveal(modifier = Modifier.fillMaxWidth(), index = 3) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 SectionLabel(
                     text = "Pengaturan dan keamanan",
@@ -546,4 +566,34 @@ private fun DeleteConfirmDialog(
             }
         }
     )
+}
+
+@Composable
+private fun LemonadeStatusSection(
+    status: LemonadeStatus?,
+    error: String?,
+    onRefresh: () -> Unit
+) {
+    val summary = LemonadeStatusPresenter.summarize(status, error)
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        SectionLabel(
+            text = "Status layanan",
+            modifier = Modifier.padding(start = EmpatiSpace.xs)
+        )
+        Spacer(Modifier.height(EmpatiSpace.sm))
+        TonalCard(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(EmpatiSpace.md)
+        ) {
+            Text(text = summary.title, style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(EmpatiSpace.xs))
+            Text(text = summary.detail, style = MaterialTheme.typography.bodyMedium)
+            Spacer(Modifier.height(EmpatiSpace.sm))
+            GhostButton(
+                text = if (summary.ready) "Periksa ulang" else "Periksa kesiapan server",
+                onClick = onRefresh
+            )
+        }
+    }
 }

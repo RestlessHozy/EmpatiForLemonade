@@ -7,6 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.empati.data.lemonade.LemonadeStatus
+import com.example.empati.data.lemonade.LemonadeUnifiedClient
 import com.example.empati.data.ChatEngine
 import com.example.empati.data.ChatMessage
 import com.example.empati.data.ScreeningResult
@@ -83,6 +85,23 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         )
     )
         private set
+
+    private val lemonadeClient = LemonadeUnifiedClient()
+
+    var lemonadeStatus by mutableStateOf<LemonadeStatus?>(null)
+        private set
+
+    var lemonadeError by mutableStateOf<String?>(null)
+        private set
+
+    fun refreshLemonadeStatus() {
+        viewModelScope.launch {
+            val client = lemonadeClient
+            val result = withContext(Dispatchers.IO) { client.listModels() }
+            lemonadeStatus = result.getOrNull()
+            lemonadeError = result.exceptionOrNull()?.message
+        }
+    }
 
     // ---- Dual-module state ----
     var activeModule by mutableStateOf(ScreeningModule.HYPERTENSION)
