@@ -13,6 +13,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -28,12 +32,14 @@ import androidx.compose.material.icons.rounded.MonitorHeart
 import androidx.compose.material.icons.rounded.Shield
 import androidx.compose.material.icons.rounded.SupportAgent
 import androidx.compose.material.icons.rounded.Spa
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -103,7 +109,8 @@ fun IntegratedResultScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
         onBack = vm::onBack,
         onSave = vm::saveDualResult,
         onAskAi = vm::askAboutResult,
-        modifier = modifier
+        modifier = modifier,
+        debugContextJson = vm.triageContextDebugJson()
     )
 }
 
@@ -246,7 +253,8 @@ fun IntegratedResultContent(
     onSave: () -> Unit,
     onAskAi: () -> Unit,
     modifier: Modifier = Modifier,
-    initialSelectedTag: String? = null
+    initialSelectedTag: String? = null,
+    debugContextJson: String? = null
 ) {
     var selectedTag by remember { mutableStateOf(initialSelectedTag) }
     val tone = overallTone(presentation).let { overall ->
@@ -346,6 +354,7 @@ fun IntegratedResultContent(
         Spacer(Modifier.height(EmpatiSpace.xl))
         Reveal(index = 6) {
             Column {
+                var showDebugContext by remember { mutableStateOf(false) }
                 PrimaryButton(
                     text = "Simpan ke riwayat",
                     onClick = onSave,
@@ -353,6 +362,38 @@ fun IntegratedResultContent(
                 )
                 Spacer(Modifier.height(EmpatiSpace.xxs))
                 GhostButton(text = "Tanyakan ke SRYA Emora", onClick = onAskAi)
+                if (debugContextJson != null) {
+                    Spacer(Modifier.height(EmpatiSpace.xxs))
+                    GhostButton(
+                        text = "Lihat konteks skrining",
+                        onClick = { showDebugContext = true }
+                    )
+                    if (showDebugContext) {
+                        AlertDialog(
+                            onDismissRequest = { showDebugContext = false },
+                            confirmButton = {
+                                TextButton(onClick = { showDebugContext = false }) {
+                                    Text(text = "Tutup")
+                                }
+                            },
+                            title = { Text(text = "Konteks yang dikirim ke model") },
+                            text = {
+                                Column(
+                                    modifier = Modifier
+                                        .heightIn(max = 320.dp)
+                                        .verticalScroll(rememberScrollState())
+                                ) {
+                                    SelectionContainer {
+                                        Text(
+                                            text = debugContextJson,
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
             }
         }
 

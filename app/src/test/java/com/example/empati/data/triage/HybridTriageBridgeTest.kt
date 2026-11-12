@@ -282,6 +282,28 @@ class HybridTriageBridgeTest {
     }
 
     @Test
+    fun `debug json is absent before any screening`() {
+        assertNull(HybridTriageBridge.toDebugJson(null, null, null, "cf-kb-v2.0", "now"))
+    }
+
+    @Test
+    fun `debug json exposes module names and level for inspection`() {
+        val json = HybridTriageBridge.toDebugJson(
+            hypertension = hypertensionResult(),
+            gbv = gbvResult(),
+            integrated = integrated(),
+            kbVersion = "cf-kb-v2.0",
+            capturedAt = "now"
+        )
+
+        assertTrue(json != null)
+        assertTrue(json!!.contains("\"schema\":\"empati.screening_context/v1\""))
+        assertTrue(json.contains("\"module\":\"HYPERTENSION\""))
+        assertTrue(json.contains("\"module\":\"GBV\""))
+        assertTrue(json.contains("\"level\":\"SEDANG\""))
+    }
+
+    @Test
     fun `empty module list still produces a usable query`() {
         val context = HybridTriageBridge.build(null, null, null, "cf-kb-v2.0", "now")
 

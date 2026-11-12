@@ -9,6 +9,11 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.empati.data.lemonade.LemonadeStatus
 import com.example.empati.data.lemonade.LemonadeUnifiedClient
+import com.example.empati.data.db.EmpatiDatabase
+import com.example.empati.data.triage.HybridTriageBridge
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import com.example.empati.data.ChatEngine
 import com.example.empati.data.ChatMessage
 import com.example.empati.data.ScreeningResult
@@ -354,6 +359,19 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         val analysis = integrated ?: return null
         return UserResultPresenter.presentIntegrated(hypertension, gbv, analysis)
     }
+
+    /**
+     * JSON konteks skrining untuk diperiksa manual dari layar hasil. Dipakai
+     * untuk memastikan angka dan nama enum yang dikirim ke model sama dengan
+     * keluaran mesin.
+     */
+    fun triageContextDebugJson(): String? = HybridTriageBridge.toDebugJson(
+        hypertension = htModuleResult,
+        gbv = gbvModuleResult,
+        integrated = integrated,
+        kbVersion = EmpatiDatabase.CURRENT_KB_VERSION,
+        capturedAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(Date())
+    )
 
     /** Internal research data — for authorized research use only, never rendered in UI. */
     fun researchRecords(): List<ResearchRecord> = store.loadResearchRecords()

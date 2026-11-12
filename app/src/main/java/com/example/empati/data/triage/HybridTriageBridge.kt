@@ -89,6 +89,21 @@ object HybridTriageBridge {
         integrated = integrated?.toTriageIntegrated()
     )
 
+    /**
+     * JSON untuk pemeriksaan manual di layar hasil. Null berarti belum ada
+     * hasil skrining, sehingga tidak ada yang perlu ditampilkan.
+     */
+    fun toDebugJson(
+        hypertension: ModuleResult?,
+        gbv: ModuleResult?,
+        integrated: IntegratedAnalysis?,
+        kbVersion: String,
+        capturedAt: String
+    ): String? {
+        if (hypertension == null && gbv == null && integrated == null) return null
+        return toJson(build(hypertension, gbv, integrated, kbVersion, capturedAt))
+    }
+
     fun toJson(context: TriageContext): String = MiniJson.write(
         mapOf(
             "schema" to context.schema,
