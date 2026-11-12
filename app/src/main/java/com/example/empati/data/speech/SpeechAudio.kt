@@ -40,29 +40,31 @@ class MediaPlayerSpeechAudioPlayer : SpeechAudioPlayer {
     override fun play(filePath: String, onCompleted: () -> Unit) {
         stop()
         val media = MediaPlayer()
-        media.setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_MEDIA)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build()
-        )
-        media.setDataSource(filePath)
-        media.setOnPreparedListener { it.start() }
-        media.setOnCompletionListener {
-            onCompleted()
-            it.release()
-            if (player === it) player = null
-        }
-        media.setOnErrorListener { failed, _, _ ->
-            onCompleted()
-            failed.release()
-            if (player === failed) player = null
-            true
-        }
-        player = media
-        runCatching { media.prepareAsync() }.onFailure {
+        try {
+            media.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            media.setDataSource(filePath)
+            media.setOnPreparedListener { it.start() }
+            media.setOnCompletionListener {
+                onCompleted()
+                it.release()
+                if (player === it) player = null
+            }
+            media.setOnErrorListener { failed, _, _ ->
+                onCompleted()
+                failed.release()
+                if (player === failed) player = null
+                true
+            }
+            player = media
+            media.prepareAsync()
+        } catch (error: Exception) {
             media.release()
-            if (player === media) player = null
+            player = null
             onCompleted()
         }
     }

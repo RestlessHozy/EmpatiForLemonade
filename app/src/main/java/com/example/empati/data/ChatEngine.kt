@@ -17,7 +17,7 @@ data class ChatReplyResult(
     val retrievedChunkIds: List<String> = emptyList(),
     val usedOllamaLlm: Boolean = false,
     val fetchedFromInternet: Boolean = false,
-    val modelName: String = OllamaRagService.DEFAULT_MODEL,
+    val modelName: String = "local",
     val referenceChunks: List<ReferenceChunk> = emptyList(),
     val isPartial: Boolean = false,
     val failure: Throwable? = null,
@@ -56,8 +56,7 @@ object ChatEngine {
                         matchedChunks = emptyList(),
                         contextSnapshot = context.snapshot
                     ),
-                    enableNetworkLlm = enableNetworkLlm,
-                    preferredModel = OllamaRagService.DEFAULT_MODEL
+                    enableNetworkLlm = enableNetworkLlm
                 )
                 return ChatReplyResult(
                     text = outcome.text,

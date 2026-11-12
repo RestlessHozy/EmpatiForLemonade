@@ -1,12 +1,6 @@
 package com.example.empati.data.rag
 
 import com.example.empati.data.cloud.SupabaseCloudSyncService
-import java.io.BufferedReader
-import java.io.InputStreamReader
-import java.io.OutputStreamWriter
-import java.net.HttpURLConnection
-import java.net.URL
-import java.nio.charset.StandardCharsets
 import java.util.Locale
 
 data class OllamaGenerationOutcome(
@@ -30,16 +24,6 @@ data class OllamaGenerationOutcome(
  * 3. Tetap menjaga privasi pengguna (menyensor NIP/NIK/Email/No.HP) dan Zero-Leak (tanpa CF/MB/MD).
  */
 object OllamaRagService {
-
-    const val DEFAULT_MODEL = "qwen2.5:3b-instruct"
-    const val CUSTOM_GUARDED_MODEL = "empati-qwen2.5:3b"
-
-    // Urutan prioritas: Loopback/ADB reverse -> Emulator host -> Wi-Fi LAN
-    val CANDIDATE_ENDPOINTS = listOf(
-        "http://127.0.0.1:11434",   // ADB reverse (tcp:11434) / Localhost
-        "http://10.0.2.2:11434",    // Android Emulator loopback ke host PC
-        "http://192.168.1.7:11434"  // Wi-Fi LAN host PC
-    )
 
     const val OUT_OF_SCOPE_REFUSAL =
         "Maaf ya, untuk topik itu saya belum bisa membantu. Sebagai teman bicara Anda di SRYA Emora, saya hadir khusus untuk menemani obrolan seputar tekanan darah dan gaya hidup sehat, pengelolaan stres atau kualitas tidur, serta dukungan ruang aman bila Anda menghadapi situasi kekerasan. Ada hal dari sekitar itu yang sedang ingin Anda ceritakan?"
@@ -271,16 +255,15 @@ object OllamaRagService {
     /**
      * Menghasilkan jawaban murni dari LLM (tanpa korpus dan tanpa sitasi dokumen):
      * 1. Supabase Edge Function `empati-chat` sebagai jalur cloud.
-     * 2. Local/LAN Ollama (`qwen2.5:3b-instruct` / `empati-qwen2.5:3b`) untuk pengembangan lokal.
-     * 3. Hanya jika perangkat benar-benar tanpa Ollama dan tanpa internet (atau saat unit test offline),
-     *    menggunakan synthesizer klinis.
+     * 2. Penyusun klinis offline bila jaringan tidak dipakai atau cloud gagal.
+     *
+     * Chat aplikasi memakai Lemonade lewat EmpatiChatUseCase; jalur ini hanya
+     * untuk adaptor lama ChatEngine.
      */
     fun generateRagResponse(
         rawQuery: String,
         retrieval: RagRetrievalResult = RagRetrievalResult(rawQuery, emptyList(), null),
-        enableNetworkLlm: Boolean = true,
-        preferredModel: String = DEFAULT_MODEL,
-        timeoutMs: Int = 60_000
+        enableNetworkLlm: Boolean = true
     ): OllamaGenerationOutcome {
         val sanitizedQuery = sanitizePrivacyInput(rawQuery)
 
@@ -319,29 +302,9 @@ object OllamaRagService {
                     retrievedChunks = emptyList()
                 )
             }
-
-            // 2b. Panggil Ollama Lokal (`qwen2.5:3b-instruct` / `empati-qwen2.5:3b`) untuk development lokal
-            for (baseUrl in CANDIDATE_ENDPOINTS) {
-                val llmText = callOllamaChatApi(
-                    baseUrl = baseUrl,
-                    model = preferredModel,
-                    systemPrompt = SYSTEM_PROMPT,
-                    userPrompt = userPrompt,
-                    timeoutMs = timeoutMs
-                )
-                if (!llmText.isNullOrBlank()) {
-                    val guarded = enforceOutputGuardrails(llmText, cleanRetrieval, sanitizedQuery)
-                    return OllamaGenerationOutcome(
-                        text = guarded,
-                        usedOllamaLlm = true,
-                        modelName = preferredModel,
-                        retrievedChunks = emptyList()
-                    )
-                }
-            }
         }
 
-        // 3. Offline Fallback (Hanya bila perangkat 100% tanpa Ollama & tanpa internet, atau saat unit test JVM)
+        // 2. Offline Fallback (tanpa jaringan atau saat unit test JVM)
         val offlineRaw = synthesizeOfflineClinicalAnswer(sanitizedQuery, cleanRetrieval.contextSnapshot)
         val guardedOffline = enforceOutputGuardrails(offlineRaw, cleanRetrieval, sanitizedQuery)
         return OllamaGenerationOutcome(
@@ -350,46 +313,6 @@ object OllamaRagService {
             modelName = "offline-clinical-assistant",
             retrievedChunks = emptyList()
         )
-    }
-
-    internal fun callOllamaChatApi(
-        baseUrl: String,
-        model: String,
-        systemPrompt: String,
-        userPrompt: String,
-        timeoutMs: Int
-    ): String? {
-        return runCatching {
-            val url = URL("$baseUrl/api/chat")
-            val payload = buildChatJsonPayload(
-                model = model,
-                systemPrompt = systemPrompt,
-                userPrompt = userPrompt
-            )
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 2_000
-                readTimeout = timeoutMs
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json; charset=utf-8")
-            }
-            OutputStreamWriter(conn.outputStream, StandardCharsets.UTF_8).use { writer ->
-                writer.write(payload)
-                writer.flush()
-            }
-            if (conn.responseCode != 200) return null
-            val responseBody = BufferedReader(InputStreamReader(conn.inputStream, StandardCharsets.UTF_8))
-                .use { it.readText() }
-            extractAssistantContentFromJson(responseBody)
-        }.getOrNull()
-    }
-
-    internal fun buildChatJsonPayload(
-        model: String,
-        systemPrompt: String,
-        userPrompt: String
-    ): String {
-        return """{"model":"${escapeJson(model)}","stream":false,"keep_alive":"30m","options":{"temperature":0.3,"top_p":0.85,"num_ctx":2048,"num_predict":512},"messages":[{"role":"system","content":"${escapeJson(systemPrompt)}"},{"role":"user","content":"${escapeJson(userPrompt)}"}]}"""
     }
 
     internal fun extractAssistantContentFromJson(jsonResponse: String): String? {

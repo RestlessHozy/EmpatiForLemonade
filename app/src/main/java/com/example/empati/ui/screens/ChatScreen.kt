@@ -576,8 +576,7 @@ private fun CompanionMark(modifier: Modifier = Modifier, markSize: Dp = 32.dp) {
 
 private val BubbleMaxWidth = 320.dp
 
-fun chatMessageId(index: Int, message: ChatMessage): String =
-    "$index-${message.isUser}-${message.text.hashCode()}"
+fun chatMessageId(index: Int, message: ChatMessage): String = "msg-$index-${message.isUser}"
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

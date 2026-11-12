@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.empati.data.chat.AnswerGuardrail
 import com.example.empati.data.chat.ChatModel
 import com.example.empati.data.chat.EmpatiChatUseCase
 import com.example.empati.data.chat.GroundedChatGateway
@@ -25,6 +26,7 @@ import java.util.Date
 import java.util.Locale
 import com.example.empati.data.ChatEngine
 import com.example.empati.data.ChatMessage
+import com.example.empati.data.ChatReplyResult
 import com.example.empati.data.ScreeningResult
 import com.example.empati.data.ScreeningStore
 import com.example.empati.data.UserProfile
@@ -101,7 +103,7 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
     var capabilityNotice by mutableStateOf<ChatCapabilityNotice?>(null)
         private set
 
-    private val lemonadeClient = LemonadeUnifiedClient()
+    private val lemonadeClient = LemonadeUnifiedClient(apiKey = BuildConfig.LEMONADE_API_KEY)
 
     private val voiceRecorder = AndroidVoiceRecorder()
 
@@ -509,35 +511,50 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
             val assistantIndex = chatMessages.size
             chatMessages = chatMessages + ChatMessage(isUser = false, text = "")
             val partial = StringBuilder()
-            val replyResult = withContext(Dispatchers.IO) {
-                buildChatUseCase().replyStreaming(clean, richSnapshot) { delta ->
-                    partial.append(delta)
-                    val updated = chatMessages.toMutableList()
-                    if (assistantIndex in updated.indices) {
-                        updated[assistantIndex] = updated[assistantIndex].copy(text = partial.toString())
-                        chatMessages = updated
+            val replyResult = try {
+                withContext(Dispatchers.IO) {
+                    buildChatUseCase().replyStreaming(clean, richSnapshot) { delta ->
+                        partial.append(delta)
+                        val visible = AnswerGuardrail.enforce(partial.toString()).text
+                        viewModelScope.launch(Dispatchers.Main.immediate) {
+                            val updated = chatMessages.toMutableList()
+                            if (assistantIndex in updated.indices) {
+                                updated[assistantIndex] = updated[assistantIndex].copy(text = visible)
+                                chatMessages = updated
+                            }
+                        }
                     }
                 }
-            }
-            val settled = chatMessages.toMutableList()
-            if (assistantIndex in settled.indices) {
-                settled[assistantIndex] = settled[assistantIndex].copy(
-                    text = if (replyResult.isPartial) {
-                        replyResult.text + " Jawaban ini belum selesai."
-                    } else {
-                        replyResult.text
-                    },
-                    citations = replyResult.referenceChunks,
-                    modelBadge = if (replyResult.isPartial) "SEBAGIAN" else null
+            } catch (error: Exception) {
+                ChatReplyResult(
+                    text = "Maaf, jawaban belum bisa disusun saat ini. Coba lagi sebentar lagi.",
+                    modelName = "error-guard",
+                    failure = error
                 )
-                chatMessages = settled
             }
-            capabilityNotice = ChatCapabilityPresenter.forFailure(replyResult.failure, replyResult.route)
-            store.appendChatExchange(clean, replyResult)
-            viewModelScope.launch(Dispatchers.IO) {
-                store.syncChatExchangeToSupabase(clean, replyResult)
+
+            try {
+                val settled = chatMessages.toMutableList()
+                if (assistantIndex in settled.indices) {
+                    settled[assistantIndex] = settled[assistantIndex].copy(
+                        text = if (replyResult.isPartial) {
+                            replyResult.text + " Jawaban ini belum selesai."
+                        } else {
+                            replyResult.text
+                        },
+                        citations = replyResult.referenceChunks,
+                        modelBadge = if (replyResult.isPartial) "SEBAGIAN" else null
+                    )
+                    chatMessages = settled
+                }
+                capabilityNotice = ChatCapabilityPresenter.forFailure(replyResult.failure, replyResult.route)
+                store.appendChatExchange(clean, replyResult)
+                viewModelScope.launch(Dispatchers.IO) {
+                    store.syncChatExchangeToSupabase(clean, replyResult)
+                }
+            } finally {
+                isChatGenerating = false
             }
-            isChatGenerating = false
         }
     }
 
@@ -574,6 +591,7 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
     override fun onCleared() {
         voiceController.cancel()
         voiceRecorder.release()
+        speechController.stop()
         speechPlayer.release()
         super.onCleared()
     }

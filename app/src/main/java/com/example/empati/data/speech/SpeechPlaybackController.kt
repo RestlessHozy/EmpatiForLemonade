@@ -75,7 +75,13 @@ class SpeechPlaybackController(
         if (token != requestToken) return state
 
         state = SpeechPlaybackState.Playing(messageId)
-        player.play(store.pathOf(fileName)) { finish(messageId) }
+        runCatching { player.play(store.pathOf(fileName)) { finish(messageId) } }
+            .onFailure {
+                state = SpeechPlaybackState.Error(
+                    messageId,
+                    "Suara balasan tidak bisa diputar di perangkat ini."
+                )
+            }
         return state
     }
 

@@ -105,7 +105,7 @@ Idle -> RequestingPermission -> Recording -> Transcribing -> Ready -> Idle
 
 **Konfigurasi host.** Host dan port dibaca dari satu sumber konfigurasi build, dengan nilai bawaan `10.0.2.2:13305` untuk debug emulator dan dapat diubah tanpa mengubah kode sumber. HTTP polos hanya diizinkan untuk host pengembangan lewat konfigurasi keamanan jaringan, tidak untuk domain publik.
 
-**Skrip otomasi.** Dua skrip PowerShell 7. `setup-lemonade.ps1` menarik model yang dibutuhkan, memasang empat alias, dan memverifikasi `/v1/models`. `bench-empati.ps1` menjalankan pengukuran chat, embedding, transkripsi, dan TTS, lalu menulis ringkasan. Keduanya punya `-DryRun` yang hanya mencetak perintah, dan keduanya menolak berjalan bila `lemonade` tidak ada di PATH.
+**Skrip otomasi.** Dua skrip PowerShell 7. `setup-empati-lemonade.ps1` mengatur host, menarik model utama dan cadangan, memasang alias, memverifikasi `/v1/models`, lalu menjalankan benchmark. `bench-empati.ps1` mengukur chat, embedding, transkripsi, dan TTS, lalu menulis ringkasan. Keduanya punya `-DryRun` yang hanya mencetak perintah, dan keduanya menolak berjalan bila `lemonade` tidak ada di PATH.
 
 **ADR.** Keputusan pembagian peran antara kalkulasi deterministik dan model bahasa dicatat di `docs/adr/001-lemonade-hybrid-architecture.md`, termasuk alasan mengganti kebijakan zero-leak.
 

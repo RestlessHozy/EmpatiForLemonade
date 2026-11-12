@@ -229,8 +229,8 @@ class LemonadeUnifiedClientTest {
     }
 
     @Test
-    fun `lemonade client sources never reference the ollama port`() {
-        val sourceDir = java.io.File("src/main/java/com/example/empati/data/lemonade")
+    fun `app sources never reference the legacy ollama port or endpoint`() {
+        val sourceDir = java.io.File("src/main/java")
         org.junit.Assume.assumeTrue(sourceDir.isDirectory)
 
         val offenders = sourceDir.walkTopDown()

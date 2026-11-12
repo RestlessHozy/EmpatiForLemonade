@@ -14,11 +14,16 @@ param(
     [string]$BaseUrl = 'http://localhost:13305',
     [int]$Repeats = 3,
     [string]$WavPath,
+    [string]$ReportPath = 'docs/BENCHMARK_RESULTS.md',
     [switch]$DryRun
 )
 
 $ErrorActionPreference = 'Stop'
 $BaseUrl = $BaseUrl.TrimEnd('/')
+
+if (-not $DryRun -and -not (Get-Command lemonade -ErrorAction SilentlyContinue)) {
+    throw "Perintah 'lemonade' tidak ada di PATH. Pasang Lemonade Server dulu, lalu jalankan skrip ini lagi."
+}
 
 function Measure-Endpoint {
     param(
@@ -124,6 +129,14 @@ if (-not $WavPath) {
     Write-Host "Membuat WAV hening: $WavPath" -ForegroundColor DarkGray
 }
 
+Write-Host ""
+Write-Host "Memanaskan model sebelum pengukuran..." -ForegroundColor DarkGray
+try {
+    Invoke-RestMethod -Uri "$BaseUrl/v1/chat/completions" -Method Post -ContentType 'application/json' -Body $chatBody -TimeoutSec 180 | Out-Null
+} catch {
+    Write-Warning "Pemanasan gagal: $($_.Exception.Message)"
+}
+
 $results = @()
 $results += Measure-Endpoint -Name 'chat' -Call {
     Invoke-RestMethod -Uri "$BaseUrl/v1/chat/completions" -Method Post -ContentType 'application/json' -Body $chatBody -TimeoutSec 120
@@ -148,6 +161,31 @@ Write-Host "Empati benchmark, Lemonade $BaseUrl, $Repeats percobaan" -Foreground
 $results | Format-Table Name, MedianMs, Ok, Total -AutoSize
 
 $failed = @($results | Where-Object { $_.Ok -lt $_.Total })
+
+$lines = @(
+    '# Hasil benchmark Empati',
+    '',
+    "- Tanggal: $((Get-Date).ToString('yyyy-MM-dd HH:mm:ss zzz'))",
+    "- Base URL: $BaseUrl",
+    "- Percobaan per endpoint: $Repeats",
+    '- Perangkat: isi manual (CPU, GPU/NPU, RAM, driver)',
+    '',
+    '| Endpoint | Median (ms) | Berhasil |',
+    '|---|---|---|'
+)
+foreach ($row in $results) {
+    $lines += "| $($row.Name) | $($row.MedianMs) | $($row.Ok)/$($row.Total) |"
+}
+$lines += ''
+$lines += 'Angka adalah median setelah satu pemanasan. Isi kolom perangkat dari mesin yang dipakai.'
+
+$reportDir = Split-Path -Parent $ReportPath
+if ($reportDir -and -not (Test-Path $reportDir)) {
+    New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
+}
+[System.IO.File]::WriteAllText((Join-Path (Get-Location) $ReportPath), ($lines -join [Environment]::NewLine))
+Write-Host "Ringkasan ditulis ke $ReportPath" -ForegroundColor DarkGray
+
 if ($failed.Count -gt 0) {
     Write-Warning "Sebagian endpoint gagal: $($failed.Name -join ', ')"
     exit 1

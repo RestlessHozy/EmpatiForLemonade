@@ -1,12 +1,12 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-Memeriksa keluaran DryRun kedua skrip otomatis Empati.
+Memeriksa keluaran DryRun skrip penyiapan dan benchmark Empati.
 
 .DESCRIPTION
-Menjalankan setup-lemonade.ps1 dan bench-empati.ps1 dengan -DryRun, lalu
-memastikan perintah yang dicetak memakai port 13305, keempat alias, dan tidak
-pernah menyebut 11434. Dipakai sebagai pemeriksaan cepat sebelum demo.
+Menjalankan setup-empati-lemonade.ps1 dan bench-empati.ps1 dengan -DryRun,
+lalu memastikan host, model, alias, benchmark, port 13305, dan ketiadaan jejak
+Ollama sesuai kontrak. Dipakai sebagai pemeriksaan cepat sebelum demo.
 #>
 [CmdletBinding()]
 param()
@@ -14,16 +14,30 @@ param()
 $ErrorActionPreference = 'Stop'
 $scriptRoot = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
 
-$setupOutput = & (Join-Path $scriptRoot 'setup-lemonade.ps1') -DryRun 6>&1 | Out-String
+$setupOutput = & (Join-Path $scriptRoot 'setup-empati-lemonade.ps1') -DryRun 6>&1 | Out-String
 $benchOutput = & (Join-Path $scriptRoot 'bench-empati.ps1') -DryRun 6>&1 | Out-String
 $combined = $setupOutput + "`n" + $benchOutput
 
 $failures = @()
 
-foreach ($alias in @('empati-llm', 'empati-embed', 'empati-stt', 'empati-tts')) {
+foreach ($alias in @('empati-llm', 'empati-llm-backup', 'empati-embed', 'empati-stt', 'empati-tts')) {
     if ($combined -notmatch [regex]::Escape($alias)) {
         $failures += "alias $alias tidak muncul di keluaran DryRun"
     }
+}
+
+if ($setupOutput -notmatch 'host=0\.0\.0\.0') {
+    $failures += 'setup tidak mengatur host=0.0.0.0'
+}
+
+foreach ($model in @('Qwen3-4B-GGUF', 'Qwen3-1.7B-GGUF', 'nomic-embed-text-v1-GGUF', 'Whisper-Large-v3-Turbo', 'kokoro-v1')) {
+    if ($setupOutput -notmatch [regex]::Escape($model)) {
+        $failures += "model $model tidak disebut saat penyiapan"
+    }
+}
+
+if ($setupOutput -notmatch 'lemonade bench') {
+    $failures += 'setup tidak menjalankan lemonade bench'
 }
 
 if ($combined -notmatch '13305') {
@@ -48,4 +62,4 @@ if ($failures.Count -gt 0) {
     exit 1
 }
 
-Write-Host 'Pemeriksaan DryRun lulus: alias lengkap, port 13305, tanpa jejak Ollama.' -ForegroundColor Green
+Write-Host 'Pemeriksaan DryRun lulus: host, lima alias, model, bench, port 13305, tanpa jejak Ollama.' -ForegroundColor Green

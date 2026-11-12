@@ -56,7 +56,9 @@ class AndroidVoiceRecorder : VoiceRecorder {
     override fun stop(): ShortArray {
         val audio = record
         runCatching { audio?.stop() }
-        reader?.join(JOIN_TIMEOUT_MS)
+        val thread = reader
+        thread?.interrupt()
+        thread?.join(JOIN_TIMEOUT_MS)
         reader = null
         record = null
         audio?.release()

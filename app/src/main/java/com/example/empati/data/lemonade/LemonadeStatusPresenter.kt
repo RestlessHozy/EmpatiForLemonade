@@ -16,7 +16,7 @@ object LemonadeStatusPresenter {
     fun summarize(status: LemonadeStatus?, error: String?): LemonadeStatusSummary = when {
         error != null -> LemonadeStatusSummary(
             title = "Server belum tersambung",
-            detail = "Pastikan Lemonade berjalan di port 13305, lalu periksa lagi.",
+            detail = "Pastikan Lemonade berjalan di ${LemonadeConfig.defaultBaseUrl}, lalu periksa lagi.",
             ready = false
         )
 
@@ -28,14 +28,14 @@ object LemonadeStatusPresenter {
 
         status.isReady -> LemonadeStatusSummary(
             title = "Siap dipakai",
-            detail = "Empati memakai model lokal di port 13305. Tidak ada data yang keluar dari perangkat.",
+            detail = "Empati memakai model lokal di ${LemonadeConfig.defaultBaseUrl}. Tidak ada data yang keluar dari perangkat.",
             ready = true
         )
 
         else -> LemonadeStatusSummary(
             title = "Sebagian siap",
             detail = "Alias belum terpasang: ${status.missingAliases.joinToString(", ")}. " +
-                "Jalankan scripts/setup-lemonade.ps1 untuk melengkapinya.",
+                "Jalankan scripts/setup-empati-lemonade.ps1 untuk melengkapinya.",
             ready = false,
             missingAliases = status.missingAliases
         )

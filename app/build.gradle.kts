@@ -14,6 +14,8 @@ val localProps = Properties().apply {
 val lemonadeBaseUrl: String =
     (localProps.getProperty("LEMONADE_BASE_URL") ?: System.getenv("LEMONADE_BASE_URL")
         ?: "http://10.0.2.2:13305").trim()
+val lemonadeApiKey: String =
+    (localProps.getProperty("LEMONADE_API_KEY") ?: System.getenv("LEMONADE_API_KEY") ?: "").trim()
 
 android {
     namespace = "com.example.empati"
@@ -39,6 +41,11 @@ android {
             "String",
             "LEMONADE_BASE_URL",
             "\"${lemonadeBaseUrl.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+        )
+        buildConfigField(
+            "String",
+            "LEMONADE_API_KEY",
+            "\"${lemonadeApiKey.replace("\\", "\\\\").replace("\"", "\\\"")}\""
         )
     }
 

@@ -23,11 +23,11 @@ object ChatCapabilityPresenter {
             title = "Server Lemonade tidak tersedia",
             detail = when (route) {
                 ChatRoute.CLOUD ->
-                    "Jawaban dibuat lewat jalur cloud Supabase. Pastikan server di port 13305 berjalan, lalu periksa lagi."
+                    "Jawaban dibuat lewat jalur cloud Supabase. Pastikan server di ${LemonadeConfig.defaultBaseUrl} berjalan, lalu periksa lagi."
                 ChatRoute.OFFLINE ->
-                    "Jawaban dibuat oleh penyusun offline di perangkat. Pastikan server di port 13305 berjalan, lalu periksa lagi."
+                    "Jawaban dibuat oleh penyusun offline di perangkat. Pastikan server di ${LemonadeConfig.defaultBaseUrl} berjalan, lalu periksa lagi."
                 else ->
-                    "Jawaban memakai jalur cadangan. Pastikan server di port 13305 berjalan, lalu periksa lagi."
+                    "Jawaban memakai jalur cadangan. Pastikan server di ${LemonadeConfig.defaultBaseUrl} berjalan, lalu periksa lagi."
             }
         )
 
