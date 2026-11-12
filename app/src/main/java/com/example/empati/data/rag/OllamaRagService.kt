@@ -1,6 +1,5 @@
 package com.example.empati.data.rag
 
-import com.example.empati.BuildConfig
 import com.example.empati.data.cloud.SupabaseCloudSyncService
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -9,13 +8,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.charset.StandardCharsets
 import java.util.Locale
-
-data class OllamaConnectionStatus(
-    val isReachable: Boolean,
-    val activeEndpoint: String,
-    val activeModel: String,
-    val statusLabel: String
-)
 
 data class OllamaGenerationOutcome(
     val text: String,
@@ -41,23 +33,6 @@ object OllamaRagService {
 
     const val DEFAULT_MODEL = "qwen2.5:3b-instruct"
     const val CUSTOM_GUARDED_MODEL = "empati-qwen2.5:3b"
-    const val OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-    const val OPENROUTER_DEFAULT_MODEL = "qwen/qwen-2.5-7b-instruct"
-    val OPENROUTER_CANDIDATE_MODELS = listOf(
-        "qwen/qwen-2.5-7b-instruct",
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "google/gemma-3-12b-it:free",
-        "openai/gpt-4o-mini"
-    )
-    private const val CLOUD_OPENAI_COMPAT_ENDPOINT = "https://text.pollinations.ai/openai"
-
-    /**
-     * API Key OpenRouter opsional dari `BuildConfig.OPENROUTER_API_KEY` (via `local.properties`).
-     * Bila kosong di APK publik, aplikasi otomatis menggunakan Supabase Edge Function (`empati-chat`)
-     * yang menyimpan `OPENROUTER_API_KEY` secara aman di sisi server Supabase.
-     */
-    @Volatile
-    var openRouterApiKey: String = runCatching { BuildConfig.OPENROUTER_API_KEY }.getOrDefault("")
 
     // Urutan prioritas: Loopback/ADB reverse -> Emulator host -> Wi-Fi LAN
     val CANDIDATE_ENDPOINTS = listOf(
@@ -294,55 +269,11 @@ object OllamaRagService {
     }
 
     /**
-     * Memeriksa ketersediaan daemon Ollama (`127.0.0.1`, `10.0.2.2`, atau LAN `192.168.1.7`).
-     */
-    fun probeStatus(
-        candidates: List<String> = CANDIDATE_ENDPOINTS,
-        timeoutMs: Int = 1_200
-    ): OllamaConnectionStatus {
-        for (baseUrl in candidates) {
-            val status = runCatching {
-                val url = URL("$baseUrl/api/tags")
-                val conn = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = timeoutMs
-                    readTimeout = timeoutMs
-                }
-                if (conn.responseCode == 200) {
-                    val body = BufferedReader(InputStreamReader(conn.inputStream, StandardCharsets.UTF_8))
-                        .use { it.readText() }
-                    val selectedModel = when {
-                        body.contains(DEFAULT_MODEL) -> DEFAULT_MODEL
-                        body.contains(CUSTOM_GUARDED_MODEL) -> CUSTOM_GUARDED_MODEL
-                        else -> DEFAULT_MODEL
-                    }
-                    OllamaConnectionStatus(
-                        isReachable = true,
-                        activeEndpoint = baseUrl,
-                        activeModel = selectedModel,
-                        statusLabel = "LLM · ${selectedModel.uppercase()}"
-                    )
-                } else {
-                    null
-                }
-            }.getOrNull()
-            if (status != null) return status
-        }
-        return OllamaConnectionStatus(
-            isReachable = true,
-            activeEndpoint = SupabaseCloudSyncService.EDGE_CHAT_ENDPOINT,
-            activeModel = OPENROUTER_DEFAULT_MODEL,
-            statusLabel = "OPENROUTER · QWEN 2.5"
-        )
-    }
-
-    /**
      * Menghasilkan jawaban murni dari LLM (tanpa korpus dan tanpa sitasi dokumen):
-     * 1. Mencoba OpenRouter API (`https://openrouter.ai/api/v1/chat/completions`) secara langsung bila `openRouterApiKey` tersedia,
-     *    atau melalui Supabase Edge Function Proxy (`https://qnvcuhmvrrffzdxxdloc.supabase.co/functions/v1/empati-chat`).
-     * 2. Mencoba Local/LAN Ollama (`qwen2.5:3b-instruct` / `empati-qwen2.5:3b`) bila dijalankan di lingkungan lokal.
-     * 3. Fallback Cloud HTTPS OpenAI-compatible jika diperlukan.
-     * 4. Hanya jika perangkat benar-benar putus internet & tanpa Ollama (atau saat unit test offline), menggunakan synthesizer klinis.
+     * 1. Supabase Edge Function `empati-chat` sebagai jalur cloud.
+     * 2. Local/LAN Ollama (`qwen2.5:3b-instruct` / `empati-qwen2.5:3b`) untuk pengembangan lokal.
+     * 3. Hanya jika perangkat benar-benar tanpa Ollama dan tanpa internet (atau saat unit test offline),
+     *    menggunakan synthesizer klinis.
      */
     fun generateRagResponse(
         rawQuery: String,
@@ -372,32 +303,10 @@ object OllamaRagService {
         if (enableNetworkLlm) {
             val userPrompt = buildAugmentedPrompt(sanitizedQuery, cleanRetrieval)
 
-            // 2a. Panggil OpenRouter API secara langsung bila API Key tersedia
-            if (openRouterApiKey.isNotBlank()) {
-                val directOpenRouter = callOpenRouterChatApi(
-                    apiKey = openRouterApiKey.trim(),
-                    systemPrompt = SYSTEM_PROMPT,
-                    userPrompt = userPrompt,
-                    timeoutMs = 25_000
-                )
-                if (directOpenRouter != null) {
-                    val (llmText, modelUsed) = directOpenRouter
-                    val guarded = enforceOutputGuardrails(llmText, cleanRetrieval, sanitizedQuery)
-                    return OllamaGenerationOutcome(
-                        text = guarded,
-                        usedOllamaLlm = true,
-                        modelName = modelUsed,
-                        retrievedChunks = emptyList()
-                    )
-                }
-            }
-
-            // 2b. Panggil Supabase Edge Function (`empati-chat`) yang mem-proxy OpenRouter secara aman di Cloud
+            // 2a. Panggil Supabase Edge Function (`empati-chat`) sebagai jalur cloud
             val edgeOutcome = SupabaseCloudSyncService.callEdgeChatFunction(
                 systemPrompt = SYSTEM_PROMPT,
                 userPrompt = userPrompt,
-                preferredModel = OPENROUTER_DEFAULT_MODEL,
-                openRouterApiKeyOverride = openRouterApiKey,
                 timeoutMs = 25_000
             )
             if (edgeOutcome != null) {
@@ -411,7 +320,7 @@ object OllamaRagService {
                 )
             }
 
-            // 2c. Panggil Ollama Lokal (`qwen2.5:3b-instruct` / `empati-qwen2.5:3b`) untuk development lokal
+            // 2b. Panggil Ollama Lokal (`qwen2.5:3b-instruct` / `empati-qwen2.5:3b`) untuk development lokal
             for (baseUrl in CANDIDATE_ENDPOINTS) {
                 val llmText = callOllamaChatApi(
                     baseUrl = baseUrl,
@@ -429,22 +338,6 @@ object OllamaRagService {
                         retrievedChunks = emptyList()
                     )
                 }
-            }
-
-            // 2d. Fallback Cloud HTTPS LLM Murni
-            val cloudLlmText = callCloudOpenAiCompatibleLlm(
-                systemPrompt = SYSTEM_PROMPT,
-                userPrompt = userPrompt,
-                timeoutMs = 20_000
-            )
-            if (!cloudLlmText.isNullOrBlank()) {
-                val guarded = enforceOutputGuardrails(cloudLlmText, cleanRetrieval, sanitizedQuery)
-                return OllamaGenerationOutcome(
-                    text = guarded,
-                    usedOllamaLlm = true,
-                    modelName = "openrouter-cloud",
-                    retrievedChunks = emptyList()
-                )
             }
         }
 
@@ -489,81 +382,6 @@ object OllamaRagService {
                 .use { it.readText() }
             extractAssistantContentFromJson(responseBody)
         }.getOrNull()
-    }
-
-    private fun callCloudOpenAiCompatibleLlm(
-        systemPrompt: String,
-        userPrompt: String,
-        timeoutMs: Int
-    ): String? {
-        return runCatching {
-            val url = URL(CLOUD_OPENAI_COMPAT_ENDPOINT)
-            val payload = """{"model":"openai","messages":[{"role":"system","content":"${escapeJson(systemPrompt)}"},{"role":"user","content":"${escapeJson(userPrompt)}"}]}"""
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                requestMethod = "POST"
-                connectTimeout = 4_000
-                readTimeout = timeoutMs
-                doOutput = true
-                setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                setRequestProperty("User-Agent", "SRYA-Emora/4.1.2")
-            }
-            OutputStreamWriter(conn.outputStream, StandardCharsets.UTF_8).use { writer ->
-                writer.write(payload)
-                writer.flush()
-            }
-            if (conn.responseCode != 200) return null
-            val responseBody = BufferedReader(InputStreamReader(conn.inputStream, StandardCharsets.UTF_8))
-                .use { it.readText() }
-            extractAssistantContentFromJson(responseBody)
-        }.getOrNull()
-    }
-
-    internal fun callOpenRouterChatApi(
-        apiKey: String,
-        systemPrompt: String,
-        userPrompt: String,
-        candidateModels: List<String> = OPENROUTER_CANDIDATE_MODELS,
-        timeoutMs: Int = 25_000
-    ): Pair<String, String>? {
-        for (model in candidateModels) {
-            val result = runCatching {
-                val url = URL(OPENROUTER_ENDPOINT)
-                val payload = buildOpenRouterJsonPayload(
-                    model = model,
-                    systemPrompt = systemPrompt,
-                    userPrompt = userPrompt
-                )
-                val conn = (url.openConnection() as HttpURLConnection).apply {
-                    requestMethod = "POST"
-                    connectTimeout = 5_000
-                    readTimeout = timeoutMs
-                    doOutput = true
-                    setRequestProperty("Authorization", "Bearer $apiKey")
-                    setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                    setRequestProperty("HTTP-Referer", SupabaseCloudSyncService.SUPABASE_URL)
-                    setRequestProperty("X-Title", "SRYA Emora Health & Psychosocial Companion")
-                }
-                OutputStreamWriter(conn.outputStream, StandardCharsets.UTF_8).use { writer ->
-                    writer.write(payload)
-                    writer.flush()
-                }
-                if (conn.responseCode !in 200..299) return@runCatching null
-                val responseBody = BufferedReader(InputStreamReader(conn.inputStream, StandardCharsets.UTF_8))
-                    .use { it.readText() }
-                val content = extractAssistantContentFromJson(responseBody)
-                if (content.isNullOrBlank()) null else (content to model)
-            }.getOrNull()
-            if (result != null) return result
-        }
-        return null
-    }
-
-    internal fun buildOpenRouterJsonPayload(
-        model: String,
-        systemPrompt: String,
-        userPrompt: String
-    ): String {
-        return """{"model":"${escapeJson(model)}","temperature":0.3,"top_p":0.85,"max_tokens":512,"messages":[{"role":"system","content":"${escapeJson(systemPrompt)}"},{"role":"user","content":"${escapeJson(userPrompt)}"}]}"""
     }
 
     internal fun buildChatJsonPayload(

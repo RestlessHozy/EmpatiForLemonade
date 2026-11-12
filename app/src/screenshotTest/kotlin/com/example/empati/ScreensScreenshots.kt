@@ -12,6 +12,8 @@ import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
 import com.example.empati.data.cf.AnswerValue
 import com.example.empati.data.cf.ScreeningModule
+import com.example.empati.data.lemonade.ChatCapabilityPresenter
+import com.example.empati.data.lemonade.LemonadeFailure
 import com.example.empati.data.speech.SpeechPlaybackState
 import com.example.empati.data.speech.VoiceInputState
 import com.example.empati.ui.screens.BottomNavBar
@@ -271,6 +273,23 @@ fun ChatVoiceRecording() = PreviewTheme {
         onVoiceStop = {},
         onVoiceCancel = {},
         onVoiceDismiss = {}
+    )
+}
+
+@PreviewTest
+@PhoneLightDark
+@Composable
+fun ChatServerMissing() = PreviewTheme {
+    ChatContent(
+        messages = Fixtures.chat.take(3),
+        isGenerating = false,
+        llmReachable = false,
+        input = "",
+        onInputChange = {},
+        onSend = {},
+        onQuickReply = {},
+        onCitationClick = {},
+        capability = ChatCapabilityPresenter.forFailure(LemonadeFailure.Unreachable(null))
     )
 }
 

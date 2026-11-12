@@ -37,12 +37,13 @@ import com.example.empati.data.cf.ScreeningModule
 import com.example.empati.data.cf.gbvQuestions
 import com.example.empati.data.cf.hypertensionQuestions
 import com.example.empati.data.cf.questionsFor
+import com.example.empati.data.cloud.SupabaseCloudSyncService
+import com.example.empati.data.lemonade.ChatCapabilityNotice
+import com.example.empati.data.lemonade.ChatCapabilityPresenter
 import com.example.empati.data.presentation.UserIntegratedPresentation
 import com.example.empati.data.presentation.UserModulePresentation
 import com.example.empati.data.presentation.UserResultPresenter
 import com.example.empati.data.presentation.UserRiskSummary
-import com.example.empati.data.rag.OllamaConnectionStatus
-import com.example.empati.data.rag.OllamaRagService
 import com.example.empati.data.research.ResearchRecord
 import com.example.empati.data.research.ResearchRecordFactory
 import com.example.empati.data.speech.AndroidVoiceRecorder
@@ -97,14 +98,7 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
     var isChatGenerating by mutableStateOf(false)
         private set
 
-    var ollamaStatus by mutableStateOf(
-        OllamaConnectionStatus(
-            isReachable = false,
-            activeEndpoint = OllamaRagService.CANDIDATE_ENDPOINTS.first(),
-            activeModel = OllamaRagService.DEFAULT_MODEL,
-            statusLabel = "RAG · QWEN2.5:3B-INSTRUCT"
-        )
-    )
+    var capabilityNotice by mutableStateOf<ChatCapabilityNotice?>(null)
         private set
 
     private val lemonadeClient = LemonadeUnifiedClient()
@@ -185,6 +179,12 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
                     ),
                     onDelta = onDelta
                 ).getOrThrow().text
+            },
+            cloud = { systemPrompt, userPrompt ->
+                SupabaseCloudSyncService.callEdgeChatFunction(
+                    systemPrompt = systemPrompt,
+                    userPrompt = userPrompt
+                )?.first ?: throw IllegalStateException("Jalur cloud tidak tersedia")
             }
         ),
         retriever = KnowledgeRetriever { query, limit ->
@@ -490,16 +490,7 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
     fun askAboutResult() {
         backStack.clear()
         route = Screen.Chat
-        refreshOllamaStatus()
-    }
-
-    fun refreshOllamaStatus() {
-        viewModelScope.launch {
-            val status = withContext(Dispatchers.IO) {
-                OllamaRagService.probeStatus()
-            }
-            ollamaStatus = status
-        }
+        refreshLemonadeStatus()
     }
 
     fun sendChat(text: String) {
@@ -541,15 +532,10 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
                 )
                 chatMessages = settled
             }
+            capabilityNotice = ChatCapabilityPresenter.forFailure(replyResult.failure, replyResult.route)
             store.appendChatExchange(clean, replyResult)
             viewModelScope.launch(Dispatchers.IO) {
                 store.syncChatExchangeToSupabase(clean, replyResult)
-            }
-            if (replyResult.usedOllamaLlm && !ollamaStatus.isReachable) {
-                ollamaStatus = ollamaStatus.copy(
-                    isReachable = true,
-                    statusLabel = "LLM · ${replyResult.modelName.uppercase()}"
-                )
             }
             isChatGenerating = false
         }
@@ -583,10 +569,6 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
 
     fun toggleSpeech(messageId: String, text: String) {
         viewModelScope.launch { speechController.toggle(messageId, text) }
-    }
-
-    fun stopSpeech() {
-        speechController.stop()
     }
 
     override fun onCleared() {

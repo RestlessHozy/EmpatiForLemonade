@@ -8,9 +8,8 @@ sealed interface SpeechPlaybackState {
 }
 
 interface SpeechAudioStore {
-    fun exists(fileName: String): Boolean
-    fun read(fileName: String): ByteArray?
-    fun write(fileName: String, bytes: ByteArray)
+    suspend fun exists(fileName: String): Boolean
+    suspend fun write(fileName: String, bytes: ByteArray)
     fun pathOf(fileName: String): String
 }
 
@@ -38,16 +37,22 @@ class SpeechPlaybackController(
             onStateChange(value)
         }
 
+    private var requestToken = 0
+
     suspend fun toggle(messageId: String, text: String): SpeechPlaybackState {
         when (val current = state) {
             is SpeechPlaybackState.Playing ->
                 if (current.messageId == messageId) return stop()
 
-            is SpeechPlaybackState.Preparing -> return current
+            is SpeechPlaybackState.Preparing ->
+                if (current.messageId == messageId) return stop()
+
             else -> Unit
         }
 
-        stop()
+        val token = ++requestToken
+        player.stop()
+        state = SpeechPlaybackState.Idle
 
         val prepared = SpeechTextPreparer.prepare(text)
         if (prepared.isBlank()) return state
@@ -56,14 +61,18 @@ class SpeechPlaybackController(
         if (!store.exists(fileName)) {
             state = SpeechPlaybackState.Preparing(messageId)
             val audio = synthesize(prepared).getOrElse {
-                state = SpeechPlaybackState.Error(
-                    messageId,
-                    "Suara balasan belum bisa disiapkan. Periksa server Lemonade lalu coba lagi."
-                )
+                if (token == requestToken) {
+                    state = SpeechPlaybackState.Error(
+                        messageId,
+                        "Suara balasan belum bisa disiapkan. Periksa server Lemonade lalu coba lagi."
+                    )
+                }
                 return state
             }
+            if (token != requestToken) return state
             store.write(fileName, audio)
         }
+        if (token != requestToken) return state
 
         state = SpeechPlaybackState.Playing(messageId)
         player.play(store.pathOf(fileName)) { finish(messageId) }
@@ -71,6 +80,7 @@ class SpeechPlaybackController(
     }
 
     fun stop(): SpeechPlaybackState {
+        requestToken++
         player.stop()
         state = SpeechPlaybackState.Idle
         return state

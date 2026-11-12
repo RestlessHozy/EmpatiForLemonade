@@ -271,6 +271,19 @@ class LemonadeUnifiedClientTest {
     }
 
     @Test
+    fun `model load error maps to ModelNotReady`() {
+        responder = {
+            MockResponse(500, """{"error":{"code":"model_load_error","message":"model 'empati-llm' is loading"}}""")
+        }
+
+        val failure = client()
+            .chatCompletion(listOf(ChatMessage("user", "halo")))
+            .exceptionOrNull()
+
+        assertTrue("expected ModelNotReady but was $failure", failure is LemonadeFailure.ModelNotReady)
+    }
+
+    @Test
     fun `pinned slots map to Busy`() {
         responder = {
             MockResponse(409, """{"error":{"code":"slots_pinned_error","message":"all slots pinned"}}""")

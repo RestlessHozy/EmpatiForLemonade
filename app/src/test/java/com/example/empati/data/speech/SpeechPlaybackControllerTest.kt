@@ -1,6 +1,9 @@
 package com.example.empati.data.speech
 
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -11,9 +14,9 @@ class SpeechPlaybackControllerTest {
     private class FakeStore : SpeechAudioStore {
         val files = mutableMapOf<String, ByteArray>()
 
-        override fun exists(fileName: String): Boolean = files.containsKey(fileName)
-        override fun read(fileName: String): ByteArray? = files[fileName]
-        override fun write(fileName: String, bytes: ByteArray) {
+        override suspend fun exists(fileName: String): Boolean = files.containsKey(fileName)
+
+        override suspend fun write(fileName: String, bytes: ByteArray) {
             files[fileName] = bytes
         }
 
@@ -127,6 +130,32 @@ class SpeechPlaybackControllerTest {
         player.finishPlayback()
 
         assertEquals(SpeechPlaybackState.Idle, controller.state)
+    }
+
+    @Test
+    fun `preparation can be cancelled before the audio arrives`() = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        val player = FakePlayer()
+        val controller = SpeechPlaybackController(
+            synthesize = {
+                gate.await()
+                Result.success(byteArrayOf(1, 2, 3))
+            },
+            store = FakeStore(),
+            player = player,
+            voice = "af_sky"
+        )
+
+        val preparation = launch { controller.toggle("msg-1", "Teks balasan.") }
+        yield()
+        assertEquals(SpeechPlaybackState.Preparing("msg-1"), controller.state)
+
+        controller.stop()
+        gate.complete(Unit)
+        preparation.join()
+
+        assertEquals(SpeechPlaybackState.Idle, controller.state)
+        assertTrue(player.played.isEmpty())
     }
 
     @Test

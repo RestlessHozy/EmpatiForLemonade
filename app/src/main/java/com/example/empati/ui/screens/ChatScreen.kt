@@ -54,9 +54,11 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.Article
 import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.CloudOff
 import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.HourglassBottom
 import androidx.compose.material.icons.rounded.HourglassTop
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Stop
@@ -108,6 +110,8 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.empati.EmpatiViewModel
 import com.example.empati.data.ChatMessage
+import com.example.empati.data.lemonade.ChatCapability
+import com.example.empati.data.lemonade.ChatCapabilityNotice
 import com.example.empati.data.rag.RagTopicScope
 import com.example.empati.data.speech.SpeechPlaybackState
 import com.example.empati.data.speech.VoiceInputState
@@ -159,7 +163,7 @@ fun ChatScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
     ) { granted -> vm.onVoicePermissionResult(granted) }
 
     LaunchedEffect(Unit) {
-        vm.refreshOllamaStatus()
+        vm.refreshLemonadeStatus()
     }
 
     LaunchedEffect(voiceState) {
@@ -214,7 +218,7 @@ fun ChatScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
     ChatContent(
         messages = vm.chatMessages,
         isGenerating = vm.isChatGenerating,
-        llmReachable = vm.ollamaStatus.isReachable,
+        llmReachable = vm.lemonadeStatus != null,
         input = input,
         onInputChange = { input = it },
         onSend = {
@@ -226,8 +230,9 @@ fun ChatScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
         onQuickReply = { q -> vm.sendChat(q) },
         onCitationClick = { chunk -> selectedChunk = chunk },
         modifier = modifier,
-        onRefreshStatus = vm::refreshOllamaStatus,
+        onRefreshStatus = vm::refreshLemonadeStatus,
         listState = listState,
+        capability = vm.capabilityNotice,
         voiceState = voiceState,
         onVoiceClick = onVoiceClick,
         onVoiceStop = vm::stopVoiceRecording,
@@ -266,6 +271,7 @@ fun ChatContent(
     modifier: Modifier = Modifier,
     onRefreshStatus: () -> Unit = {},
     listState: LazyListState = rememberLazyListState(),
+    capability: ChatCapabilityNotice? = null,
     voiceState: VoiceInputState = VoiceInputState.Idle,
     onVoiceClick: () -> Unit = {},
     onVoiceStop: () -> Unit = {},
@@ -290,6 +296,13 @@ fun ChatContent(
                 .fillMaxWidth()
         ) {
             ChatHeader(llmReachable = llmReachable, onRefreshStatus = onRefreshStatus)
+
+            capability?.let { notice ->
+                CapabilityStrip(
+                    notice = notice,
+                    modifier = Modifier.padding(horizontal = ChatGutter, vertical = EmpatiSpace.xxs)
+                )
+            }
 
             LazyColumn(
                 state = listState,
@@ -365,7 +378,7 @@ fun ChatContent(
 @Composable
 private fun ChatHeader(
     llmReachable: Boolean,
-    @Suppress("UNUSED_PARAMETER") onRefreshStatus: () -> Unit,
+    onRefreshStatus: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -385,6 +398,8 @@ private fun ChatHeader(
                 .weight(1f)
                 .semantics { heading() }
         )
+        Spacer(Modifier.width(EmpatiSpace.xs))
+        StatusPill(reachable = llmReachable, onClick = onRefreshStatus)
     }
 }
 
@@ -448,7 +463,7 @@ private fun PulseRing(color: Color) {
     )
 }
 
-/** Quiet model/status badge. Tapping re-checks the connection (same action as before). */
+/** Quiet capability badge. Tapping re-checks Lemonade on port 13305. */
 @Composable
 private fun StatusPill(reachable: Boolean, onClick: () -> Unit) {
     val tone = MaterialTheme.empati
@@ -472,12 +487,39 @@ private fun StatusPill(reachable: Boolean, onClick: () -> Unit) {
             )
             Spacer(Modifier.width(EmpatiSpace.xs))
             Text(
-                text = if (reachable) "Qwen 2.5 LLM" else "LLM aktif",
+                text = if (reachable) "Lokal siap" else "Periksa server",
                 style = MaterialTheme.typography.labelMedium,
                 color = if (reachable) tone.calm.onContainer else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
+}
+
+/** Small status strip that names the capability Lemonade is missing right now. */
+@Composable
+private fun CapabilityStrip(
+    notice: ChatCapabilityNotice,
+    modifier: Modifier = Modifier
+) {
+    val tone = when (notice.capability) {
+        ChatCapability.SERVER_MISSING -> MaterialTheme.empati.concerned
+        ChatCapability.MODEL_LOADING -> MaterialTheme.empati.presence
+        ChatCapability.MODEL_BUSY -> MaterialTheme.empati.attentive
+    }
+    val icon = when (notice.capability) {
+        ChatCapability.SERVER_MISSING -> Icons.Rounded.CloudOff
+        ChatCapability.MODEL_LOADING -> Icons.Rounded.HourglassTop
+        ChatCapability.MODEL_BUSY -> Icons.Rounded.HourglassBottom
+    }
+
+    SoftNotice(
+        text = notice.detail,
+        icon = icon,
+        tone = tone,
+        title = notice.title,
+        liveRegion = true,
+        modifier = modifier
+    )
 }
 
 @Composable
@@ -1203,16 +1245,14 @@ private fun SpeechActionButton(
 ) {
     val preparing = state is SpeechPlaybackState.Preparing && state.messageId == messageId
     val playing = state is SpeechPlaybackState.Playing && state.messageId == messageId
-    val busy = state is SpeechPlaybackState.Preparing
     val label = when {
-        preparing -> "Menyiapkan suara balasan"
+        preparing -> "Batalkan penyiapan suara"
         playing -> "Hentikan pemutaran"
         else -> "Putar balasan sebagai suara"
     }
 
     Surface(
         onClick = onClick,
-        enabled = !busy,
         shape = CircleShape,
         color = Color.Transparent,
         modifier = modifier

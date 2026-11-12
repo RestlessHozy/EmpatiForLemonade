@@ -1,6 +1,7 @@
 package com.example.empati.data
 
 import com.example.empati.data.chat.ChatRequestContext
+import com.example.empati.data.chat.ChatRoute
 import com.example.empati.data.chat.ConversationGateway
 import com.example.empati.data.chat.EmpatiChatUseCase
 import com.example.empati.data.presentation.UserResultPresenter
@@ -18,7 +19,9 @@ data class ChatReplyResult(
     val fetchedFromInternet: Boolean = false,
     val modelName: String = OllamaRagService.DEFAULT_MODEL,
     val referenceChunks: List<ReferenceChunk> = emptyList(),
-    val isPartial: Boolean = false
+    val isPartial: Boolean = false,
+    val failure: Throwable? = null,
+    val route: ChatRoute = ChatRoute.LEMONADE
 )
 
 /**

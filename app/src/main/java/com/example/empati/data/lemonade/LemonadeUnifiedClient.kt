@@ -256,6 +256,8 @@ class LemonadeUnifiedClient(
         return when {
             status == 404 && code == "model_not_found" ->
                 LemonadeFailure.ModelNotReady(extractModelName(text), message)
+            status == 500 && code == "model_load_error" ->
+                LemonadeFailure.ModelNotReady(extractModelName(text), message)
             status == 409 && (code == "slots_pinned_error" || code == "router_residency_conflict") ->
                 LemonadeFailure.Busy(message)
             else -> LemonadeFailure.Http(status, code, text)

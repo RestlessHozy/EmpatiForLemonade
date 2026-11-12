@@ -394,20 +394,22 @@ object SupabaseCloudSyncService {
     }
 
     /**
-     * Memanggil Supabase Edge Function `empati-chat` yang bertindak sebagai proxy aman ke OpenRouter.
+     * Memanggil Supabase Edge Function `empati-chat`. Kunci penyedia cloud tetap
+     * berada di sisi server; klien tidak pernah mengirimkannya.
      */
     fun callEdgeChatFunction(
         systemPrompt: String,
         userPrompt: String,
-        preferredModel: String,
-        openRouterApiKeyOverride: String = "",
+        preferredModel: String = "",
         timeoutMs: Int = 25_000
     ): Pair<String, String>? {
         return runCatching {
             val url = URL(EDGE_CHAT_ENDPOINT)
             val payload = buildString {
                 append('{')
-                append("\"model\":\"").append(escapeJson(preferredModel)).append("\",")
+                if (preferredModel.isNotBlank()) {
+                    append("\"model\":\"").append(escapeJson(preferredModel)).append("\",")
+                }
                 append("\"systemPrompt\":\"").append(escapeJson(systemPrompt)).append("\",")
                 append("\"userPrompt\":\"").append(escapeJson(userPrompt)).append('"')
                 append('}')
@@ -421,9 +423,6 @@ object SupabaseCloudSyncService {
                 setRequestProperty("apikey", SUPABASE_ANON_KEY)
                 setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
-                if (openRouterApiKeyOverride.isNotBlank()) {
-                    setRequestProperty("x-openrouter-key", openRouterApiKeyOverride.trim())
-                }
             }
             OutputStreamWriter(conn.outputStream, StandardCharsets.UTF_8).use { writer ->
                 writer.write(payload)

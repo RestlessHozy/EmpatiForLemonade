@@ -1,6 +1,7 @@
 package com.example.empati.data.chat
 
 import com.example.empati.data.ChatReplyResult
+import com.example.empati.data.lemonade.LemonadeFailure
 import com.example.empati.data.triage.EmpatiPromptBuilder
 import com.example.empati.data.triage.ReferenceChunk
 import com.example.empati.data.triage.TriageContext
@@ -89,11 +90,42 @@ class GroundedChatGatewayTest {
     fun `cloud answers when the local model fails`() {
         val model = FakeModel().apply { failWith = IllegalStateException("server mati") }
 
-        val result = GroundedChatGateway(model, cloud = { "Jawaban dari cloud." })
+        val result = GroundedChatGateway(model, cloud = { _, _ -> "Jawaban dari cloud." })
             .generate("tanya", context())
 
         assertEquals("cloud-fallback", result.modelName)
         assertTrue(result.text.contains("cloud"))
+    }
+
+    @Test
+    fun `cloud receives the same grounded prompt the local model would`() {
+        val model = FakeModel().apply { failWith = LemonadeFailure.Unreachable(null) }
+        var cloudSystem: String? = null
+        var cloudUser: String? = null
+
+        GroundedChatGateway(
+            model,
+            cloud = { system, user ->
+                cloudSystem = system
+                cloudUser = user
+                "Jawaban dari cloud."
+            }
+        ).generate("bagaimana mengurangi garam", context())
+
+        assertEquals(EmpatiPromptBuilder.SYSTEM_PROMPT, cloudSystem)
+        assertTrue(cloudUser!!.contains("bagaimana mengurangi garam"))
+        assertTrue(cloudUser!!.contains("who-salt-2023#intake"))
+    }
+
+    @Test
+    fun `local failure is reported so the UI can name the missing capability`() {
+        val model = FakeModel().apply {
+            failWith = LemonadeFailure.ModelNotReady("empati-llm", null)
+        }
+
+        val result = GroundedChatGateway(model, cloud = null).generate("tanya", context())
+
+        assertTrue(result.failure is LemonadeFailure.ModelNotReady)
     }
 
     @Test

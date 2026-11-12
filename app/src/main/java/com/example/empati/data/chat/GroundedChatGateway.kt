@@ -17,7 +17,7 @@ fun interface ChatModel {
  */
 class GroundedChatGateway(
     private val model: ChatModel,
-    private val cloud: (() -> String)? = null,
+    private val cloud: ((String, String) -> String)? = null,
     private val streamer: ((String, String, (String) -> Unit) -> String)? = null
 ) : ConversationGateway {
 
@@ -38,6 +38,7 @@ class GroundedChatGateway(
         )
         val gbv = deriveGbv(context)
         val received = StringBuilder()
+        var streamFailure: Exception? = null
 
         if (streamer != null) {
             val streamed = try {
@@ -48,6 +49,7 @@ class GroundedChatGateway(
                     }
                 }
             } catch (error: Exception) {
+                streamFailure = error
                 null
             }
 
@@ -66,7 +68,8 @@ class GroundedChatGateway(
                     text = guarded.text,
                     modelName = "lemonade-partial",
                     referenceChunks = context.chunks,
-                    isPartial = true
+                    isPartial = true,
+                    failure = streamFailure
                 )
             }
         }
@@ -93,13 +96,15 @@ class GroundedChatGateway(
         } catch (error: Exception) {
             val outcome = ChatFallbackLadder(
                 lemonade = { throw error },
-                cloud = cloud
+                cloud = cloud?.let { call -> { call(EmpatiPromptBuilder.SYSTEM_PROMPT, userPrompt) } }
             ).answer()
             val guarded = AnswerGuardrail.enforce(outcome.text, gbvIndicated)
             return ChatReplyResult(
                 text = guarded.text,
                 modelName = if (outcome.route == ChatRoute.CLOUD) "cloud-fallback" else "fallback-bounded",
-                referenceChunks = context.chunks
+                referenceChunks = context.chunks,
+                failure = error,
+                route = outcome.route
             )
         }
 

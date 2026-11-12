@@ -2,6 +2,8 @@ package com.example.empati.data.speech
 
 import android.media.AudioAttributes
 import android.media.MediaPlayer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
@@ -13,15 +15,13 @@ class FileSpeechAudioStore(cacheDir: File) : SpeechAudioStore {
 
     private val directory = File(cacheDir, "empati-tts").apply { mkdirs() }
 
-    override fun exists(fileName: String): Boolean {
+    override suspend fun exists(fileName: String): Boolean = withContext(Dispatchers.IO) {
         val file = file(fileName)
-        return file.isFile && file.length() > 0
+        file.isFile && file.length() > 0
     }
 
-    override fun read(fileName: String): ByteArray? = file(fileName).takeIf { it.isFile }?.readBytes()
-
-    override fun write(fileName: String, bytes: ByteArray) {
-        file(fileName).writeBytes(bytes)
+    override suspend fun write(fileName: String, bytes: ByteArray) {
+        withContext(Dispatchers.IO) { file(fileName).writeBytes(bytes) }
     }
 
     override fun pathOf(fileName: String): String = file(fileName).absolutePath

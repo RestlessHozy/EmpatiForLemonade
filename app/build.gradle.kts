@@ -11,8 +11,6 @@ val localProps = Properties().apply {
         propFile.inputStream().use { load(it) }
     }
 }
-val openRouterKey: String =
-    (localProps.getProperty("OPENROUTER_API_KEY") ?: System.getenv("OPENROUTER_API_KEY") ?: "").trim()
 val lemonadeBaseUrl: String =
     (localProps.getProperty("LEMONADE_BASE_URL") ?: System.getenv("LEMONADE_BASE_URL")
         ?: "http://10.0.2.2:13305").trim()
@@ -32,11 +30,6 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        buildConfigField(
-            "String",
-            "OPENROUTER_API_KEY",
-            "\"${openRouterKey.replace("\\", "\\\\").replace("\"", "\\\"")}\""
-        )
         buildConfigField(
             "String",
             "SUPABASE_URL",

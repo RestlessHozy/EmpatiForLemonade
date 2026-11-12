@@ -381,7 +381,7 @@ class AsnAndRagArchitectureTest {
     }
 
     @Test
-    fun `SupabaseCloudSyncService builds pseudonymized research payload, persistent user account payload without screening, and OpenRouter payload`() {
+    fun `SupabaseCloudSyncService builds pseudonymized research payload and persistent user account payload without screening`() {
         val profile = UserProfile(
             name = "Sari Wulandari",
             nip = "sari.wulandari@email.id",
@@ -441,14 +441,6 @@ class AsnAndRagArchitectureTest {
         assertTrue(baselinePayload.contains("\"screening_id\":\"acct_$subjectHash\""))
         assertTrue(baselinePayload.contains("\"integrated_category\":\"ACCOUNT_REGISTERED_NO_SCREENING\""))
         assertFalse("Baseline research payload must remain pseudonymized", baselinePayload.contains("Sari Wulandari"))
-
-        val openRouterPayload = OllamaRagService.buildOpenRouterJsonPayload(
-            model = OllamaRagService.OPENROUTER_DEFAULT_MODEL,
-            systemPrompt = "System test",
-            userPrompt = "Bagaimana cara menjaga tekanan darah?"
-        )
-        assertTrue(openRouterPayload.contains("qwen/qwen-2.5-7b-instruct"))
-        assertTrue(openRouterPayload.contains("\"max_tokens\":512"))
     }
 }
 
