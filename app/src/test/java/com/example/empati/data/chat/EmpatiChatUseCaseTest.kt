@@ -131,4 +131,46 @@ class EmpatiChatUseCaseTest {
         assertFalse(gateway.lastQuery!!.contains("198503122010012014"))
         assertTrue(gateway.lastQuery!!.contains("NIP-DIRAHASIAKAN"))
     }
+
+    private class StreamingGateway : ConversationGateway {
+        var streamingCalls = 0
+
+        override fun generate(query: String, context: ChatRequestContext): ChatReplyResult =
+            ChatReplyResult(text = "biasa")
+
+        override fun generateStreaming(
+            query: String,
+            context: ChatRequestContext,
+            onDelta: (String) -> Unit
+        ): ChatReplyResult {
+            streamingCalls++
+            onDelta("Halo")
+            onDelta(" dunia")
+            return ChatReplyResult(text = "Halo dunia")
+        }
+    }
+
+    @Test
+    fun `general question streams deltas through the gateway`() {
+        val gateway = StreamingGateway()
+        val deltas = mutableListOf<String>()
+        val useCase = EmpatiChatUseCase(gateway = gateway, retriever = FixedRetriever(emptyList()))
+
+        val reply = useCase.replyStreaming("bagaimana cara mengurangi garam", null) { deltas += it }
+
+        assertEquals(1, gateway.streamingCalls)
+        assertEquals(listOf("Halo", " dunia"), deltas)
+        assertEquals("Halo dunia", reply.text)
+    }
+
+    @Test
+    fun `deterministic intents never open a stream`() {
+        val gateway = StreamingGateway()
+        val useCase = EmpatiChatUseCase(gateway = gateway, retriever = FixedRetriever(emptyList()))
+
+        val reply = useCase.replyStreaming("halo", null) { }
+
+        assertEquals(0, gateway.streamingCalls)
+        assertEquals("greeting-guard", reply.modelName)
+    }
 }

@@ -26,7 +26,7 @@ class GroundedChatGateway(
      * dipertahankan dan ditandai belum lengkap. Bila gagal sebelum ada teks,
      * permintaan diulang sekali tanpa streaming.
      */
-    fun generateStreaming(
+    override fun generateStreaming(
         query: String,
         context: ChatRequestContext,
         onDelta: (String) -> Unit

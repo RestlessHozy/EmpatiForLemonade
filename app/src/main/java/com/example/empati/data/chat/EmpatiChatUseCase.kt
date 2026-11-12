@@ -14,8 +14,14 @@ data class ChatRequestContext(
     val triage: TriageContext? = null
 )
 
-fun interface ConversationGateway {
+interface ConversationGateway {
     fun generate(query: String, context: ChatRequestContext): ChatReplyResult
+
+    fun generateStreaming(
+        query: String,
+        context: ChatRequestContext,
+        onDelta: (String) -> Unit
+    ): ChatReplyResult = generate(query, context)
 }
 
 fun interface KnowledgeRetriever {
@@ -26,9 +32,6 @@ fun interface KnowledgeRetriever {
  * Satu titik perilaku chat Empati. Percakapan yang bisa dijawab tanpa model
  * (identitas, sapaan, ringkasan hasil skrining) diselesaikan di sini, sisanya
  * dikirim ke gateway bersama konteks hasil skrining dan potongan rujukan.
- *
- * ViewModel tidak perlu tahu apakah jawabannya berasal dari model, dari mesin
- * aturan, atau dari snapshot skrining.
  */
 class EmpatiChatUseCase(
     private val gateway: ConversationGateway,
@@ -38,7 +41,40 @@ class EmpatiChatUseCase(
 ) {
 
     fun reply(message: String, snapshot: ScreeningContextSnapshot?): ChatReplyResult {
-        val sanitized = OllamaRagService.sanitizePrivacyInput(message)
+        val sanitized = sanitize(message)
+        deterministicReply(sanitized, snapshot)?.let { return it }
+        val chunks = retriever.retrieve(sanitized, retrievalLimit)
+        val reply = gateway.generate(sanitized, contextOf(snapshot, chunks))
+        return reply.copy(referenceChunks = chunks)
+    }
+
+    /**
+     * Sama seperti [reply], tetapi pertanyaan umum diteruskan lewat streaming.
+     * Jawaban deterministik tetap dikembalikan utuh karena tidak ada model
+     * yang perlu ditunggu.
+     */
+    fun replyStreaming(
+        message: String,
+        snapshot: ScreeningContextSnapshot?,
+        onDelta: (String) -> Unit
+    ): ChatReplyResult {
+        val sanitized = sanitize(message)
+        deterministicReply(sanitized, snapshot)?.let { return it }
+        val chunks = retriever.retrieve(sanitized, retrievalLimit)
+        val reply = gateway.generateStreaming(sanitized, contextOf(snapshot, chunks), onDelta)
+        return reply.copy(referenceChunks = chunks)
+    }
+
+    private fun contextOf(snapshot: ScreeningContextSnapshot?, chunks: List<ReferenceChunk>) =
+        ChatRequestContext(snapshot = snapshot, chunks = chunks, triage = triageContext())
+
+    private fun sanitize(message: String): String =
+        OllamaRagService.sanitizePrivacyInput(message)
+
+    private fun deterministicReply(
+        sanitized: String,
+        snapshot: ScreeningContextSnapshot?
+    ): ChatReplyResult? {
         val normalized = sanitized.lowercase(Locale.forLanguageTag("id-ID"))
 
         if (RagKnowledgeRepository.isSimpleResultLookupQuery(normalized)) {
@@ -53,10 +89,7 @@ class EmpatiChatUseCase(
                     "memulainya kapan saja lewat menu Mulai Skrining di Beranda, lalu kita bisa ngobrol " +
                     "lagi membahas hasilnya di sini."
             }
-            return ChatReplyResult(
-                text = text,
-                modelName = "snapshot-zero-leak"
-            )
+            return ChatReplyResult(text = text, modelName = "snapshot-zero-leak")
         }
 
         if (RagKnowledgeRepository.isScreeningAnalysisQuery(normalized) && snapshot == null) {
@@ -88,11 +121,6 @@ class EmpatiChatUseCase(
             )
         }
 
-        val chunks = retriever.retrieve(sanitized, retrievalLimit)
-        val reply = gateway.generate(
-            sanitized,
-            ChatRequestContext(snapshot = snapshot, chunks = chunks, triage = triageContext())
-        )
-        return reply.copy(referenceChunks = chunks)
+        return null
     }
 }

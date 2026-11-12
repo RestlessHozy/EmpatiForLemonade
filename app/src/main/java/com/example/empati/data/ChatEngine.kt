@@ -44,22 +44,24 @@ object ChatEngine {
             fallbackCategoryLabel = integratedCategoryLabel
         )
 
-        val gateway = ConversationGateway { query, context ->
-            val outcome = OllamaRagService.generateRagResponse(
-                rawQuery = query,
-                retrieval = RagRetrievalResult(
-                    query = query,
-                    matchedChunks = emptyList(),
-                    contextSnapshot = context.snapshot
-                ),
-                enableNetworkLlm = enableNetworkLlm,
-                preferredModel = OllamaRagService.DEFAULT_MODEL
-            )
-            ChatReplyResult(
-                text = outcome.text,
-                usedOllamaLlm = outcome.usedOllamaLlm,
-                modelName = outcome.modelName
-            )
+        val gateway = object : ConversationGateway {
+            override fun generate(query: String, context: ChatRequestContext): ChatReplyResult {
+                val outcome = OllamaRagService.generateRagResponse(
+                    rawQuery = query,
+                    retrieval = RagRetrievalResult(
+                        query = query,
+                        matchedChunks = emptyList(),
+                        contextSnapshot = context.snapshot
+                    ),
+                    enableNetworkLlm = enableNetworkLlm,
+                    preferredModel = OllamaRagService.DEFAULT_MODEL
+                )
+                return ChatReplyResult(
+                    text = outcome.text,
+                    usedOllamaLlm = outcome.usedOllamaLlm,
+                    modelName = outcome.modelName
+                )
+            }
         }
 
         return EmpatiChatUseCase(gateway).reply(message, snapshot)
