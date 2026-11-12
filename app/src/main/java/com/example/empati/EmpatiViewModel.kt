@@ -7,6 +7,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.empati.data.chat.ChatModel
+import com.example.empati.data.chat.EmpatiChatUseCase
+import com.example.empati.data.chat.GroundedChatGateway
+import com.example.empati.data.chat.KnowledgeRetriever
+import com.example.empati.data.rag.EmpatiCorpus
+import com.example.empati.data.retrieval.Embedder
+import com.example.empati.data.retrieval.IndexStorage
+import com.example.empati.data.retrieval.LocalCorpusIndex
+import com.example.empati.data.triage.TriageContext
 import com.example.empati.data.lemonade.LemonadeStatus
 import com.example.empati.data.lemonade.LemonadeUnifiedClient
 import com.example.empati.data.db.EmpatiDatabase
@@ -92,6 +101,54 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         private set
 
     private val lemonadeClient = LemonadeUnifiedClient()
+
+    private val corpusIndex: LocalCorpusIndex by lazy {
+        LocalCorpusIndex(
+            embedder = Embedder { texts ->
+                lemonadeClient.generateEmbeddings(texts).getOrDefault(emptyList()).map { it.values }
+            },
+            storage = object : IndexStorage {
+                private val prefs = getApplication<Application>()
+                    .getSharedPreferences("empati_index", 0)
+
+                override fun read(): String? = prefs.getString("corpus", null)
+
+                override fun write(value: String) {
+                    prefs.edit().putString("corpus", value).apply()
+                }
+            }
+        )
+    }
+
+    private fun currentTriageContext(): TriageContext? {
+        val context = HybridTriageBridge.build(
+            hypertension = htModuleResult,
+            gbv = gbvModuleResult,
+            integrated = integrated,
+            kbVersion = EmpatiDatabase.CURRENT_KB_VERSION,
+            capturedAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ssXXX", Locale.US).format(Date())
+        )
+        return if (context.modules.isEmpty() && context.integrated == null) null else context
+    }
+
+    private fun buildChatUseCase(): EmpatiChatUseCase = EmpatiChatUseCase(
+        gateway = GroundedChatGateway(
+            ChatModel { systemPrompt, userPrompt ->
+                lemonadeClient.chatCompletion(
+                    messages = listOf(
+                        com.example.empati.data.lemonade.ChatMessage("system", systemPrompt),
+                        com.example.empati.data.lemonade.ChatMessage("user", userPrompt)
+                    )
+                ).getOrThrow().text
+            }
+        ),
+        retriever = KnowledgeRetriever { query, limit ->
+            runCatching {
+                corpusIndex.search(query, EmpatiCorpus.chunks).map { it.chunk }.take(limit)
+            }.getOrDefault(emptyList())
+        },
+        triageContext = { currentTriageContext() }
+    )
 
     var lemonadeStatus by mutableStateOf<LemonadeStatus?>(null)
         private set
@@ -401,11 +458,9 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         val clean = text.trim()
         if (clean.isBlank() || isChatGenerating) return
         val snapshotResult = lastResult
-        val currentIntegrated = integratedPresentation()
-        val integratedLabel = currentIntegrated?.categoryLabel
         val richSnapshot = store.loadQualitativeSnapshot(
             lastResult = snapshotResult,
-            currentIntegrated = currentIntegrated
+            currentIntegrated = integratedPresentation()
         )
 
         chatMessages = chatMessages + ChatMessage(isUser = true, text = clean)
@@ -413,14 +468,7 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
 
         viewModelScope.launch {
             val replyResult = withContext(Dispatchers.IO) {
-                ChatEngine.replyWithRag(
-                    message = clean,
-                    lastResult = snapshotResult,
-                    integratedCategoryLabel = integratedLabel,
-                    enableNetworkLlm = true,
-                    enableLiveWebSearch = false,
-                    contextSnapshot = richSnapshot
-                )
+                buildChatUseCase().reply(clean, richSnapshot)
             }
             store.appendChatExchange(clean, replyResult)
             viewModelScope.launch(Dispatchers.IO) {

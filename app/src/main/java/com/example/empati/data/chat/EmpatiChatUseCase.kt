@@ -5,11 +5,13 @@ import com.example.empati.data.rag.OllamaRagService
 import com.example.empati.data.rag.RagKnowledgeRepository
 import com.example.empati.data.rag.ScreeningContextSnapshot
 import com.example.empati.data.triage.ReferenceChunk
+import com.example.empati.data.triage.TriageContext
 import java.util.Locale
 
 data class ChatRequestContext(
     val snapshot: ScreeningContextSnapshot?,
-    val chunks: List<ReferenceChunk>
+    val chunks: List<ReferenceChunk>,
+    val triage: TriageContext? = null
 )
 
 fun interface ConversationGateway {
@@ -31,6 +33,7 @@ fun interface KnowledgeRetriever {
 class EmpatiChatUseCase(
     private val gateway: ConversationGateway,
     private val retriever: KnowledgeRetriever = KnowledgeRetriever { _, _ -> emptyList() },
+    private val triageContext: () -> TriageContext? = { null },
     private val retrievalLimit: Int = 4
 ) {
 
@@ -86,7 +89,10 @@ class EmpatiChatUseCase(
         }
 
         val chunks = retriever.retrieve(sanitized, retrievalLimit)
-        val reply = gateway.generate(sanitized, ChatRequestContext(snapshot, chunks))
+        val reply = gateway.generate(
+            sanitized,
+            ChatRequestContext(snapshot = snapshot, chunks = chunks, triage = triageContext())
+        )
         return reply.copy(referenceChunks = chunks)
     }
 }
