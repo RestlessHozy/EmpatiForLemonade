@@ -497,6 +497,7 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
                     } else {
                         replyResult.text
                     },
+                    citations = replyResult.referenceChunks,
                     modelBadge = if (replyResult.isPartial) "SEBAGIAN" else null
                 )
                 chatMessages = settled

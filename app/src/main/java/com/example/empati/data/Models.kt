@@ -1,6 +1,7 @@
 package com.example.empati.data
 
 import com.example.empati.data.rag.RagDocumentChunk
+import com.example.empati.data.triage.ReferenceChunk
 
 enum class RiskLevel { LOW, MEDIUM, HIGH, VERY_HIGH }
 
@@ -48,6 +49,7 @@ data class ChatMessage(
     val isUser: Boolean,
     val text: String,
     val retrievedChunks: List<RagDocumentChunk> = emptyList(),
+    val citations: List<ReferenceChunk> = emptyList(),
     val modelBadge: String? = null
 )
 

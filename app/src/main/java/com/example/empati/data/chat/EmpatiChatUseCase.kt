@@ -4,6 +4,7 @@ import com.example.empati.data.ChatReplyResult
 import com.example.empati.data.rag.OllamaRagService
 import com.example.empati.data.rag.RagKnowledgeRepository
 import com.example.empati.data.rag.ScreeningContextSnapshot
+import com.example.empati.data.retrieval.CitationPicker
 import com.example.empati.data.triage.ReferenceChunk
 import com.example.empati.data.triage.TriageContext
 import java.util.Locale
@@ -44,8 +45,7 @@ class EmpatiChatUseCase(
         val sanitized = sanitize(message)
         deterministicReply(sanitized, snapshot)?.let { return it }
         val chunks = retriever.retrieve(sanitized, retrievalLimit)
-        val reply = gateway.generate(sanitized, contextOf(snapshot, chunks))
-        return reply.copy(referenceChunks = chunks)
+        return cited(gateway.generate(sanitized, contextOf(snapshot, chunks)), chunks)
     }
 
     /**
@@ -62,8 +62,11 @@ class EmpatiChatUseCase(
         deterministicReply(sanitized, snapshot)?.let { return it }
         val chunks = retriever.retrieve(sanitized, retrievalLimit)
         val reply = gateway.generateStreaming(sanitized, contextOf(snapshot, chunks), onDelta)
-        return reply.copy(referenceChunks = chunks)
+        return cited(reply, chunks)
     }
+
+    private fun cited(reply: ChatReplyResult, chunks: List<ReferenceChunk>): ChatReplyResult =
+        reply.copy(referenceChunks = CitationPicker.usedIn(reply.text, chunks))
 
     private fun contextOf(snapshot: ScreeningContextSnapshot?, chunks: List<ReferenceChunk>) =
         ChatRequestContext(snapshot = snapshot, chunks = chunks, triage = triageContext())

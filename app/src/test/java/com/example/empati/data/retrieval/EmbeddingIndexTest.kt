@@ -133,6 +133,23 @@ class EmbeddingIndexTest {
     }
 
     @Test
+    fun `citations recognize the publisher abbreviation the answer uses`() {
+        val who = ReferenceChunk(
+            id = "who-hypertension-2023#definition",
+            title = "Hypertension",
+            publisher = "World Health Organization",
+            year = 2023,
+            section = "Key facts",
+            text = "Hipertensi ditandai tekanan darah 140 per 90 atau lebih.",
+            url = "https://www.who.int/news-room/fact-sheets/detail/hypertension"
+        )
+
+        val citations = CitationPicker.usedIn("Panduan WHO menyarankan cek tekanan darah rutin.", listOf(who))
+
+        assertEquals(listOf("who-hypertension-2023#definition"), citations.map { it.id })
+    }
+
+    @Test
     fun `citations stay empty when the answer names no source`() {
         val chunks = listOf(chunk("a", "Garam berlebih menaikkan tekanan darah."))
 

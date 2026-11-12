@@ -85,13 +85,14 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.empati.EmpatiViewModel
 import com.example.empati.data.ChatMessage
-import com.example.empati.data.rag.RagDocumentChunk
 import com.example.empati.data.rag.RagTopicScope
+import com.example.empati.data.triage.ReferenceChunk
 import com.example.empati.ui.components.EmpatiLogo
 import com.example.empati.ui.components.EmpatiSurfaces
 import com.example.empati.ui.components.BreathingDots
@@ -128,7 +129,7 @@ private val ChatGutter = EmpatiSpace.lg
 fun ChatScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
     val listState = rememberLazyListState()
     var input by remember { mutableStateOf("") }
-    var selectedChunk by remember { mutableStateOf<RagDocumentChunk?>(null) }
+    var selectedChunk by remember { mutableStateOf<ReferenceChunk?>(null) }
     val isImeVisible = WindowInsets.isImeVisible
 
     LaunchedEffect(Unit) {
@@ -191,7 +192,7 @@ fun ChatContent(
     onInputChange: (String) -> Unit,
     onSend: () -> Unit,
     onQuickReply: (String) -> Unit,
-    onCitationClick: (RagDocumentChunk) -> Unit,
+    onCitationClick: (ReferenceChunk) -> Unit,
     modifier: Modifier = Modifier,
     onRefreshStatus: () -> Unit = {},
     listState: LazyListState = rememberLazyListState()
@@ -441,10 +442,11 @@ private fun CompanionMark(modifier: Modifier = Modifier, markSize: Dp = 32.dp) {
 
 private val BubbleMaxWidth = 320.dp
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChatBubble(
     message: ChatMessage,
-    @Suppress("UNUSED_PARAMETER") onCitationClick: (RagDocumentChunk) -> Unit,
+    onCitationClick: (ReferenceChunk) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val bodyStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 24.sp)
@@ -503,7 +505,7 @@ private fun ChatBubble(
     } else {
         val hasGbvProtectionChunk = message.retrievedChunks.any {
             it.topicScope == RagTopicScope.GBV_PROTECTION || it.chunkId == "DOC-GBV-01"
-        }
+        } || message.citations.any { it.id.startsWith("sapa129") }
 
         Row(
             modifier = modifier.fillMaxWidth(),
@@ -561,6 +563,21 @@ private fun ChatBubble(
                                     )
                                 }
                             }
+                        }
+                    }
+                }
+
+                if (message.citations.isNotEmpty()) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(EmpatiSpace.xs),
+                        verticalArrangement = Arrangement.spacedBy(EmpatiSpace.xxs),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        message.citations.forEach { chunk ->
+                            RagSourceCitationChip(
+                                chunk = chunk,
+                                onClick = { onCitationClick(chunk) }
+                            )
                         }
                     }
                 }
@@ -781,29 +798,21 @@ private fun ChatComposer(
 //  RAG sources
 // ═══════════════════════════════════════════════════════════════════════════
 
-/** Readable, sentence-case tag for a source chunk. */
-private fun citationTag(chunk: RagDocumentChunk): String = when {
-    chunk.chunkId == "DOC-HT-01" -> "Pedoman Kemenkes"
-    chunk.chunkId == "DOC-HT-02" -> "Diet DASH WHO"
-    chunk.chunkId == "DOC-HT-03" -> "Aktivitas fisik"
-    chunk.chunkId == "DOC-ASN-01" -> "Manajemen stres"
-    chunk.chunkId == "DOC-GBV-01" -> "SAPA 129"
-    chunk.chunkId.startsWith("WEB-WIKI") -> "Wikipedia medis (web)"
-    chunk.chunkId.startsWith("WEB-PMC") -> "Jurnal PubMed (web)"
-    chunk.chunkId.startsWith("WEB-") -> "Rujukan internet"
-    else -> chunk.topicScope.readableLabel()
-}
-
-private fun RagTopicScope.readableLabel(): String = when (this) {
-    RagTopicScope.HYPERTENSION_CLINICAL -> "Klinis hipertensi"
-    RagTopicScope.LIFESTYLE_DASH -> "Gaya hidup DASH"
-    RagTopicScope.ASN_PSYCHOSOCIAL -> "Psikososial"
-    RagTopicScope.GBV_PROTECTION -> "Perlindungan KBG"
+/** Penerbit singkat + tahun, supaya chip tetap terbaca di samping bubble. */
+private fun ReferenceChunk.sourceLabel(): String {
+    val normalized = publisher.lowercase()
+    val shortPublisher = when {
+        normalized.startsWith("world health organization") -> "WHO"
+        normalized.startsWith("kementerian kesehatan") -> "Kemenkes"
+        normalized.startsWith("kementerian pemberdayaan perempuan") -> "KemenPPPA"
+        else -> publisher
+    }
+    return "$shortPublisher · $year"
 }
 
 @Composable
 fun RagSourceCitationChip(
-    chunk: RagDocumentChunk,
+    chunk: ReferenceChunk,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -831,15 +840,12 @@ fun RagSourceCitationChip(
             )
             Spacer(Modifier.width(EmpatiSpace.xs))
             Text(
-                text = chunk.chunkId,
-                style = EmpatiMetricStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(Modifier.width(EmpatiSpace.xs))
-            Text(
-                text = citationTag(chunk),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                text = chunk.sourceLabel(),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.widthIn(max = 180.dp)
             )
         }
     }
@@ -848,7 +854,7 @@ fun RagSourceCitationChip(
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun RagSourceBottomSheet(
-    chunk: RagDocumentChunk,
+    chunk: ReferenceChunk,
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -875,7 +881,7 @@ fun RagSourceBottomSheet(
                     color = MaterialTheme.colorScheme.primaryContainer
                 ) {
                     Text(
-                        text = chunk.chunkId,
+                        text = chunk.year.toString(),
                         style = EmpatiMetricStyle.copy(fontSize = 12.sp, lineHeight = 16.sp),
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
@@ -886,7 +892,7 @@ fun RagSourceBottomSheet(
                     color = EmpatiSurfaces.inset()
                 ) {
                     Text(
-                        text = chunk.topicScope.readableLabel(),
+                        text = chunk.section,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -915,7 +921,7 @@ fun RagSourceBottomSheet(
                 )
                 Spacer(Modifier.width(EmpatiSpace.xs))
                 Text(
-                    text = chunk.docSource,
+                    text = chunk.publisher,
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.empati.calm.accent
                 )
@@ -931,7 +937,7 @@ fun RagSourceBottomSheet(
                     .verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = chunk.content,
+                    text = chunk.text,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )

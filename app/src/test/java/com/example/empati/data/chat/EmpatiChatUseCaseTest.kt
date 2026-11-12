@@ -36,10 +36,10 @@ class EmpatiChatUseCaseTest {
         }
     }
 
-    private fun chunk(id: String) = ReferenceChunk(
+    private fun chunk(id: String, publisher: String = "Penerbit $id") = ReferenceChunk(
         id = id,
         title = "Judul $id",
-        publisher = "Penerbit $id",
+        publisher = publisher,
         year = 2024,
         section = "Bagian",
         text = "isi $id",
@@ -118,7 +118,65 @@ class EmpatiChatUseCaseTest {
         assertEquals(listOf("a", "b"), gateway.lastContext!!.chunks.map { it.id })
         assertEquals("Sedang", gateway.lastContext!!.snapshot?.riskLevelLabel)
         assertTrue(reply.text.isNotEmpty())
-        assertFalse(reply.referenceChunks.isEmpty())
+    }
+
+    @Test
+    fun `only the chunks named by the answer become citations`() {
+        val gateway = RecordingGateway(
+            reply = ChatReplyResult(
+                text = "Panduan World Health Organization menganjurkan garam kurang dari 5 gram per hari."
+            )
+        )
+        val retriever = FixedRetriever(
+            listOf(
+                chunk("who-salt", publisher = "World Health Organization"),
+                chunk("kemkes", publisher = "Kementerian Kesehatan Republik Indonesia")
+            )
+        )
+        val useCase = EmpatiChatUseCase(gateway = gateway, retriever = retriever)
+
+        val reply = useCase.reply("berapa batas garam harian", snapshot = null)
+
+        assertEquals(listOf("who-salt"), reply.referenceChunks.map { it.id })
+    }
+
+    @Test
+    fun `answer that names no source carries no citations`() {
+        val gateway = RecordingGateway(reply = ChatReplyResult(text = "Kurangi garam secara bertahap."))
+        val retriever = FixedRetriever(listOf(chunk("who-salt", publisher = "World Health Organization")))
+        val useCase = EmpatiChatUseCase(gateway = gateway, retriever = retriever)
+
+        val reply = useCase.reply("bagaimana mengurangi garam", snapshot = null)
+
+        assertTrue(reply.referenceChunks.isEmpty())
+    }
+
+    @Test
+    fun `streamed answer carries only the sources it names`() {
+        val gateway = object : ConversationGateway {
+            override fun generate(query: String, context: ChatRequestContext): ChatReplyResult =
+                ChatReplyResult(text = "biasa")
+
+            override fun generateStreaming(
+                query: String,
+                context: ChatRequestContext,
+                onDelta: (String) -> Unit
+            ): ChatReplyResult {
+                onDelta("Menurut Kementerian Kesehatan, periksa tekanan darah secara rutin.")
+                return ChatReplyResult(text = "Menurut Kementerian Kesehatan, periksa tekanan darah secara rutin.")
+            }
+        }
+        val retriever = FixedRetriever(
+            listOf(
+                chunk("who-salt", publisher = "World Health Organization"),
+                chunk("kemkes-htn", publisher = "Kementerian Kesehatan")
+            )
+        )
+        val useCase = EmpatiChatUseCase(gateway = gateway, retriever = retriever)
+
+        val reply = useCase.replyStreaming("kapan sebaiknya cek tekanan darah", null) { }
+
+        assertEquals(listOf("kemkes-htn"), reply.referenceChunks.map { it.id })
     }
 
     @Test

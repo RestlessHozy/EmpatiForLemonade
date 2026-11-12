@@ -111,8 +111,26 @@ object CitationPicker {
     fun usedIn(answer: String, candidates: List<ReferenceChunk>): List<ReferenceChunk> {
         val normalized = answer.lowercase()
         return candidates.filter { chunk ->
-            val publisher = chunk.publisher.lowercase()
-            publisher.isNotBlank() && normalized.contains(publisher)
+            aliasesOf(chunk.publisher).any { alias -> mentions(normalized, alias) }
         }
     }
+
+    private fun aliasesOf(publisher: String): List<String> {
+        val full = publisher.lowercase()
+        if (full.isBlank()) return emptyList()
+        return buildList {
+            add(full)
+            when {
+                full.startsWith("world health organization") -> {
+                    add("who")
+                    add("organisasi kesehatan dunia")
+                }
+                full.startsWith("kementerian kesehatan") -> add("kemenkes")
+                full.startsWith("kementerian pemberdayaan perempuan") -> add("kemenpppa")
+            }
+        }
+    }
+
+    private fun mentions(answer: String, alias: String): Boolean =
+        Regex("(?<![a-z0-9])${Regex.escape(alias)}(?![a-z0-9])").containsMatchIn(answer)
 }

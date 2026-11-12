@@ -16,6 +16,7 @@ import com.example.empati.data.presentation.PresentationTone
 import com.example.empati.data.presentation.UserIntegratedPresentation
 import com.example.empati.data.presentation.UserModulePresentation
 import com.example.empati.data.presentation.UserRiskSummary
+import com.example.empati.data.rag.EmpatiCorpus
 import com.example.empati.data.rag.RagDocumentChunk
 import com.example.empati.data.rag.RagTopicScope
 import com.example.empati.ui.theme.EmpatiTheme
@@ -206,6 +207,9 @@ object Fixtures {
         keywords = listOf("sapa")
     )
 
+    private val dashSource = requireNotNull(EmpatiCorpus.byId("who-diet-2024#composition"))
+    private val sapaSource = requireNotNull(EmpatiCorpus.byId("sapa129-2024#contact"))
+
     val chat = listOf(
         ChatMessage(
             isUser = false,
@@ -215,13 +219,15 @@ object Fixtures {
         ChatMessage(
             isUser = false,
             text = "Coba tambahkan rasa dari bawang, jahe, jeruk nipis, dan rempah segar. Perlahan lidah akan terbiasa dengan rasa asin yang lebih ringan.",
-            retrievedChunks = listOf(dashChunk)
+            retrievedChunks = listOf(dashChunk),
+            citations = listOf(dashSource)
         ),
         ChatMessage(isUser = true, text = "Saya juga sering merasa tertekan di rumah."),
         ChatMessage(
             isUser = false,
             text = "Terima kasih sudah mau bercerita. Anda tidak sendirian, dan perasaan Anda penting.",
-            retrievedChunks = listOf(sapaChunk)
+            retrievedChunks = listOf(sapaChunk),
+            citations = listOf(sapaSource)
         )
     )
 }
