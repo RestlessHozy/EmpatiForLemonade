@@ -46,6 +46,10 @@ import com.example.empati.data.rag.OllamaRagService
 import com.example.empati.data.research.ResearchRecord
 import com.example.empati.data.research.ResearchRecordFactory
 import com.example.empati.data.speech.AndroidVoiceRecorder
+import com.example.empati.data.speech.FileSpeechAudioStore
+import com.example.empati.data.speech.MediaPlayerSpeechAudioPlayer
+import com.example.empati.data.speech.SpeechPlaybackController
+import com.example.empati.data.speech.SpeechPlaybackState
 import com.example.empati.data.speech.VoiceInputController
 import com.example.empati.data.speech.VoiceInputState
 import kotlinx.coroutines.Dispatchers
@@ -118,6 +122,20 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
     )
 
     var voiceState by mutableStateOf<VoiceInputState>(VoiceInputState.Idle)
+        private set
+
+    private val speechPlayer = MediaPlayerSpeechAudioPlayer()
+
+    private val speechController = SpeechPlaybackController(
+        synthesize = { text ->
+            withContext(Dispatchers.IO) { lemonadeClient.synthesizeSpeech(text = text) }
+        },
+        store = FileSpeechAudioStore(getApplication<Application>().cacheDir),
+        player = speechPlayer,
+        onStateChange = { speechState = it }
+    )
+
+    var speechState by mutableStateOf<SpeechPlaybackState>(SpeechPlaybackState.Idle)
         private set
 
     private val corpusIndex: LocalCorpusIndex by lazy {
@@ -304,6 +322,7 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         dualIndex = 0
         voiceController.cancel()
         voiceController.reset()
+        speechController.stop()
         backStack.clear()
     }
 
@@ -562,9 +581,18 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         voiceController.reset()
     }
 
+    fun toggleSpeech(messageId: String, text: String) {
+        viewModelScope.launch { speechController.toggle(messageId, text) }
+    }
+
+    fun stopSpeech() {
+        speechController.stop()
+    }
+
     override fun onCleared() {
         voiceController.cancel()
         voiceRecorder.release()
+        speechPlayer.release()
         super.onCleared()
     }
 

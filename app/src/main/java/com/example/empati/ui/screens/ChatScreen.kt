@@ -56,9 +56,11 @@ import androidx.compose.material.icons.automirrored.rounded.Article
 import androidx.compose.material.icons.automirrored.rounded.Send
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.HourglassTop
 import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.material.icons.rounded.MicOff
 import androidx.compose.material.icons.rounded.Stop
+import androidx.compose.material.icons.rounded.VolumeUp
 import androidx.compose.material.icons.rounded.SupportAgent
 import androidx.compose.material.icons.rounded.Verified
 import androidx.compose.material3.CircularProgressIndicator
@@ -107,6 +109,7 @@ import androidx.core.content.ContextCompat
 import com.example.empati.EmpatiViewModel
 import com.example.empati.data.ChatMessage
 import com.example.empati.data.rag.RagTopicScope
+import com.example.empati.data.speech.SpeechPlaybackState
 import com.example.empati.data.speech.VoiceInputState
 import com.example.empati.data.triage.ReferenceChunk
 import com.example.empati.ui.components.EmpatiLogo
@@ -229,7 +232,9 @@ fun ChatScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
         onVoiceClick = onVoiceClick,
         onVoiceStop = vm::stopVoiceRecording,
         onVoiceCancel = vm::cancelVoiceRecording,
-        onVoiceDismiss = vm::resetVoiceInput
+        onVoiceDismiss = vm::resetVoiceInput,
+        speechState = vm.speechState,
+        onToggleSpeech = vm::toggleSpeech
     )
 
     selectedChunk?.let { chunk ->
@@ -265,7 +270,9 @@ fun ChatContent(
     onVoiceClick: () -> Unit = {},
     onVoiceStop: () -> Unit = {},
     onVoiceCancel: () -> Unit = {},
-    onVoiceDismiss: () -> Unit = {}
+    onVoiceDismiss: () -> Unit = {},
+    speechState: SpeechPlaybackState = SpeechPlaybackState.Idle,
+    onToggleSpeech: (String, String) -> Unit = { _, _ -> }
 ) {
     val reduced = LocalReducedMotion.current
 
@@ -297,10 +304,14 @@ fun ChatContent(
                 }
                 itemsIndexed(
                     items = messages,
-                    key = { index, msg -> "$index-${msg.isUser}-${msg.text.hashCode()}" }
-                ) { _, msg ->
+                    key = { index, msg -> chatMessageId(index, msg) }
+                ) { index, msg ->
+                    val messageId = chatMessageId(index, msg)
                     ChatBubble(
                         message = msg,
+                        messageId = messageId,
+                        speechState = speechState,
+                        onSpeechClick = { onToggleSpeech(messageId, msg.text) },
                         onCitationClick = onCitationClick,
                         modifier = if (reduced) Modifier else Modifier.animateItem(
                             fadeInSpec = EmpatiMotion.standard(),
@@ -523,10 +534,16 @@ private fun CompanionMark(modifier: Modifier = Modifier, markSize: Dp = 32.dp) {
 
 private val BubbleMaxWidth = 320.dp
 
+fun chatMessageId(index: Int, message: ChatMessage): String =
+    "$index-${message.isUser}-${message.text.hashCode()}"
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ChatBubble(
     message: ChatMessage,
+    messageId: String,
+    speechState: SpeechPlaybackState,
+    onSpeechClick: () -> Unit,
     onCitationClick: (ReferenceChunk) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -626,6 +643,11 @@ private fun ChatBubble(
                             horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
+                            SpeechActionButton(
+                                state = speechState,
+                                messageId = messageId,
+                                onClick = onSpeechClick
+                            )
                             Surface(
                                 onClick = {
                                     clipboardManager.setText(AnnotatedString(message.text))
@@ -644,6 +666,16 @@ private fun ChatBubble(
                                     )
                                 }
                             }
+                        }
+                        val speechError = (speechState as? SpeechPlaybackState.Error)
+                            ?.takeIf { it.messageId == messageId }
+                        if (speechError != null) {
+                            Text(
+                                text = speechError.message,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
                         }
                     }
                 }
@@ -1156,6 +1188,54 @@ private fun TextAction(
 private fun formatElapsed(elapsedMs: Long): String {
     val seconds = (elapsedMs / 1_000).coerceAtLeast(0)
     return "${seconds / 60}:${(seconds % 60).toString().padStart(2, '0')}"
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Voice output
+// ═══════════════════════════════════════════════════════════════════════════
+
+@Composable
+private fun SpeechActionButton(
+    state: SpeechPlaybackState,
+    messageId: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val preparing = state is SpeechPlaybackState.Preparing && state.messageId == messageId
+    val playing = state is SpeechPlaybackState.Playing && state.messageId == messageId
+    val busy = state is SpeechPlaybackState.Preparing
+    val label = when {
+        preparing -> "Menyiapkan suara balasan"
+        playing -> "Hentikan pemutaran"
+        else -> "Putar balasan sebagai suara"
+    }
+
+    Surface(
+        onClick = onClick,
+        enabled = !busy,
+        shape = CircleShape,
+        color = Color.Transparent,
+        modifier = modifier
+            .size(28.dp)
+            .semantics { contentDescription = label }
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = when {
+                    preparing -> Icons.Rounded.HourglassTop
+                    playing -> Icons.Rounded.Stop
+                    else -> Icons.Rounded.VolumeUp
+                },
+                contentDescription = null,
+                tint = if (playing || preparing) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f)
+                },
+                modifier = Modifier.size(15.dp)
+            )
+        }
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

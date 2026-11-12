@@ -1,0 +1,88 @@
+package com.example.empati.data.speech
+
+sealed interface SpeechPlaybackState {
+    data object Idle : SpeechPlaybackState
+    data class Preparing(val messageId: String) : SpeechPlaybackState
+    data class Playing(val messageId: String) : SpeechPlaybackState
+    data class Error(val messageId: String, val message: String) : SpeechPlaybackState
+}
+
+interface SpeechAudioStore {
+    fun exists(fileName: String): Boolean
+    fun read(fileName: String): ByteArray?
+    fun write(fileName: String, bytes: ByteArray)
+    fun pathOf(fileName: String): String
+}
+
+interface SpeechAudioPlayer {
+    fun play(filePath: String, onCompleted: () -> Unit)
+    fun stop()
+}
+
+/**
+ * Mengatur pemutaran suara balasan. Audio diminta sekali per teks, disimpan di
+ * [store], lalu diputar ulang dari berkas yang sama tanpa memanggil server lagi.
+ * Hanya satu pesan yang boleh berbunyi pada satu waktu.
+ */
+class SpeechPlaybackController(
+    private val synthesize: suspend (String) -> Result<ByteArray>,
+    private val store: SpeechAudioStore,
+    private val player: SpeechAudioPlayer,
+    private val voice: String = DEFAULT_VOICE,
+    private val onStateChange: (SpeechPlaybackState) -> Unit = {}
+) {
+
+    var state: SpeechPlaybackState = SpeechPlaybackState.Idle
+        private set(value) {
+            field = value
+            onStateChange(value)
+        }
+
+    suspend fun toggle(messageId: String, text: String): SpeechPlaybackState {
+        when (val current = state) {
+            is SpeechPlaybackState.Playing ->
+                if (current.messageId == messageId) return stop()
+
+            is SpeechPlaybackState.Preparing -> return current
+            else -> Unit
+        }
+
+        stop()
+
+        val prepared = SpeechTextPreparer.prepare(text)
+        if (prepared.isBlank()) return state
+
+        val fileName = SpeechCacheKey.fileName(prepared, voice)
+        if (!store.exists(fileName)) {
+            state = SpeechPlaybackState.Preparing(messageId)
+            val audio = synthesize(prepared).getOrElse {
+                state = SpeechPlaybackState.Error(
+                    messageId,
+                    "Suara balasan belum bisa disiapkan. Periksa server Lemonade lalu coba lagi."
+                )
+                return state
+            }
+            store.write(fileName, audio)
+        }
+
+        state = SpeechPlaybackState.Playing(messageId)
+        player.play(store.pathOf(fileName)) { finish(messageId) }
+        return state
+    }
+
+    fun stop(): SpeechPlaybackState {
+        player.stop()
+        state = SpeechPlaybackState.Idle
+        return state
+    }
+
+    private fun finish(messageId: String) {
+        if (state == SpeechPlaybackState.Playing(messageId)) {
+            state = SpeechPlaybackState.Idle
+        }
+    }
+
+    companion object {
+        const val DEFAULT_VOICE = "af_sky"
+    }
+}

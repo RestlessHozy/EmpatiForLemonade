@@ -12,9 +12,11 @@ import androidx.compose.ui.unit.dp
 import com.android.tools.screenshot.PreviewTest
 import com.example.empati.data.cf.AnswerValue
 import com.example.empati.data.cf.ScreeningModule
+import com.example.empati.data.speech.SpeechPlaybackState
 import com.example.empati.data.speech.VoiceInputState
 import com.example.empati.ui.screens.BottomNavBar
 import com.example.empati.ui.screens.ChatContent
+import com.example.empati.ui.screens.chatMessageId
 import com.example.empati.ui.screens.ConsentScreenContent
 import com.example.empati.ui.screens.HistoryScreenContent
 import com.example.empati.ui.screens.HomeScreenContent
@@ -269,6 +271,24 @@ fun ChatVoiceRecording() = PreviewTheme {
         onVoiceStop = {},
         onVoiceCancel = {},
         onVoiceDismiss = {}
+    )
+}
+
+@PreviewTest
+@PhoneLightDark
+@Composable
+fun ChatSpeaking() = PreviewTheme {
+    ChatContent(
+        messages = Fixtures.chat.take(3),
+        isGenerating = false,
+        llmReachable = true,
+        input = "",
+        onInputChange = {},
+        onSend = {},
+        onQuickReply = {},
+        onCitationClick = {},
+        speechState = SpeechPlaybackState.Playing(chatMessageId(2, Fixtures.chat[2])),
+        onToggleSpeech = { _, _ -> }
     )
 }
 
