@@ -17,8 +17,62 @@ fun interface ChatModel {
  */
 class GroundedChatGateway(
     private val model: ChatModel,
-    private val cloud: (() -> String)? = null
+    private val cloud: (() -> String)? = null,
+    private val streamer: ((String, String, (String) -> Unit) -> String)? = null
 ) : ConversationGateway {
+
+    /**
+     * Satu percobaan streaming. Bila gagal setelah ada teks, teks parsial
+     * dipertahankan dan ditandai belum lengkap. Bila gagal sebelum ada teks,
+     * permintaan diulang sekali tanpa streaming.
+     */
+    fun generateStreaming(
+        query: String,
+        context: ChatRequestContext,
+        onDelta: (String) -> Unit
+    ): ChatReplyResult {
+        val userPrompt = EmpatiPromptBuilder.buildUserPrompt(
+            query = query,
+            context = context.triage,
+            chunks = context.chunks
+        )
+        val gbv = deriveGbv(context)
+        val received = StringBuilder()
+
+        if (streamer != null) {
+            val streamed = try {
+                streamer(EmpatiPromptBuilder.SYSTEM_PROMPT, userPrompt) { delta ->
+                    if (delta.isNotEmpty()) {
+                        received.append(delta)
+                        onDelta(delta)
+                    }
+                }
+            } catch (error: Exception) {
+                null
+            }
+
+            if (streamed != null) {
+                val guarded = AnswerGuardrail.enforce(streamed, gbv)
+                return ChatReplyResult(
+                    text = guarded.text,
+                    modelName = "lemonade-stream",
+                    referenceChunks = context.chunks
+                )
+            }
+
+            if (received.isNotEmpty()) {
+                val guarded = AnswerGuardrail.enforce(received.toString(), gbv)
+                return ChatReplyResult(
+                    text = guarded.text,
+                    modelName = "lemonade-partial",
+                    referenceChunks = context.chunks,
+                    isPartial = true
+                )
+            }
+        }
+
+        return generate(query, context, gbv)
+    }
 
     override fun generate(query: String, context: ChatRequestContext): ChatReplyResult =
         generate(query, context, gbvIndicated = deriveGbv(context))

@@ -17,7 +17,8 @@ data class ChatReplyResult(
     val usedOllamaLlm: Boolean = false,
     val fetchedFromInternet: Boolean = false,
     val modelName: String = OllamaRagService.DEFAULT_MODEL,
-    val referenceChunks: List<ReferenceChunk> = emptyList()
+    val referenceChunks: List<ReferenceChunk> = emptyList(),
+    val isPartial: Boolean = false
 )
 
 /**

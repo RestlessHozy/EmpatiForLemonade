@@ -89,7 +89,7 @@ class GroundedChatGatewayTest {
     fun `cloud answers when the local model fails`() {
         val model = FakeModel().apply { failWith = IllegalStateException("server mati") }
 
-        val result = GroundedChatGateway(model) { "Jawaban dari cloud." }
+        val result = GroundedChatGateway(model, cloud = { "Jawaban dari cloud." })
             .generate("tanya", context())
 
         assertEquals("cloud-fallback", result.modelName)
