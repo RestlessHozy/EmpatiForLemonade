@@ -1,5 +1,18 @@
 # Empati
 
+> **English Summary — AMD Lemonade Developer Challenge 2026 Submission**
+>
+> **Empati** is a local-first, trauma-informed Android clinical triage and counseling companion powered by a **single AMD Lemonade Server (`:13305`)**. It pairs a **deterministic neuro-symbolic Certainty Factor expert engine** (26 screening rules across hypertension & gender-based psychosocial risk) with a **grounded local omni-modal RAG pipeline** (`Qwen3-4B-GGUF`, `nomic-embed-text-v1-GGUF`, `Whisper-Large-v3-Turbo`, plus `kokoro-v1` server contract & offline Android `id-ID` TTS for natural Indonesian speech).
+>
+> **Why Empati Stands Out:**
+> - **Clinical Safety by Separation of Concerns:** `CfEngine` computes risk levels, dominant categories, and protective factors deterministically in Kotlin; `Qwen3-4B` only narrates verified `empati.screening_context/v1` state and retrieved Indonesian/WHO clinical chunks (`30` embedded chunks + lexical fallback). `AnswerGuardrail` blocks expert-weight leaks and deterministically preserves crisis hotlines (`SAPA 129`).
+> - **Alias-Driven Unified Lemonade Client (`:13305`):** Zero hardcoded model IDs in Kotlin — operators can swap models on Lemonade via `empati-llm`, `empati-llm-backup`, `empati-embed`, `empati-stt`, and `empati-tts` without rebuilding the APK.
+> - **Natural Offline Indonesian Voice + Multimodal Input:** `VoiceInputController` records 16 kHz mono WAV -> `empati-stt` (`Whisper-Large-v3-Turbo`). Because upstream `kokoro-v1` lacks Indonesian phonetics, `HybridSpeechSynthesizer` prioritizes offline on-device Android `id-ID` TTS (zero cloud network leak) and falls back gracefully to Lemonade `empati-tts`.
+> - **Measured Local AMD Hardware Benchmark (`scripts/bench-empati.ps1 -Repeats 5`, `2026-11-14` on `AMD Ryzen 7 7735HS`, `AMD Radeon(TM) Graphics`, `15.25 GB` unified RAM, Lemonade `v2026.46.2`):** `embeddings: 44.1 ms (5/5)`, `speech: 1436.3 ms (5/5)`, `transcription: 10575.1 ms (5/5)`, `chat (64 tokens, all 4 models resident concurrently): 33704.2 ms (5/5)` — see [`docs/BENCHMARK_EVALUATION.md`](docs/BENCHMARK_EVALUATION.md) for memory-paging analysis vs. 32 GB+ Strix Halo targets.
+> - **Verified Quality:** **203 passing JVM unit tests (24 suites)**, Compose screenshot previews, and automated setup/dry-run verification (`scripts/tests/verify-dryrun.ps1`).
+
+---
+
 Empati adalah aplikasi Android untuk skrining risiko hipertensi dan kesejahteraan psikososial, lalu percakapan lanjutan dengan asisten yang berjalan di Lemonade Server pada perangkat yang sama. Skrining memakai Certainty Factor deterministik. Percakapan memakai model bahasa lokal untuk menarasikan hasil itu dan potongan rujukan yang ditemukan lewat embedding, sehingga angka risiko tetap berasal dari kode, bukan dari model.
 
 Aplikasi ini dibuat untuk submisi AMD Lemonade Developer Challenge 2026 dan untuk penelitian disertasi tentang skrining hipertensi berbasis gender. Repositori berisi aplikasi Android, korpus rujukan, dua skrip PowerShell untuk menyiapkan server dan mengukur latensi, serta catatan arsitektur.
@@ -10,14 +23,15 @@ Yang sudah berjalan di kode:
 
 - Skrining dua modul, 16 pertanyaan hipertensi dan 10 pertanyaan kekerasan berbasis gender, dengan mesin Certainty Factor dan analisis integrasi.
 - Klien Lemonade tunggal di port 13305 untuk chat, embedding, transkripsi, dan sintesis suara. Nama model tidak ada di kode aplikasi, hanya alias.
-- Retrieval lokal dengan penyimpanan vektor, ambang skor, dan chip sitasi untuk potongan yang disebut dalam jawaban.
-- Chat streaming, pemulihan jawaban parsial, guardrail keluaran, serta status capability yang membedakan server mati, model dimuat, dan model sibuk.
-- Input suara 16 kHz mono dengan batas 60 detik dan output suara dengan cache mp3.
-- 50 unit test JVM dan 44 preview screenshot Compose.
+- Retrieval lokal dengan penyimpanan vektor, ambang skor, fallback leksikal, dan chip sitasi untuk potongan (`30` chunk korpus) yang disebut dalam jawaban.
+- Chat streaming single-bubble, pemulihan jawaban parsial, guardrail keluaran, serta status capability yang membedakan server mati, model dimuat, dan model sibuk.
+- Input suara 16 kHz mono dengan batas 60 detik (`empati-stt`) dan output suara Bahasa Indonesia offline-first via `AndroidIndonesianTtsSynthesizer` (`id-ID`) dengan fallback ke `empati-tts` Lemonade serta cache lokal.
+- Benchmark 5x terukur pada perangkat pengembang AMD (`AMD Ryzen 7 7735HS`, `15.25 GB` RAM, Lemonade `v2026.46.2`) di `docs/BENCHMARK_EVALUATION.md`.
+- **203 unit test JVM (24 suite)** dan preview screenshot Compose.
 
 Yang belum selesai dan tidak diklaim selesai:
 
-- Angka benchmark di `docs/BENCHMARK_EVALUATION.md` masih kosong. Belum ada pengukuran yang dijalankan di perangkat Strix Halo untuk repositori ini.
+- Belum diukur langsung pada unit Ryzen AI Max+ 395 (Strix Halo 32–128 GB); angka Strix Halo di `docs/BENCHMARK_EVALUATION.md` masih analisis kapasitas teoretis, sedangkan angka terukur berasal dari `AMD Ryzen 7 7735HS` (`15.25 GB`).
 - Belum ada gerbang persetujuan pengguna untuk fallback cloud Supabase.
 - Indeks vektor disimpan sebagai JSON di SharedPreferences, bukan blob float32 di SQLite seperti rencana awal.
 - Chip sitasi memakai nama penerbit sebagai sinyal, jadi satu penyebutan penerbit dapat menandai beberapa potongan dari penerbit yang sama.
@@ -37,6 +51,7 @@ flowchart LR
         IDX[Indeks embedding lokal]
         VIN[VoiceInputController]
         VOUT[SpeechPlaybackController]
+        IDTTS[Android id-ID TTS Offline]
     end
 
     subgraph lemonade[Lemonade Server :13305]
@@ -55,7 +70,8 @@ flowchart LR
     VIN --> STT
     VM --> EMB
     VM --> LLM
-    VOUT --> TTS
+    VOUT --> IDTTS
+    VOUT -. fallback id-ID kosong .-> TTS
     VM -. Lemonade gagal .-> EDGE
 ```
 
@@ -106,9 +122,9 @@ Alias adalah kontrak antara aplikasi dan server. Ganti model cukup di server, ta
 | `empati-llm-backup` | `Qwen3-1.7B-GGUF` | Cadangan yang disiapkan skrip |
 | `empati-embed` | `nomic-embed-text-v1-GGUF` | Embedding korpus dan kueri |
 | `empati-stt` | `Whisper-Large-v3-Turbo` | Transkripsi suara |
-| `empati-tts` | `kokoro-v1` | Sintesis suara |
+| `empati-tts` | `kokoro-v1` | Kontrak sintesis suara server (fallback) |
 
-Aplikasi memakai empat alias yang tercantum di kontraknya. Alias cadangan disiapkan untuk failover manual di sisi server; aplikasi tetap memanggil `empati-llm`. Detail endpoint dan alasan pemilihan model ada di `docs/research/lemonade-omnimodal-spec.md`.
+Aplikasi memakai empat alias pada kontrak server. Karena `kokoro-v1` belum mendukung fonem Bahasa Indonesia, `HybridSpeechSynthesizer` memprioritaskan paket `id-ID` offline pada perangkat Android agar pelafalan alami dan tetap zero-leak, lalu jatuh kembali ke `empati-tts` saat perangkat belum memasang data suara Indonesia. Alias cadangan `empati-llm-backup` disiapkan untuk failover manual di sisi server; aplikasi tetap memanggil `empati-llm`. Detail endpoint dan alasan pemilihan model ada di `docs/research/lemonade-omnimodal-spec.md`.
 
 ## Pengujian
 
@@ -175,8 +191,8 @@ app/                     Aplikasi Android (Kotlin, Compose)
     data/triage/         Skema konteks dan penyusun prompt
     data/rag/            Korpus rujukan dan adaptor lama
     ui/                  Layar dan komponen Soft Daylight
-  src/test/              50 unit test JVM
-  src/screenshotTest/    44 preview screenshot Compose
+  src/test/              203 unit test JVM (24 suite)
+  src/screenshotTest/    Preview screenshot Compose
 docs/
   adr/                   Keputusan arsitektur
   specs/                 Spesifikasi tiket
