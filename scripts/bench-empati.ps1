@@ -77,18 +77,21 @@ function New-SilentWav {
     function Write-Int([byte[]]$target, [int]$offset, [int]$value) {
         [BitConverter]::GetBytes([int]$value).CopyTo($target, $offset)
     }
+    function Write-Short([byte[]]$target, [int]$offset, [int]$value) {
+        [BitConverter]::GetBytes([int16]$value).CopyTo($target, $offset)
+    }
 
     Write-Ascii $buffer 0 'RIFF'
     Write-Int $buffer 4 (36 + $dataSize)
     Write-Ascii $buffer 8 'WAVE'
     Write-Ascii $buffer 12 'fmt '
     Write-Int $buffer 16 16
-    Write-Int $buffer 20 1
-    Write-Int $buffer 22 1
+    Write-Short $buffer 20 1
+    Write-Short $buffer 22 1
     Write-Int $buffer 24 $SampleRate
     Write-Int $buffer 28 ($SampleRate * 2)
-    Write-Int $buffer 32 2
-    Write-Int $buffer 34 16
+    Write-Short $buffer 32 2
+    Write-Short $buffer 34 16
     Write-Ascii $buffer 36 'data'
     Write-Int $buffer 40 $dataSize
 
@@ -110,6 +113,7 @@ $chatBody = @{
     model      = 'empati-llm'
     messages   = @(@{ role = 'user'; content = 'Sebutkan satu kebiasaan kecil untuk menjaga tekanan darah.' })
     max_tokens = 64
+    enable_thinking = $false
     stream     = $false
 } | ConvertTo-Json -Depth 5
 

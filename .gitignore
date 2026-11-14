@@ -18,3 +18,5 @@ supabase/.temp/
 .temp/
 gradle-test.log
 docs/BENCHMARK_RESULTS.md
+*.mp4
+*.srt

@@ -39,6 +39,12 @@ $ErrorActionPreference = 'Stop'
 $BaseUrl = $BaseUrl.TrimEnd('/')
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
+# Tambahkan direktori instalasi Lemonade standar ke PATH jika belum ada
+$lemonadeBin = "$env:LOCALAPPDATA\lemonade_server\bin"
+if ((Test-Path (Join-Path $lemonadeBin 'lemonade.exe')) -and ($env:PATH -notlike "*$lemonadeBin*")) {
+    $env:PATH = "$lemonadeBin;$env:PATH"
+}
+
 $llm = 'Qwen3-4B-GGUF'
 $llmBackup = 'Qwen3-1.7B-GGUF'
 $embed = 'nomic-embed-text-v1-GGUF'
