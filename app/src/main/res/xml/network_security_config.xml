@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- HTTP polos hanya untuk host pengembangan Lemonade. Tambahkan IP LAN mesin demo di sini bila perlu. -->
+    <!-- HTTP polos hanya untuk host pengembangan Lemonade. Untuk IP LAN, pakai build debug (src/debug/res/xml) atau `adb reverse tcp:13305 tcp:13305`. -->
     <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="false">10.0.2.2</domain>

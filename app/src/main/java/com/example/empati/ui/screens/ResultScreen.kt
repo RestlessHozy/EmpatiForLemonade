@@ -361,7 +361,7 @@ fun IntegratedResultContent(
                     trailingIcon = Icons.Rounded.BookmarkAdded
                 )
                 Spacer(Modifier.height(EmpatiSpace.xxs))
-                GhostButton(text = "Tanyakan ke SRYA Emora", onClick = onAskAi)
+                GhostButton(text = "Tanyakan ke Empati", onClick = onAskAi)
                 if (debugContextJson != null) {
                     Spacer(Modifier.height(EmpatiSpace.xxs))
                     GhostButton(
@@ -703,7 +703,7 @@ private fun FindingDetailSheet(
             Spacer(Modifier.height(EmpatiSpace.xl))
             PrimaryButton(text = "Mengerti", onClick = onDismiss, trailingIcon = null)
             Spacer(Modifier.height(EmpatiSpace.xxs))
-            GhostButton(text = "Diskusikan dengan SRYA Emora", onClick = onAskAi)
+            GhostButton(text = "Diskusikan dengan Empati", onClick = onAskAi)
         }
     }
 }

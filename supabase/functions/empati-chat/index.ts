@@ -28,6 +28,101 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS"
 };
 
+/**
+ * Menyusun jawaban berbahasa Indonesia yang hangat dan berlandaskan blok [KONTEKS SKRINING]
+ * serta [RUJUKAN] pada userPrompt ketika upstream LLM publik sedang penuh/timeout.
+ */
+function synthesizeGroundedFallback(userPrompt: string): string {
+  const queryMatch = userPrompt.match(/Pertanyaan pengguna:\s*(.+)/i);
+  const rawQuery = (queryMatch ? queryMatch[1].trim() : userPrompt.trim()).toLowerCase();
+
+  const screeningSectionMatch = userPrompt.match(/\[KONTEKS SKRINING\]([\s\S]*?)(\[RUJUKAN\]|$)/i);
+  const screeningSection = screeningSectionMatch ? screeningSectionMatch[1].trim() : "";
+
+  const rujukanSectionMatch = userPrompt.match(/\[RUJUKAN\]([\s\S]*)$/i);
+  const rujukanSection = rujukanSectionMatch ? rujukanSectionMatch[1].trim() : "";
+
+  const parsedChunks: Array<{ publisher: string; text: string }> = [];
+  if (rujukanSection && !rujukanSection.includes("Tidak ada rujukan yang cocok")) {
+    const lines = rujukanSection.split("\n");
+    for (const line of lines) {
+      const m = line.match(/^\d+\.\s*\([^)]+\)\s*[^,]+,\s*([^,]+),\s*tahun\s*\d+,\s*bagian\s*[^:]+:\s*(.+)$/i);
+      if (m) {
+        parsedChunks.push({
+          publisher: m[1].trim(),
+          text: m[2].trim()
+        });
+      }
+    }
+  }
+
+  const hasScreening =
+    screeningSection.length > 0 &&
+    !screeningSection.includes("Belum ada hasil skrining");
+
+  const asksAboutScreening =
+    rawQuery.includes("hasil") ||
+    rawQuery.includes("skrining") ||
+    rawQuery.includes("screening") ||
+    rawQuery.includes("kondisi saya") ||
+    rawQuery.includes("risiko saya") ||
+    rawQuery.includes("simpul") ||
+    rawQuery.includes("analisis");
+
+  const paragraphs: string[] = [];
+
+  if (hasScreening && asksAboutScreening) {
+    const cleanScreening = screeningSection
+      .split("\n")
+      .map((l) => l.replace(/^-+\s*/, "").trim())
+      .filter((l) => l.length > 0)
+      .join(". ");
+    paragraphs.push(
+      `Berdasarkan konteks skrining Anda saat ini, ${cleanScreening}`
+    );
+  }
+
+  if (parsedChunks.length > 0) {
+    const primary = parsedChunks[0];
+    const secondary = parsedChunks.length > 1 ? parsedChunks[1] : null;
+    if (secondary && secondary.publisher !== primary.publisher) {
+      paragraphs.push(
+        `Mengacu pada rujukan ${primary.publisher}, ${primary.text} Selain itu, panduan dari ${secondary.publisher} juga menjelaskan bahwa ${secondary.text.charAt(0).toLowerCase()}${secondary.text.slice(1)}`
+      );
+    } else if (secondary) {
+      paragraphs.push(
+        `Mengacu pada panduan ${primary.publisher}, ${primary.text} ${secondary.text}`
+      );
+    } else {
+      paragraphs.push(
+        `Mengacu pada panduan ${primary.publisher}, ${primary.text}`
+      );
+    }
+  } else if (!hasScreening || !asksAboutScreening) {
+    return "Saat ini saya belum memiliki rujukan yang cukup untuk menjawab pertanyaan tersebut secara pasti. Anda dapat menanyakan hal seputar tekanan darah, pola makan rendah garam, aktivitas fisik, kualitas tidur, pengelolaan stres, atau melakukan skrining di aplikasi Empati serta berkonsultasi dengan tenaga kesehatan.";
+  }
+
+  if (
+    rawQuery.includes("kekerasan") ||
+    rawQuery.includes("kdrt") ||
+    rawQuery.includes("kbg") ||
+    rawQuery.includes("pelecehan") ||
+    rawQuery.includes("ancaman") ||
+    rawQuery.includes("sapa") ||
+    screeningSection.toLowerCase().includes("kekerasan")
+  ) {
+    paragraphs.push(
+      "Bila Anda atau seseorang di dekat Anda membutuhkan ruang cerita dan pendampingan yang aman, Layanan SAPA 129 dari Kementerian Pemberdayaan Perempuan dan Perlindungan Anak dapat dihubungi melalui telepon 129 atau WhatsApp 08111-129-129."
+    );
+  } else {
+    paragraphs.push(
+      "Langkah kecil yang konsisten seperti memantau tekanan darah secara berkala, membatasi asupan garam harian, menjaga kecukupan tidur malam, serta berkonsultasi ke tenaga kesehatan bila ada keluhan akan sangat membantu menjaga kesehatan Anda."
+    );
+  }
+
+  return paragraphs.join("\n\n");
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -63,7 +158,6 @@ Deno.serve(async (req: Request) => {
     ];
 
     if (openRouterKey) {
-      // Utamakan seluruh model GRATIS (:free & openrouter/free) terlebih dahulu agar akun gratis langsung berhasil
       const candidateModels = requestedModel.endsWith(":free") || requestedModel === "openrouter/free"
         ? [
             requestedModel,
@@ -83,8 +177,8 @@ Deno.serve(async (req: Request) => {
             headers: {
               "Authorization": `Bearer ${openRouterKey}`,
               "Content-Type": "application/json",
-              "HTTP-Referer": "https://qnvcuhmvrrffzdxxdloc.supabase.co",
-              "X-Title": "SRYA Emora Health & Psychosocial Companion"
+              "HTTP-Referer": "https://mevrnxtrulidgpgfipsc.supabase.co",
+              "X-Title": "Empati Health & Psychosocial Companion"
             },
             body: JSON.stringify({
               model,
@@ -92,7 +186,8 @@ Deno.serve(async (req: Request) => {
               temperature: 0.3,
               top_p: 0.85,
               max_tokens: 512
-            })
+            }),
+            signal: AbortSignal.timeout(8000)
           });
 
           if (resp.ok) {
@@ -118,44 +213,57 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    // Fallback ke endpoint OpenAI-compatible jika semua model OpenRouter sedang rate-limit
-    const fallbackResp = await fetch(FALLBACK_OPENAI_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "User-Agent": "SRYA-Emora/4.1.3"
-      },
-      body: JSON.stringify({
-        model: "openai",
-        messages
-      })
-    });
+    // Fallback ke endpoint OpenAI-compatible dengan batas waktu 5 detik agar tidak menggantung
+    try {
+      const fallbackResp = await fetch(FALLBACK_OPENAI_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "User-Agent": "Empati/4.1.5"
+        },
+        body: JSON.stringify({
+          model: "openai",
+          messages
+        }),
+        signal: AbortSignal.timeout(5000)
+      });
 
-    if (fallbackResp.ok) {
-      const fallbackData = await fallbackResp.json();
-      const content =
-        fallbackData?.choices?.[0]?.message?.content?.trim() ||
-        fallbackData?.message?.content?.trim() ||
-        "";
-      if (content) {
-        return new Response(
-          JSON.stringify({
-            provider: "openrouter-edge-fallback",
-            model: "openrouter-auto",
-            message: { role: "assistant", content }
-          }),
-          {
-            status: 200,
-            headers: { ...corsHeaders, "Content-Type": "application/json" }
-          }
-        );
+      if (fallbackResp.ok) {
+        const fallbackData = await fallbackResp.json();
+        const content =
+          fallbackData?.choices?.[0]?.message?.content?.trim() ||
+          fallbackData?.message?.content?.trim() ||
+          "";
+        if (content) {
+          return new Response(
+            JSON.stringify({
+              provider: "openrouter-edge-fallback",
+              model: "openrouter-auto",
+              message: { role: "assistant", content }
+            }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" }
+            }
+          );
+        }
       }
+    } catch (_fallbackErr) {
+      // Lanjut ke penyusun jawaban tergrounded berbasis rujukan korpus
     }
 
-    return new Response(JSON.stringify({ error: "Upstream LLM unavailable" }), {
-      status: 502,
-      headers: { ...corsHeaders, "Content-Type": "application/json" }
-    });
+    const synthesized = synthesizeGroundedFallback(userPrompt);
+    return new Response(
+      JSON.stringify({
+        provider: "empati-edge-grounded",
+        model: "empati-cloud-grounded",
+        message: { role: "assistant", content: synthesized }
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" }
+      }
+    );
   } catch (err) {
     return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,

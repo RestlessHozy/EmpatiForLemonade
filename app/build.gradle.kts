@@ -35,7 +35,7 @@ android {
         buildConfigField(
             "String",
             "SUPABASE_URL",
-            "\"https://qnvcuhmvrrffzdxxdloc.supabase.co\""
+            "\"https://mevrnxtrulidgpgfipsc.supabase.co\""
         )
         buildConfigField(
             "String",

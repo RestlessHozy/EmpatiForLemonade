@@ -150,7 +150,7 @@ object Fixtures {
         recommendations = listOf(
             "Periksa tekanan darah secara berkala di fasilitas kesehatan.",
             "Hubungi SAPA 129 bila membutuhkan pendampingan.",
-            "Tanyakan hal yang membingungkan kepada AI-EMPATI."
+            "Tanyakan hal yang membingungkan kepada Empati."
         ),
         disclaimer = DISCLAIMER,
         isInconclusive = false,
@@ -213,7 +213,7 @@ object Fixtures {
     val chat = listOf(
         ChatMessage(
             isUser = false,
-            text = "Halo, saya AI-EMPATI. Saya siap membantu Anda memahami hipertensi dan faktor risikonya. Apa yang ingin Anda tanyakan?"
+            text = "Halo, saya Empati. Saya siap membantu Anda memahami hipertensi dan faktor risikonya. Apa yang ingin Anda tanyakan?"
         ),
         ChatMessage(isUser = true, text = "Bagaimana cara mengurangi garam tanpa membuat makanan hambar?"),
         ChatMessage(

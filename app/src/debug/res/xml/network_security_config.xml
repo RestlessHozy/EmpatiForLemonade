@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!--
+        Hanya untuk build debug. Server Lemonade di laptop demo biasanya dijangkau lewat IP LAN
+        (misalnya http://192.168.1.7:13305). Android tidak punya aturan domain untuk rentang IP, jadi
+        build debug mengizinkan HTTP polos ke semua host. Build release memakai berkas di src/main
+        yang hanya membuka 10.0.2.2, 127.0.0.1, dan localhost (cukup dengan `adb reverse tcp:13305 tcp:13305`).
+    -->
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

@@ -8,7 +8,22 @@ class EmpatiCorpusTest {
 
     @Test
     fun `corpus has enough chunks to answer common questions`() {
-        assertTrue("corpus too small: ${EmpatiCorpus.chunks.size}", EmpatiCorpus.chunks.size >= 12)
+        assertTrue("corpus too small: ${EmpatiCorpus.chunks.size}", EmpatiCorpus.chunks.size >= 28)
+    }
+
+    @Test
+    fun `lexical search retrieves relevant clinical and gbv chunks without leaking gbv into hypertension queries`() {
+        val saltChunks = EmpatiCorpus.searchLexical("Berapa batas konsumsi garam dan makanan asin seperti mie instan?", limit = 4)
+        assertTrue(saltChunks.isNotEmpty())
+        assertTrue(saltChunks.any { it.id.contains("salt") || it.id.contains("sodium") || it.id.contains("gizi") })
+        assertTrue(saltChunks.none { it.id.startsWith("sapa129") || it.id.startsWith("who-vaw") })
+
+        val measureChunks = EmpatiCorpus.searchLexical("Bagaimana cara ukur tensi yang benar pakai tensimeter di rumah?", limit = 4)
+        assertTrue(measureChunks.any { it.id == "perki-htn-2024#home-measurement" })
+
+        val gbvChunks = EmpatiCorpus.searchLexical("Saya mengalami ancaman kekerasan KDRT dan butuh bantuan", limit = 4)
+        assertTrue(gbvChunks.isNotEmpty())
+        assertTrue(gbvChunks.any { it.id.startsWith("sapa129") || it.id.startsWith("who-vaw") || it.id.startsWith("komnas-perempuan") })
     }
 
     @Test

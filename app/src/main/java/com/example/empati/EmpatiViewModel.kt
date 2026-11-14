@@ -51,6 +51,8 @@ import com.example.empati.data.research.ResearchRecordFactory
 import com.example.empati.data.speech.AndroidVoiceRecorder
 import com.example.empati.data.speech.FileSpeechAudioStore
 import com.example.empati.data.speech.MediaPlayerSpeechAudioPlayer
+import com.example.empati.data.speech.AndroidIndonesianTtsSynthesizer
+import com.example.empati.data.speech.HybridSpeechSynthesizer
 import com.example.empati.data.speech.SpeechPlaybackController
 import com.example.empati.data.speech.SpeechPlaybackState
 import com.example.empati.data.speech.VoiceInputController
@@ -122,12 +124,23 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
 
     private val speechPlayer = MediaPlayerSpeechAudioPlayer()
 
-    private val speechController = SpeechPlaybackController(
-        synthesize = { text ->
+    private val indonesianTts = AndroidIndonesianTtsSynthesizer(
+        context = getApplication(),
+        cacheDir = getApplication<Application>().cacheDir
+    )
+
+    private val hybridSpeechSynthesizer = HybridSpeechSynthesizer(
+        indonesianEngine = indonesianTts,
+        lemonadeFallback = { text ->
             withContext(Dispatchers.IO) { lemonadeClient.synthesizeSpeech(text = text) }
-        },
+        }
+    )
+
+    private val speechController = SpeechPlaybackController(
+        synthesize = { text -> hybridSpeechSynthesizer.synthesize(text) },
         store = FileSpeechAudioStore(getApplication<Application>().cacheDir),
         player = speechPlayer,
+        voice = AndroidIndonesianTtsSynthesizer.INDONESIAN_VOICE_KEY,
         onStateChange = { speechState = it }
     )
 
@@ -190,9 +203,10 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
             }
         ),
         retriever = KnowledgeRetriever { query, limit ->
-            runCatching {
+            val dense = runCatching {
                 corpusIndex.search(query, EmpatiCorpus.chunks).map { it.chunk }.take(limit)
             }.getOrDefault(emptyList())
+            if (dense.isNotEmpty()) dense else EmpatiCorpus.searchLexical(query, limit)
         },
         triageContext = { currentTriageContext() }
     )
@@ -238,7 +252,7 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun welcomeMessage() = ChatMessage(
         isUser = false,
-        text = "Halo, saya SRYA Emora. Saya di sini untuk menemani Anda memahami kondisi tekanan darah, mengelola beban pikiran atau pola tidur, serta menjadi ruang cerita yang aman. Ada yang sedang Anda rasakan atau ingin kita obrolkan hari ini?"
+        text = "Halo, saya Empati. Saya di sini untuk menemani Anda memahami kondisi tekanan darah, mengelola beban pikiran atau pola tidur, serta menjadi ruang cerita yang aman. Ada yang sedang Anda rasakan atau ingin kita obrolkan hari ini?"
     )
 
     fun finishSplash() {
@@ -511,12 +525,16 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
             val assistantIndex = chatMessages.size
             chatMessages = chatMessages + ChatMessage(isUser = false, text = "")
             val partial = StringBuilder()
+            // Delta diposting dari thread IO ke main. Setelah stream selesai, delta yang masih
+            // antre tidak boleh menimpa teks akhir yang sudah lolos guardrail.
+            val streamOpen = java.util.concurrent.atomic.AtomicBoolean(true)
             val replyResult = try {
                 withContext(Dispatchers.IO) {
                     buildChatUseCase().replyStreaming(clean, richSnapshot) { delta ->
                         partial.append(delta)
                         val visible = AnswerGuardrail.enforce(partial.toString()).text
                         viewModelScope.launch(Dispatchers.Main.immediate) {
+                            if (!streamOpen.get()) return@launch
                             val updated = chatMessages.toMutableList()
                             if (assistantIndex in updated.indices) {
                                 updated[assistantIndex] = updated[assistantIndex].copy(text = visible)
@@ -531,6 +549,8 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
                     modelName = "error-guard",
                     failure = error
                 )
+            } finally {
+                streamOpen.set(false)
             }
 
             try {
@@ -561,6 +581,8 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
     // ---- Voice input ----
 
     fun requestVoicePermission() {
+        // Mikrofon tidak boleh merekam suara pembacaan balasan yang sedang berjalan.
+        speechController.stop()
         voiceController.requestPermission()
     }
 
@@ -585,6 +607,8 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun toggleSpeech(messageId: String, text: String) {
+        // Sebaliknya: memutar suara saat merekam membatalkan rekaman agar tidak tercampur.
+        if (voiceState is VoiceInputState.Recording) voiceController.cancel()
         viewModelScope.launch { speechController.toggle(messageId, text) }
     }
 
@@ -593,6 +617,7 @@ class EmpatiViewModel(application: Application) : AndroidViewModel(application) 
         voiceRecorder.release()
         speechController.stop()
         speechPlayer.release()
+        indonesianTts.shutdown()
         super.onCleared()
     }
 

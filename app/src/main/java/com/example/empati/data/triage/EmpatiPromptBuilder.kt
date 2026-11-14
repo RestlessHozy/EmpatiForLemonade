@@ -1,5 +1,7 @@
 package com.example.empati.data.triage
 
+import com.example.empati.data.rag.ScreeningContextSnapshot
+
 /**
  * Penyusun prompt untuk chat Empati. Prompt dirancang untuk dibacakan oleh suara
  * sintetis dan dibatasi pada narasi, sementara keputusan risiko tetap di mesin
@@ -29,19 +31,24 @@ object EmpatiPromptBuilder {
         Bila sebagian pertanyaan skrining belum dijawab, sampaikan bahwa gambaran ini masih sementara.
     """.trimIndent()
 
+    /**
+     * [context] adalah hasil mesin CF pada sesi berjalan. Bila tidak ada (aplikasi dibuka kembali),
+     * [snapshot] dari penyimpanan lokal dipakai agar model tetap tahu hasil skrining terakhir.
+     */
     fun buildUserPrompt(
         query: String,
         context: TriageContext?,
-        chunks: List<ReferenceChunk>
+        chunks: List<ReferenceChunk>,
+        snapshot: ScreeningContextSnapshot? = null
     ): String = buildString {
         appendLine("Pertanyaan pengguna: $query")
         appendLine()
 
         appendLine("[KONTEKS SKRINING]")
-        if (context == null) {
-            appendLine("Belum ada hasil skrining pada sesi ini.")
-        } else {
-            appendLine(HybridTriageBridge.toPromptBlock(context))
+        when {
+            context != null -> appendLine(HybridTriageBridge.toPromptBlock(context))
+            snapshot != null -> appendLine(HybridTriageBridge.toPromptBlock(snapshot))
+            else -> appendLine("Belum ada hasil skrining pada sesi ini.")
         }
         appendLine()
 

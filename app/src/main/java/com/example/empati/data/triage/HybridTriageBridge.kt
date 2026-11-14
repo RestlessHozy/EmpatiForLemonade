@@ -7,6 +7,7 @@ import com.example.empati.data.cf.IntegratedCategory
 import com.example.empati.data.cf.ModuleResult
 import com.example.empati.data.cf.ScreeningModule
 import com.example.empati.data.lemonade.MiniJson
+import com.example.empati.data.rag.ScreeningContextSnapshot
 import java.util.Locale
 
 data class TriageEvidence(
@@ -163,6 +164,50 @@ object HybridTriageBridge {
         val query = if (joined.isBlank()) DEFAULT_QUERY else joined
         return query.replace(Regex("\\s+"), " ").trim()
     }
+
+    /**
+     * Padanan [toRetrievalQuery] untuk pengguna yang membuka aplikasi kembali: mesin CF tidak
+     * dijalankan ulang, jadi kosakata klinis diambil dari ringkasan kualitatif yang tersimpan.
+     * Hasilnya tidak memuat angka.
+     */
+    fun toRetrievalQuery(snapshot: ScreeningContextSnapshot): String {
+        val terms = mutableListOf<String>()
+        terms += "hipertensi"
+        terms += snapshot.riskLevelLabel.lowercase()
+        snapshot.integratedCategoryLabel?.let { terms += it.lowercase() }
+        snapshot.keyFactors.forEach { terms += it.lowercase() }
+        if (snapshot.gbvStatusLabel?.trim()?.lowercase()?.startsWith("terdapat") == true) {
+            terms += "kekerasan berbasis gender"
+        }
+
+        val joined = terms
+            .map { it.replace("&", "dan").replace("·", " ") }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .joinToString(" ")
+        return joined.replace(Regex("\\d+"), " ").replace(Regex("\\s+"), " ").trim()
+            .ifBlank { DEFAULT_QUERY }
+    }
+
+    /** Blok prompt dari ringkasan tersimpan. Sengaja tanpa nilai keyakinan: hanya label bahasa awam. */
+    fun toPromptBlock(snapshot: ScreeningContextSnapshot): String = buildString {
+        appendLine("Hasil skrining pengguna (tersimpan dari ${snapshot.screeningDate}):")
+        appendLine("- Tingkat risiko tekanan darah: ${snapshot.riskLevelLabel}")
+        snapshot.hypertensionStatusLabel?.let { appendLine("- Status hipertensi: $it") }
+        snapshot.gbvStatusLabel?.let { appendLine("- Status kesejahteraan dan keamanan relasi: $it") }
+        snapshot.integratedCategoryLabel?.let { appendLine("- Kategori kesimpulan: $it") }
+        snapshot.summaryNarrative?.let { appendLine("- Ringkasan: $it") }
+        if (snapshot.keyFactors.isNotEmpty()) {
+            appendLine("- Faktor utama: ${snapshot.keyFactors.joinToString(", ")}")
+        }
+        if (snapshot.protectiveFactors.isNotEmpty()) {
+            appendLine("- Faktor pelindung: ${snapshot.protectiveFactors.joinToString(", ")}")
+        }
+        snapshot.relationshipExplanation?.let { appendLine("- Keterkaitan: $it") }
+        if (snapshot.keyRecommendations.isNotEmpty()) {
+            appendLine("- Saran yang sudah ditampilkan aplikasi: ${snapshot.keyRecommendations.joinToString(" ")}")
+        }
+    }.trimEnd()
 
     fun toPromptBlock(context: TriageContext): String = buildString {
         appendLine("Hasil skrining pengguna:")

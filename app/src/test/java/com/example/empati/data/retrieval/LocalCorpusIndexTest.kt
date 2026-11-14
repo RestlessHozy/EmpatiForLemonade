@@ -88,6 +88,33 @@ class LocalCorpusIndexTest {
     }
 
     @Test
+    fun `failed embedding never poisons or rewrites the stored index`() {
+        val storage = MemoryStorage()
+        val offline = Embedder { emptyList() }
+        val corpus = listOf(chunk("a"), chunk("b"))
+
+        val first = LocalCorpusIndex(offline, storage).ensureIndexed(corpus)
+        val second = LocalCorpusIndex(offline, storage).ensureIndexed(corpus)
+
+        assertTrue(first.isEmpty())
+        assertTrue(second.isEmpty())
+        assertEquals(null, storage.value)
+    }
+
+    @Test
+    fun `chunks embedded later join the index without dropping earlier ones`() {
+        val storage = MemoryStorage()
+        val corpus = listOf(chunk("a"), chunk("b"))
+        val partial = Embedder { texts -> texts.mapIndexed { i, _ -> if (i == 0) floatArrayOf(1f, 0f) else FloatArray(0) } }
+
+        val first = LocalCorpusIndex(partial, storage).ensureIndexed(corpus)
+        val second = LocalCorpusIndex(CountingEmbedder(), storage).ensureIndexed(corpus)
+
+        assertEquals(1, first.size)
+        assertEquals(2, second.size)
+    }
+
+    @Test
     fun `search returns nothing when the index has no entries`() {
         val results = LocalCorpusIndex(CountingEmbedder(), MemoryStorage()).search("garam", emptyList())
 

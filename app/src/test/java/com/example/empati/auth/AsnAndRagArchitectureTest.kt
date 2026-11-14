@@ -192,7 +192,7 @@ class AsnAndRagArchitectureTest {
         assertTrue(augmented.contains("[KONTEKS HASIL SKRINING PENGGUNA SAAT INI]"))
         assertTrue(augmented.contains("Pola makan & aktivitas, Stres & kualitas tidur"))
         assertTrue(augmented.contains("Tidak merokok"))
-        assertTrue(augmented.contains("Instruksi Analisis untuk SRYA Emora:"))
+        assertTrue(augmented.contains("Instruksi Analisis untuk Empati:"))
     }
 
     @Test
@@ -359,12 +359,12 @@ class AsnAndRagArchitectureTest {
     }
 
     @Test
-    fun `identity questions like siapa anda explain SRYA Emora instead of triggering out of scope refusal`() {
+    fun `identity questions like siapa anda explain Empati instead of triggering out of scope refusal`() {
         val queries = listOf(
             "siapa anda",
             "Siapa Anda?",
             "siapa kamu",
-            "apa itu srya emora",
+            "apa itu empati",
             "kamu bisa bantu apa"
         )
         for (q in queries) {
@@ -375,7 +375,7 @@ class AsnAndRagArchitectureTest {
                 enableNetworkLlm = false
             )
             assertFalse("Identity query '$q' must never return OUT_OF_SCOPE_REFUSAL", reply.text == OllamaRagService.OUT_OF_SCOPE_REFUSAL)
-            assertTrue("Identity query '$q' must introduce SRYA Emora", reply.text.contains("SRYA Emora"))
+            assertTrue("Identity query '$q' must introduce Empati", reply.text.contains("Empati"))
             assertTrue("Identity query '$q' must mention tekanan darah", reply.text.contains("tekanan darah"))
         }
     }

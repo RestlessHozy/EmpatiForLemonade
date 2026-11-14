@@ -66,6 +66,35 @@ class AnswerGuardrailTest {
     }
 
     @Test
+    fun `reasoning trace is removed whether complete unclosed or orphaned`() {
+        val complete = AnswerGuardrail.enforce("<think>hitung dulu skornya</think>Kurangi garam pelan-pelan.")
+        assertEquals("Kurangi garam pelan-pelan.", complete.text)
+        assertTrue(complete.violations.contains("reasoning-trace"))
+
+        val streamingTail = AnswerGuardrail.enforce("<think>masih berpikir tentang tensi")
+        assertFalse(streamingTail.text.contains("think"))
+        assertFalse(streamingTail.text.contains("berpikir"))
+
+        val orphan = AnswerGuardrail.enforce("penalaran internal</think>Tidur cukup membantu.")
+        assertEquals("Tidur cukup membantu.", orphan.text)
+    }
+
+    @Test
+    fun `internal confidence decimals are hidden but clinical decimals survive`() {
+        val leaked = AnswerGuardrail.enforce("Kekuatan indikasi Anda 0.62 dari 1.00, jadi perlu perhatian.")
+        assertFalse(leaked.text.contains("0.62"))
+        assertFalse(leaked.text.contains("1.00"))
+        assertTrue(leaked.violations.contains("internal-confidence"))
+
+        val labelled = AnswerGuardrail.enforce("Keyakinan sistem sekitar 0,7 untuk hal ini.")
+        assertFalse(labelled.text.contains("0,7"))
+
+        val clinical = AnswerGuardrail.enforce("Panduan WHO menyarankan garam kurang dari 5 gram dan tekanan 140/90.")
+        assertTrue(clinical.text.contains("140/90"))
+        assertTrue(clinical.violations.isEmpty())
+    }
+
+    @Test
     fun `clean answer reports no violations`() {
         val result = AnswerGuardrail.enforce(
             "Panduan WHO menyarankan mengurangi garam secara bertahap."

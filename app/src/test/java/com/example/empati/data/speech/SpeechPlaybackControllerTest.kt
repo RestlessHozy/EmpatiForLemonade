@@ -27,10 +27,20 @@ class SpeechPlaybackControllerTest {
         val played = mutableListOf<String>()
         var stops = 0
         private var completion: (() -> Unit)? = null
+        private var failure: (() -> Unit)? = null
 
         override fun play(filePath: String, onCompleted: () -> Unit) {
             played += filePath
             completion = onCompleted
+        }
+
+        override fun play(filePath: String, onCompleted: () -> Unit, onError: () -> Unit) {
+            play(filePath, onCompleted)
+            failure = onError
+        }
+
+        fun failPlayback() {
+            failure?.invoke()
         }
 
         override fun stop() {
@@ -130,6 +140,19 @@ class SpeechPlaybackControllerTest {
         player.finishPlayback()
 
         assertEquals(SpeechPlaybackState.Idle, controller.state)
+    }
+
+    @Test
+    fun `a decoder failure during playback surfaces as an error instead of silence`() = runBlocking {
+        val player = FakePlayer()
+        val controller = controller(player = player)
+
+        controller.toggle("msg-1", "Teks balasan.")
+        player.failPlayback()
+
+        val state = controller.state
+        assertTrue(state is SpeechPlaybackState.Error)
+        assertEquals("msg-1", (state as SpeechPlaybackState.Error).messageId)
     }
 
     @Test

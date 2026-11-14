@@ -100,6 +100,7 @@ class LemonadeUnifiedClient(
                 "messages" to messages.toWire(),
                 "temperature" to temperature,
                 "max_tokens" to maxTokens,
+                "enable_thinking" to false,
                 "stream" to false
             )
         )
@@ -124,6 +125,7 @@ class LemonadeUnifiedClient(
                 "messages" to messages.toWire(),
                 "temperature" to temperature,
                 "max_tokens" to maxTokens,
+                "enable_thinking" to false,
                 "stream" to true
             )
         )

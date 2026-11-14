@@ -134,7 +134,7 @@ class ScreeningStore(
 
     /**
      * Menyimpan ringkasan kualitatif (`ScreeningContextSnapshot`) per pengguna ke `SharedPreferences`
-     * agar saat aplikasi dibuka kembali di sesi berikutnya, chatbot SRYA Emora tetap memiliki konteks
+     * agar saat aplikasi dibuka kembali di sesi berikutnya, chatbot Empati tetap memiliki konteks
      * kualitatif lengkap untuk dianalisis tanpa membaca tabel riset CF.
      */
     fun saveQualitativeSnapshot(snapshot: ScreeningContextSnapshot) {

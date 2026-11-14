@@ -37,7 +37,9 @@ class MediaPlayerSpeechAudioPlayer : SpeechAudioPlayer {
 
     private var player: MediaPlayer? = null
 
-    override fun play(filePath: String, onCompleted: () -> Unit) {
+    override fun play(filePath: String, onCompleted: () -> Unit) = play(filePath, onCompleted, onCompleted)
+
+    override fun play(filePath: String, onCompleted: () -> Unit, onError: () -> Unit) {
         stop()
         val media = MediaPlayer()
         try {
@@ -55,7 +57,7 @@ class MediaPlayerSpeechAudioPlayer : SpeechAudioPlayer {
                 if (player === it) player = null
             }
             media.setOnErrorListener { failed, _, _ ->
-                onCompleted()
+                onError()
                 failed.release()
                 if (player === failed) player = null
                 true
@@ -65,7 +67,7 @@ class MediaPlayerSpeechAudioPlayer : SpeechAudioPlayer {
         } catch (error: Exception) {
             media.release()
             player = null
-            onCompleted()
+            onError()
         }
     }
 

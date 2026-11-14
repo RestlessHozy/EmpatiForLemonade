@@ -21,6 +21,18 @@ object AnswerGuardrail {
     private val scoreAfterMarkerRegex = Regex("(?i)(indikator|nilai|skor)\\s+\\d+(?:[.,]\\d+)?")
     private val diagnosisWords = listOf("menderita", "diagnosis", "positif terkena", "terdiagnosis")
 
+    // Qwen3 dapat mengeluarkan blok penalaran. Blok lengkap, blok yang belum ditutup
+    // (saat streaming), dan penutup tanpa pembuka semuanya dibuang sebelum sampai ke pembaca.
+    private val thinkBlockRegex = Regex("(?is)<think>.*?</think>")
+    private val thinkOpenTailRegex = Regex("(?is)<think>.*$")
+    private val thinkOrphanCloseRegex = Regex("(?is)^.*?</think>")
+
+    // Nilai keyakinan internal berbentuk desimal, mis. "0.62 dari 1.00" atau "kekuatan indikasi 0,62".
+    private val confidenceRatioRegex = Regex("\\b[01][.,]\\d{1,2}\\s*(?:dari|per|/)\\s*1(?:[.,]0+)?\\b")
+    private val confidenceAfterLabelRegex = Regex(
+        "(?i)(kekuatan indikasi|keyakinan|tingkat kepastian|kepastian)([^.\\n]{0,24}?)\\b[01][.,]\\d{1,2}\\b"
+    )
+
     private const val SAPA_NOTE =
         "Bila Anda sedang menghadapi situasi yang tidak aman, Anda bisa menghubungi " +
             "SAPA 129 melalui telepon 129 atau WhatsApp 08111-129-129."
@@ -29,8 +41,24 @@ object AnswerGuardrail {
         val violations = mutableListOf<String>()
         var text = raw.trim()
 
+        if (text.contains("</think>", ignoreCase = true) || text.contains("<think>", ignoreCase = true)) {
+            violations += "reasoning-trace"
+            text = thinkBlockRegex.replace(text, "")
+            text = thinkOpenTailRegex.replace(text, "")
+            text = thinkOrphanCloseRegex.replace(text, "")
+            text = text.trim()
+        }
+
         text = boldRegex.replace(text, "$1")
         text = text.replace("*", "")
+
+        if (confidenceRatioRegex.containsMatchIn(text) || confidenceAfterLabelRegex.containsMatchIn(text)) {
+            violations += "internal-confidence"
+            text = confidenceRatioRegex.replace(text, "tingkat yang sudah dihitung aplikasi")
+            text = confidenceAfterLabelRegex.replace(text) { match ->
+                match.groupValues[1] + " yang sudah dihitung aplikasi"
+            }
+        }
 
         if (internalAcronymRegex.containsMatchIn(text)) {
             violations += "internal-acronym"

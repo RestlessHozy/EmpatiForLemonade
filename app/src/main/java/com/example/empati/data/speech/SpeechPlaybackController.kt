@@ -15,6 +15,10 @@ interface SpeechAudioStore {
 
 interface SpeechAudioPlayer {
     fun play(filePath: String, onCompleted: () -> Unit)
+
+    /** Pemutar yang bisa melaporkan kegagalan dekode menimpa ini. Bawaan: kegagalan dianggap selesai. */
+    fun play(filePath: String, onCompleted: () -> Unit, onError: () -> Unit) = play(filePath, onCompleted)
+
     fun stop()
 }
 
@@ -75,7 +79,13 @@ class SpeechPlaybackController(
         if (token != requestToken) return state
 
         state = SpeechPlaybackState.Playing(messageId)
-        runCatching { player.play(store.pathOf(fileName)) { finish(messageId) } }
+        runCatching {
+            player.play(
+                filePath = store.pathOf(fileName),
+                onCompleted = { finish(messageId) },
+                onError = { fail(messageId) }
+            )
+        }
             .onFailure {
                 state = SpeechPlaybackState.Error(
                     messageId,
@@ -90,6 +100,15 @@ class SpeechPlaybackController(
         player.stop()
         state = SpeechPlaybackState.Idle
         return state
+    }
+
+    private fun fail(messageId: String) {
+        if (state == SpeechPlaybackState.Playing(messageId)) {
+            state = SpeechPlaybackState.Error(
+                messageId,
+                "Suara balasan tidak bisa diputar di perangkat ini."
+            )
+        }
     }
 
     private fun finish(messageId: String) {

@@ -88,7 +88,7 @@ fun SplashScreen(modifier: Modifier = Modifier) {
 
             Reveal(index = 1) {
                 Text(
-                    text = "SRYA Emora",
+                    text = "Empati",
                     style = MaterialTheme.typography.displaySmall,
                     fontFamily = DisplayFont,
                     color = MaterialTheme.colorScheme.onBackground,

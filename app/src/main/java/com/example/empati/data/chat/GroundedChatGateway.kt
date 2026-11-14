@@ -34,7 +34,8 @@ class GroundedChatGateway(
         val userPrompt = EmpatiPromptBuilder.buildUserPrompt(
             query = query,
             context = context.triage,
-            chunks = context.chunks
+            chunks = context.chunks,
+            snapshot = context.snapshot
         )
         val gbv = deriveGbv(context)
         val received = StringBuilder()
@@ -88,7 +89,8 @@ class GroundedChatGateway(
         val userPrompt = EmpatiPromptBuilder.buildUserPrompt(
             query = query,
             context = context.triage,
-            chunks = context.chunks
+            chunks = context.chunks,
+            snapshot = context.snapshot
         )
 
         val raw = try {

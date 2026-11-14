@@ -29,7 +29,7 @@ object UserResultPresenter {
 
     /**
      * Membangun jembatan konteks satu arah (`ScreeningContextSnapshot`) yang kaya secara kualitatif
-     * (100% Zero-Leak: tanpa angka CF, MB, MD, maupun persentase) untuk digunakan oleh LLM SRYA Emora
+     * (100% Zero-Leak: tanpa angka CF, MB, MD, maupun persentase) untuk digunakan oleh LLM Empati
      * saat pengguna meminta analisis atau kesimpulan dari hasil skriningnya.
      */
     fun buildContextSnapshot(

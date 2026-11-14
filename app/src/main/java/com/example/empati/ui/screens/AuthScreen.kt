@@ -186,7 +186,7 @@ fun AuthScreenContent(
                 EmpatiLogo(size = 44.dp, animated = true)
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    text = "SRYA Emora",
+                    text = "Empati",
                     style = MaterialTheme.typography.titleLarge,
                     fontFamily = DisplayFont,
                     color = MaterialTheme.colorScheme.onBackground

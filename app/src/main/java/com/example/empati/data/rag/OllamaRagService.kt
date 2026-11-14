@@ -11,7 +11,7 @@ data class OllamaGenerationOutcome(
 )
 
 /**
- * Mesin Konsultasi AI-EMPATI berbasis **LLM Murni (Pure Scoped LLM)** tanpa injeksi korpus/rujukan kaku.
+ * Mesin Konsultasi Empati berbasis **LLM Murni (Pure Scoped LLM)** tanpa injeksi korpus/rujukan kaku.
  *
  * Arsitektur:
  * 1. Menggunakan model LLM secara murni (`qwen2.5:3b-instruct` / `empati-qwen2.5:3b` via Ollama,
@@ -26,10 +26,10 @@ data class OllamaGenerationOutcome(
 object OllamaRagService {
 
     const val OUT_OF_SCOPE_REFUSAL =
-        "Maaf ya, untuk topik itu saya belum bisa membantu. Sebagai teman bicara Anda di SRYA Emora, saya hadir khusus untuk menemani obrolan seputar tekanan darah dan gaya hidup sehat, pengelolaan stres atau kualitas tidur, serta dukungan ruang aman bila Anda menghadapi situasi kekerasan. Ada hal dari sekitar itu yang sedang ingin Anda ceritakan?"
+        "Maaf ya, untuk topik itu saya belum bisa membantu. Sebagai teman bicara Anda di Empati, saya hadir khusus untuk menemani obrolan seputar tekanan darah dan gaya hidup sehat, pengelolaan stres atau kualitas tidur, serta dukungan ruang aman bila Anda menghadapi situasi kekerasan. Ada hal dari sekitar itu yang sedang ingin Anda ceritakan?"
 
-    const val SRYA_EMORA_SELF_INTRO =
-        "Halo, salam kenal! Saya SRYA Emora, asisten dan teman bicara pribadi Anda di aplikasi ini. Saya hadir sebagai ruang yang aman dan nyaman untuk menemani Anda memahami kondisi tekanan darah dan kesehatan harian, mengelola stres, kecemasan, atau pola tidur yang sedang terganggu, serta memberikan informasi dukungan dan perlindungan bila Anda menghadapi situasi hubungan yang tidak aman atau kekerasan. Anda bebas bercerita atau bertanya dengan bahasa sehari-hari. Ada yang sedang Anda rasakan atau ingin kita obrolkan hari ini?"
+    const val EMPATI_SELF_INTRO =
+        "Halo, salam kenal! Saya Empati, asisten dan teman bicara pribadi Anda di aplikasi ini. Saya hadir sebagai ruang yang aman dan nyaman untuk menemani Anda memahami kondisi tekanan darah dan kesehatan harian, mengelola stres, kecemasan, atau pola tidur yang sedang terganggu, serta memberikan informasi dukungan dan perlindungan bila Anda menghadapi situasi hubungan yang tidak aman atau kekerasan. Anda bebas bercerita atau bertanya dengan bahasa sehari-hari. Ada yang sedang Anda rasakan atau ingin kita obrolkan hari ini?"
 
     const val SAPA_129_MANDATORY_NOTE =
         "Bila Anda atau seseorang di dekat Anda sedang membutuhkan ruang cerita dan perlindungan yang aman serta bebas penghakiman, Anda bisa menghubungi sahabat layanan SAPA 129 melalui telepon 129 atau WhatsApp 08111-129-129."
@@ -38,11 +38,11 @@ object OllamaRagService {
         "Sebagai catatan tambahan, kaitan antara beban stres yang berkepanjangan atau pengalaman kekerasan dengan naiknya tekanan darah bekerja melalui jalur stres kronis di dalam tubuh (peningkatan hormon stres dan ketegangan saraf secara terus-menerus), bukan hubungan sebab-akibat seketika."
 
     val SYSTEM_PROMPT: String = """
-        Anda adalah SRYA Emora, teman bicara dan pendamping kesehatan pribadi pengguna di aplikasi ini.
+        Anda adalah Empati, teman bicara dan pendamping kesehatan pribadi pengguna di aplikasi ini.
 
         ATURAN UTAMA:
         1. IDENTITAS DIRI & PERAN:
-           - Jika pengguna bertanya siapa Anda ("siapa anda", "siapa kamu", "apa itu SRYA Emora", "kamu bisa bantu apa"), perkenalkan diri Anda dengan hangat sebagai SRYA Emora, teman bicara dan pendamping ruang aman yang membantu pengguna memahami kesehatan tekanan darah dan gaya hidup, mengelola stres atau kualitas tidur, serta memberikan dukungan informasi perlindungan dari kekerasan.
+           - Jika pengguna bertanya siapa Anda ("siapa anda", "siapa kamu", "apa itu Empati", "kamu bisa bantu apa"), perkenalkan diri Anda dengan hangat sebagai Empati, teman bicara dan pendamping ruang aman yang membantu pengguna memahami kesehatan tekanan darah dan gaya hidup, mengelola stres atau kualitas tidur, serta memberikan dukungan informasi perlindungan dari kekerasan.
         2. RUANG LINGKUP PERCAKAPAN:
            - KESEHATAN: Hipertensi, tekanan darah, kesehatan jantung & pembuluh darah, faktor risiko (usia, genetik, komorbid), gejala, pola makan/nutrisi, olahraga, dan gaya hidup sehat.
            - PSIKOLOGI: Manajemen stres, kecemasan, kualitas tidur/insomnia, kelelahan mental (burnout), emosi, dan dukungan kesehatan jiwa.
@@ -136,7 +136,7 @@ object OllamaRagService {
                 append("- Faktor pelindung yang sudah dimiliki: ").append(protectiveText).append('\n')
                 append("- Pola keterkaitan klinis & psikososial: ").append(relationText).append('\n')
                 append("- Fokus saran awal: ").append(recsText).append("\n\n")
-                append("Instruksi Analisis untuk SRYA Emora:\n")
+                append("Instruksi Analisis untuk Empati:\n")
                 append("Berdasarkan data hasil skrining pengguna di atas, berikan analisis dan kesimpulan yang mendalam, relevan, dan bernas menggunakan intelegensi medis serta psikososial Anda:\n")
                 append("1. Simpulkan arti dari tingkat risiko dan kategori hasil skrining pengguna saat ini secara hangat dan jelas.\n")
                 append("2. Analisis bagaimana faktor-faktor yang teridentifikasi pada diri pengguna saling berkaitan memengaruhi tekanan darah maupun ketenangan batinnya secara fisiologis dan psikologis.\n")
@@ -373,7 +373,7 @@ object OllamaRagService {
         }
         return when {
             RagKnowledgeRepository.isIdentityQuery(q) ->
-                SRYA_EMORA_SELF_INTRO
+                EMPATI_SELF_INTRO
 
             RagKnowledgeRepository.isGbvRelated(q) ->
                 "Setiap bentuk kekerasan—baik fisik, psikologis, seksual, ekonomi, maupun digital—sama sekali bukan kesalahan korban, dan Anda berhak merasa aman. Tekanan batin dari pengalaman kekerasan dapat memicu jalur stres kronis yang perlahan ikut memengaruhi kondisi tubuh dan tekanan darah Anda, meskipun bukan hubungan sebab-akibat seketika. Bila membutuhkan teman bicara atau perlindungan rahasia, Anda dapat menghubungi layanan SAPA 129 di telepon 129 atau WhatsApp 08111-129-129."

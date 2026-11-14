@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.runtime.LaunchedEffect
+import com.example.empati.BuildConfig
 import com.example.empati.EmpatiViewModel
 import com.example.empati.MainActivity
 import com.example.empati.data.UserProfile
@@ -229,8 +230,8 @@ fun ProfileScreenContent(
                     RowDivider()
                     ProfileRow(
                         icon = Icons.Rounded.Info,
-                        label = "Tentang SRYA Emora",
-                        value = "Versi 4.1.4 · Inklusif semua kalangan",
+                        label = "Tentang Empati",
+                        value = "Versi ${BuildConfig.VERSION_NAME} · Inklusif semua kalangan",
                         onEdit = null,
                         showTrailing = false,
                         warmTile = true

@@ -5,6 +5,7 @@ import com.example.empati.data.rag.OllamaRagService
 import com.example.empati.data.rag.RagKnowledgeRepository
 import com.example.empati.data.rag.ScreeningContextSnapshot
 import com.example.empati.data.retrieval.CitationPicker
+import com.example.empati.data.triage.HybridTriageBridge
 import com.example.empati.data.triage.ReferenceChunk
 import com.example.empati.data.triage.TriageContext
 import java.util.Locale
@@ -44,8 +45,9 @@ class EmpatiChatUseCase(
     fun reply(message: String, snapshot: ScreeningContextSnapshot?): ChatReplyResult {
         val sanitized = sanitize(message)
         deterministicReply(sanitized, snapshot)?.let { return it }
-        val chunks = retriever.retrieve(sanitized, retrievalLimit)
-        return cited(gateway.generate(sanitized, contextOf(snapshot, chunks)), chunks)
+        val triage = triageContext()
+        val chunks = retriever.retrieve(retrievalQueryFor(sanitized, snapshot, triage), retrievalLimit)
+        return cited(gateway.generate(sanitized, contextOf(snapshot, chunks, triage)), chunks)
     }
 
     /**
@@ -60,16 +62,43 @@ class EmpatiChatUseCase(
     ): ChatReplyResult {
         val sanitized = sanitize(message)
         deterministicReply(sanitized, snapshot)?.let { return it }
-        val chunks = retriever.retrieve(sanitized, retrievalLimit)
-        val reply = gateway.generateStreaming(sanitized, contextOf(snapshot, chunks), onDelta)
+        val triage = triageContext()
+        val chunks = retriever.retrieve(retrievalQueryFor(sanitized, snapshot, triage), retrievalLimit)
+        val reply = gateway.generateStreaming(sanitized, contextOf(snapshot, chunks, triage), onDelta)
         return cited(reply, chunks)
     }
 
     private fun cited(reply: ChatReplyResult, chunks: List<ReferenceChunk>): ChatReplyResult =
         reply.copy(referenceChunks = CitationPicker.usedIn(reply.text, chunks))
 
-    private fun contextOf(snapshot: ScreeningContextSnapshot?, chunks: List<ReferenceChunk>) =
-        ChatRequestContext(snapshot = snapshot, chunks = chunks, triage = triageContext())
+    private fun contextOf(
+        snapshot: ScreeningContextSnapshot?,
+        chunks: List<ReferenceChunk>,
+        triage: TriageContext?
+    ) = ChatRequestContext(snapshot = snapshot, chunks = chunks, triage = triage)
+
+    /**
+     * Pertanyaan tentang kondisi pengguna sendiri ("apa langkah untuk hasil saya") jarang memuat kata
+     * klinis, jadi vektor querynya jauh dari korpus. Kosakata dari hasil CF ditambahkan di belakang
+     * pertanyaan asli. Pertanyaan umum lain dibiarkan apa adanya supaya topiknya tidak tergeser.
+     */
+    private fun retrievalQueryFor(
+        sanitized: String,
+        snapshot: ScreeningContextSnapshot?,
+        triage: TriageContext?
+    ): String {
+        val normalized = sanitized.lowercase(Locale.forLanguageTag("id-ID"))
+        val aboutOwnResult = RagKnowledgeRepository.isScreeningAnalysisQuery(normalized) ||
+            OWN_RESULT_HINTS.any { normalized.contains(it) }
+        if (!aboutOwnResult) return sanitized
+
+        val clinicalTerms = when {
+            triage != null -> HybridTriageBridge.toRetrievalQuery(triage)
+            snapshot != null -> HybridTriageBridge.toRetrievalQuery(snapshot)
+            else -> return sanitized
+        }
+        return "$sanitized $clinicalTerms"
+    }
 
     private fun sanitize(message: String): String =
         OllamaRagService.sanitizePrivacyInput(message)
@@ -107,7 +136,7 @@ class EmpatiChatUseCase(
 
         if (RagKnowledgeRepository.isIdentityQuery(normalized)) {
             return ChatReplyResult(
-                text = OllamaRagService.SRYA_EMORA_SELF_INTRO,
+                text = OllamaRagService.EMPATI_SELF_INTRO,
                 modelName = "identity-self-intro"
             )
         }
@@ -125,5 +154,12 @@ class EmpatiChatUseCase(
         }
 
         return null
+    }
+
+    private companion object {
+        val OWN_RESULT_HINTS = listOf(
+            "hasil", "skrining", "screening", "kondisi saya", "risiko saya",
+            "saran", "langkah", "apa yang harus saya", "apa yang bisa saya"
+        )
     }
 }

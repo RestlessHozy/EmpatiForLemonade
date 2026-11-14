@@ -209,6 +209,41 @@ class HybridTriageBridgeTest {
         assertFalse(query.contains("  "))
     }
 
+    private fun snapshot() = com.example.empati.data.rag.ScreeningContextSnapshot(
+        riskLevelLabel = "Sedang",
+        integratedCategoryLabel = "Risiko Hipertensi dengan Indikasi Keterkaitan Pengalaman KBG",
+        screeningDate = "11 Nov 2026",
+        summaryNarrative = "Tekanan darah dipengaruhi kebiasaan harian.",
+        hypertensionStatusLabel = "Sedang · Perlu Pemantauan",
+        gbvStatusLabel = "Terdapat indikasi",
+        keyFactors = listOf("Pola makan & aktivitas", "Stres & kualitas tidur"),
+        protectiveFactors = listOf("Tidak merokok"),
+        relationshipExplanation = "Stres berkepanjangan memengaruhi tekanan darah.",
+        keyRecommendations = listOf("Kurangi garam.")
+    )
+
+    @Test
+    fun `snapshot retrieval query carries clinical vocabulary without numbers`() {
+        val query = HybridTriageBridge.toRetrievalQuery(snapshot())
+
+        assertTrue(query.contains("hipertensi"))
+        assertTrue(query.contains("pola makan dan aktivitas"))
+        assertTrue(query.contains("kekerasan berbasis gender"))
+        assertFalse(Regex("\\d").containsMatchIn(query))
+        assertFalse(query.contains("&"))
+    }
+
+    @Test
+    fun `snapshot prompt block restores the saved result without any certainty number`() {
+        val block = HybridTriageBridge.toPromptBlock(snapshot())
+
+        assertTrue(block.contains("Sedang"))
+        assertTrue(block.contains("Pola makan & aktivitas"))
+        assertTrue(block.contains("Tidak merokok"))
+        assertFalse(Regex("\\d+[.,]\\d+").containsMatchIn(block))
+        assertFalse(block.contains("CF"))
+    }
+
     @Test
     fun `prompt block names the level and flags unanswered questions`() {
         val context = HybridTriageBridge.build(

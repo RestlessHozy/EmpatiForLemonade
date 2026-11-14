@@ -1,7 +1,7 @@
 package com.example.empati.data.cf
 
 /**
- * Domain model untuk sistem pakar Certainty Factor dual-modul AI-EMPATI.
+ * Domain model untuk sistem pakar Certainty Factor dual-modul Empati.
  */
 
 enum class ScreeningModule(val title: String, val shortTitle: String) {

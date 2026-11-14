@@ -57,6 +57,24 @@ class GroundedChatGatewayTest {
     }
 
     @Test
+    fun `saved snapshot reaches the prompt when no engine context exists`() {
+        val model = FakeModel()
+        val snapshot = com.example.empati.data.rag.ScreeningContextSnapshot(
+            riskLevelLabel = "Tinggi",
+            integratedCategoryLabel = "Risiko Hipertensi dengan Dominasi Faktor Kesehatan dan Gaya Hidup",
+            screeningDate = "05 Nov 2026"
+        )
+
+        GroundedChatGateway(model).generate(
+            "analisis hasil saya",
+            ChatRequestContext(snapshot = snapshot, chunks = listOf(chunk()), triage = null)
+        )
+
+        assertTrue(model.userPrompt!!.contains("Tinggi"))
+        assertFalse(model.userPrompt!!.contains("Belum ada hasil skrining pada sesi ini"))
+    }
+
+    @Test
     fun `prompt asks for refusal when there is no citation`() {
         val model = FakeModel()
         GroundedChatGateway(model).generate("pertanyaan", context(chunks = emptyList()))

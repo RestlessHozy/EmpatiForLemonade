@@ -162,7 +162,7 @@ object MiniJson {
             is Int, is Long, is Short, is Byte -> out.append(value.toString())
             is Float -> {
                 if (value.isNaN() || value.isInfinite()) out.append("null")
-                else if (value == floor(value.toDouble()) && kotlin.math.abs(value) < 1e15) out.append(value.toLong().toString())
+                else if (value.toDouble() == floor(value.toDouble()) && kotlin.math.abs(value.toDouble()) < 1e15) out.append(value.toLong().toString())
                 else out.append(value.toString())
             }
             is Double -> {

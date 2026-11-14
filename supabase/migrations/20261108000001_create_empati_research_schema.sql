@@ -19,7 +19,7 @@ create table if not exists public.user_accounts (
     updated_at timestamptz not null default now()
 );
 
-comment on table public.user_accounts is 'Tabel akun dan profil pengguna SRYA Emora (kredensial ter-hash PBKDF2-HMAC-SHA256) agar akun tetap tersimpan walaupun pengguna belum melakukan skrining.';
+comment on table public.user_accounts is 'Tabel akun dan profil pengguna Empati (kredensial ter-hash PBKDF2-HMAC-SHA256) agar akun tetap tersimpan walaupun pengguna belum melakukan skrining.';
 
 create index if not exists idx_user_accounts_identifier on public.user_accounts (account_identifier);
 create index if not exists idx_user_accounts_subject_hash on public.user_accounts (subject_hash);
@@ -64,7 +64,7 @@ create table if not exists public.research_cf_records (
     created_at timestamptz not null default now()
 );
 
-comment on table public.research_cf_records is 'Rekam skrining Certainty Factor terpseudonimisasi (subject_hash) untuk riset disertasi SRYA Emora.';
+comment on table public.research_cf_records is 'Rekam skrining Certainty Factor terpseudonimisasi (subject_hash) untuk riset disertasi Empati.';
 
 create index if not exists idx_research_cf_subject_hash on public.research_cf_records (subject_hash);
 create index if not exists idx_research_cf_created_at on public.research_cf_records (created_at desc);
@@ -81,7 +81,7 @@ create table if not exists public.research_chat_logs (
     created_at timestamptz not null default now()
 );
 
-comment on table public.research_chat_logs is 'Log konsultasi SRYA Emora terpseudonimisasi (tanpa NIP/NIK/Email/No.HP) untuk evaluasi kualitas edukasi.';
+comment on table public.research_chat_logs is 'Log konsultasi Empati terpseudonimisasi (tanpa NIP/NIK/Email/No.HP) untuk evaluasi kualitas edukasi.';
 
 create index if not exists idx_research_chat_subject_hash on public.research_chat_logs (subject_hash, created_at desc);
 

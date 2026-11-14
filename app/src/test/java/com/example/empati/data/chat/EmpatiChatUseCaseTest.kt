@@ -1,6 +1,10 @@
 package com.example.empati.data.chat
 
 import com.example.empati.data.ChatReplyResult
+import com.example.empati.data.cf.CfLevel
+import com.example.empati.data.cf.ModuleResult
+import com.example.empati.data.cf.ScreeningModule
+import com.example.empati.data.triage.HybridTriageBridge
 import com.example.empati.data.rag.ScreeningContextSnapshot
 import com.example.empati.data.triage.ReferenceChunk
 import org.junit.Assert.assertEquals
@@ -69,6 +73,73 @@ class EmpatiChatUseCaseTest {
         assertEquals(0, gateway.calls)
         assertTrue(reply.text.contains("Empati") || reply.text.contains("teman bicara"))
         assertEquals("identity-self-intro", reply.modelName)
+    }
+
+    @Test
+    fun `identity answer never uses the old brand`() {
+        val useCase = EmpatiChatUseCase(RecordingGateway(), FixedRetriever(emptyList()))
+
+        listOf("siapa kamu", "apa itu empati", "kamu bisa bantu apa").forEach { question ->
+            val text = useCase.reply(question, snapshot = null).text
+            assertTrue("$question -> $text", text.contains("Empati"))
+            assertFalse(text.contains("SRYA"))
+            assertFalse(text.contains("Emora"))
+        }
+    }
+
+    @Test
+    fun `own result question enriches retrieval with clinical terms from the saved snapshot`() {
+        val retriever = FixedRetriever(emptyList())
+        val useCase = EmpatiChatUseCase(RecordingGateway(), retriever)
+
+        useCase.reply("apa langkah yang sebaiknya saya ambil sekarang", snapshot())
+
+        val query = retriever.lastQuery!!
+        assertTrue(query.startsWith("apa langkah yang sebaiknya saya ambil sekarang"))
+        assertTrue(query.contains("hipertensi"))
+        assertTrue(query.contains("gaya hidup"))
+        assertFalse(Regex("\\d").containsMatchIn(query))
+    }
+
+    @Test
+    fun `own result question prefers the live engine context over the snapshot`() {
+        val retriever = FixedRetriever(emptyList())
+        val triage = HybridTriageBridge.build(
+            hypertension = ModuleResult(
+                module = ScreeningModule.HYPERTENSION,
+                cf = 0.62,
+                level = CfLevel.TINGGI,
+                interpretation = "internal",
+                categories = emptyList(),
+                dominantFactors = emptyList(),
+                protectiveFactors = emptyList(),
+                hasDiagnosis = false,
+                answeredCount = 16,
+                totalCount = 16,
+                complete = true
+            ),
+            gbv = null,
+            integrated = null,
+            kbVersion = "cf-kb-v2.0",
+            capturedAt = "now"
+        )
+        val gateway = RecordingGateway()
+        val useCase = EmpatiChatUseCase(gateway, retriever, triageContext = { triage })
+
+        useCase.reply("jelaskan hasil saya", snapshot())
+
+        assertTrue(retriever.lastQuery!!.contains("tinggi"))
+        assertEquals(triage, gateway.lastContext!!.triage)
+    }
+
+    @Test
+    fun `unrelated question keeps its own retrieval query`() {
+        val retriever = FixedRetriever(emptyList())
+        val useCase = EmpatiChatUseCase(RecordingGateway(), retriever)
+
+        useCase.reply("bagaimana cara mengurangi garam", snapshot())
+
+        assertEquals("bagaimana cara mengurangi garam", retriever.lastQuery)
     }
 
     @Test

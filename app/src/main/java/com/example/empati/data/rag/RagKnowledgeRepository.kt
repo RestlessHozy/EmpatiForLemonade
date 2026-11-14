@@ -104,6 +104,72 @@ object RagKnowledgeRepository {
                 "kekerasan", "kbg", "bantuan", "sapa", "129", "kdrt", "pelecehan", "ancaman",
                 "psikologis", "terancam", "intimidasi", "seksual", "ekonomi", "digital", "korban"
             )
+        ),
+        RagDocumentChunk(
+            chunkId = "DOC-HT-04",
+            docSource = "Pedoman Pemantauan Tekanan Darah Mandiri PERKI & Kemenkes RI",
+            topicScope = RagTopicScope.HYPERTENSION_CLINICAL,
+            title = "Prosedur Pengukuran Tekanan Darah di Rumah & Gejala Hipertensi",
+            content = "Pengukuran tekanan darah yang akurat dilakukan setelah duduk tenang 5 menit dengan punggung tersandar, kaki menapak lantai, dan manset sejajar jantung, serta tidak merokok atau minum kopi 30 menit sebelumnya. Sebagian besar hipertensi tidak bergejala, namun bila melonjak dapat muncul keluhan tengkuk terasa berat, nyeri kepala belakang, pusing, atau jantung berdebar.",
+            keywords = listOf(
+                "ukur", "pengukuran", "tensimeter", "manset", "rumah", "gejala", "tengkuk",
+                "pusing", "kepala", "berdebar", "akurat", "posisi"
+            )
+        ),
+        RagDocumentChunk(
+            chunkId = "DOC-HT-05",
+            docSource = "Pedoman Kegawatdaruratan Kardiovaskular PERKI & WHO",
+            topicScope = RagTopicScope.HYPERTENSION_CLINICAL,
+            title = "Krisis Hipertensi, Tanda Bahaya Darurat, dan Kepatuhan Obat",
+            content = "Tekanan darah yang mencapai >=180/120 mmHg disertai nyeri dada, sesak napas, pandangan kabur, bicara pelo, atau kelemahan satu sisi tubuh merupakan kondisi darurat medis yang memerlukan penanganan segera di IGD atau fasilitas kesehatan. Penyandang hipertensi yang mendapat terapi obat dari dokter wajib meminumnya secara teratur tanpa menghentikan sendiri.",
+            keywords = listOf(
+                "krisis", "darurat", "bahaya", "180", "120", "nyeri dada", "sesak napas",
+                "stroke", "lumpuh", "pelo", "obat", "berhenti obat", "igd"
+            )
+        ),
+        RagDocumentChunk(
+            chunkId = "DOC-HT-06",
+            docSource = "Pedoman Kesehatan Kardiovaskular Perempuan Kemenkes RI",
+            topicScope = RagTopicScope.HYPERTENSION_CLINICAL,
+            title = "Hipertensi pada Perempuan, Kehamilan, Preeklamsia, dan Menopause",
+            content = "Perempuan dengan riwayat tekanan darah tinggi saat kehamilan (preeklamsia) atau yang telah memasuki masa menopause mengalami perubahan profil hormon estrogen yang meningkatkan risiko kekakuan pembuluh darah dan hipertensi, sehingga dianjurkan rutin memantau tensi.",
+            keywords = listOf(
+                "perempuan", "wanita", "hamil", "kehamilan", "preeklamsia", "menopause",
+                "hormon", "estrogen", "ibu", "melahirkan", "nifas"
+            )
+        ),
+        RagDocumentChunk(
+            chunkId = "DOC-DASH-04",
+            docSource = "Pedoman Gizi Seimbang & Pangan Lokal Rendah Natrium Kemenkes RI",
+            topicScope = RagTopicScope.LIFESTYLE_DASH,
+            title = "Sumber Garam Tersembunyi & Pangan Lokal Tinggi Kalium di Indonesia",
+            content = "Selain garam dapur, sumber natrium tinggi yang sering tersembunyi pada hidangan harian meliputi mi instan, ikan asin, telur asin, kerupuk, kecap, saus kemasan, dan penyedap rasa. Sebaliknya, pangan lokal tinggi kalium dan serat seperti pisang, alpukat, pepaya, bayam, daun kelor, tempe, dan tahu membantu menyeimbangkan natrium dan menjaga kelenturan pembuluh darah.",
+            keywords = listOf(
+                "mie instan", "mi instan", "ikan asin", "telur asin", "kerupuk", "kecap", "saus",
+                "penyedap", "micin", "msg", "pisang", "alpukat", "bayam", "kelor", "tempe", "tahu", "kalium"
+            )
+        ),
+        RagDocumentChunk(
+            chunkId = "DOC-ASN-02",
+            docSource = "Pedoman Manajemen Stres Kerja, Burnout & Kebersihan Tidur WHO",
+            topicScope = RagTopicScope.ASN_PSYCHOSOCIAL,
+            title = "Kebersihan Tidur (Sleep Hygiene), Relaksasi Pernapasan & Regulasi Emosi",
+            content = "Menjaga waktu tidur 7–9 jam setiap malam membantu penurunan alami tekanan darah saat tidur (nocturnal dipping). Saat menghadapi tekanan pekerjaan atau kecemasan, latihan pernapasan lambat dan dalam selama 5–10 menit, membatasi layar gawai sebelum tidur, dan mengurangi kafein sore hari membantu menenangkan sistem saraf simpatis.",
+            keywords = listOf(
+                "relaksasi", "napas", "pernapasan", "meditasi", "tenang", "burnout", "lelah mental",
+                "gawai", "hp", "malam", "jam tidur", "kualitas tidur", "emosi", "overthinking"
+            )
+        ),
+        RagDocumentChunk(
+            chunkId = "DOC-GBV-02",
+            docSource = "Panduan Keselamatan Diri Penyintas Komnas Perempuan & KemenPPPA",
+            topicScope = RagTopicScope.GBV_PROTECTION,
+            title = "Rencana Keselamatan Diri (Safety Planning) & Pendampingan Terpadu",
+            content = "Penyintas kekerasan di rumah tangga, tempat kerja, maupun ranah digital dapat menyiapkan rencana keselamatan diri dengan menyimpan kontak darurat SAPA 129 (Telepon 129 atau WhatsApp 08111-129-129), mengamankan dokumen identitas penting, mengenali jalur aman atau kerabat tepercaya, serta mengakses konseling psikologis dan bantuan hukum gratis melalui UPTD PPA.",
+            keywords = listOf(
+                "rencana keselamatan", "aman", "keamanan", "uptd ppa", "komnas perempuan",
+                "rumah aman", "hukum", "konseling", "lapor", "pengaduan", "melindungi diri"
+            )
         )
     )
 
@@ -131,8 +197,8 @@ object RagKnowledgeRepository {
         "kekerasan", "kbg", "aman", "keamanan", "bantuan", "sapa", "129", "kdrt", "pelecehan", "ancaman", "terancam",
         "intimidasi", "seksual", "ekonomi", "digital", "verbal", "korban", "rujukan", "lapor", "pengaduan", "perlindungan",
         "dipukul", "dihina", "dilecehkan", "dikucilkan", "dimaki", "didorong", "paksa", "pemaksaan", "bulli", "bullying", "toxic",
-        // Identitas Diri & Peran Asisten (SRYA Emora)
-        "srya", "emora", "empati", "siapa anda", "siapa kamu", "anda siapa", "kamu siapa",
+        // Identitas Diri & Peran Asisten (Empati)
+        "empati", "siapa anda", "siapa kamu", "anda siapa", "kamu siapa",
         "siapakah anda", "siapakah kamu", "nama anda", "nama kamu", "siapa namamu", "perkenalkan",
         "kenalan", "tentang anda", "tentang kamu", "kamu bisa apa", "anda bisa apa", "bisa bantu apa",
         "fungsi anda", "fungsi kamu", "tugas anda", "tugas kamu", "kegunaan anda", "kegunaan kamu"
@@ -142,7 +208,7 @@ object RagKnowledgeRepository {
         "siapa anda", "siapa kamu", "anda siapa", "kamu siapa",
         "siapakah anda", "siapakah kamu", "nama anda", "nama kamu",
         "siapa namamu", "siapa nama anda", "siapa nama kamu",
-        "apa itu srya", "siapa srya", "srya emora", "apa itu emora",
+        "apa itu empati", "siapa empati", "tentang empati",
         "perkenalkan diri", "kenalan dong", "boleh kenalan",
         "tentang anda", "tentang kamu", "profil anda", "profil kamu",
         "kamu bisa apa", "anda bisa apa", "bisa bantu apa",
@@ -158,7 +224,7 @@ object RagKnowledgeRepository {
             .replace(Regex("\\s+"), " ")
             .trim()
         if (isScreeningAnalysisQuery(normalized) || isSimpleResultLookupQuery(normalized)) return false
-        if (normalized == "siapa" || normalized == "srya" || normalized == "emora") return true
+        if (normalized == "siapa" || normalized == "empati") return true
         return identityPatterns.any { normalized.contains(it) }
     }
 

@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -218,7 +219,7 @@ fun ChatScreen(vm: EmpatiViewModel, modifier: Modifier = Modifier) {
     ChatContent(
         messages = vm.chatMessages,
         isGenerating = vm.isChatGenerating,
-        llmReachable = vm.lemonadeStatus != null,
+        llmReachable = vm.lemonadeStatus?.isReady == true,
         input = input,
         onInputChange = { input = it },
         onSend = {
@@ -315,10 +316,11 @@ fun ChatContent(
                 item(key = "scope_banner") {
                     ScopeNotice()
                 }
-                itemsIndexed(
-                    items = messages,
-                    key = { index, msg -> chatMessageId(index, msg) }
-                ) { index, msg ->
+                val visibleMessages = visibleChatMessages(messages, isGenerating)
+                items(
+                    items = visibleMessages,
+                    key = { (index, msg) -> chatMessageId(index, msg) }
+                ) { (index, msg) ->
                     val messageId = chatMessageId(index, msg)
                     ChatBubble(
                         message = msg,
@@ -332,7 +334,7 @@ fun ChatContent(
                         )
                     )
                 }
-                if (isGenerating) {
+                if (shouldShowThinkingBubble(messages, isGenerating)) {
                     item(key = "generating_indicator") {
                         ThinkingBubble()
                     }
@@ -391,7 +393,7 @@ private fun ChatHeader(
         CompanionAvatar(online = llmReachable)
         Spacer(Modifier.width(EmpatiSpace.md))
         Text(
-            text = "SRYA Emora",
+            text = "Empati",
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier
@@ -403,7 +405,7 @@ private fun ChatHeader(
     }
 }
 
-/** Soft presence avatar: SRYA Emora logo with background clipped in a circle, plus an online dot that pulses when reachable. */
+/** Soft presence avatar: Empati logo with background clipped in a circle, plus an online dot that pulses when reachable. */
 @Composable
 private fun CompanionAvatar(online: Boolean, modifier: Modifier = Modifier) {
     val avatarSize = 48.dp
@@ -555,7 +557,7 @@ private fun ScopeNotice() {
 }
 
 /**
- * Static mini companion mark for bubbles using SRYA Emora logo with background.
+ * Static mini companion mark for bubbles using Empati logo with background.
  */
 @Composable
 private fun CompanionMark(modifier: Modifier = Modifier, markSize: Dp = 32.dp) {
@@ -577,6 +579,33 @@ private fun CompanionMark(modifier: Modifier = Modifier, markSize: Dp = 32.dp) {
 private val BubbleMaxWidth = 320.dp
 
 fun chatMessageId(index: Int, message: ChatMessage): String = "msg-$index-${message.isUser}"
+
+/**
+ * Menyembunyikan placeholder balasan asisten yang masih kosong selama token pertama
+ * belum tiba agar hanya ada satu gelembung indikator pengetikan di layar.
+ */
+internal fun visibleChatMessages(
+    messages: List<ChatMessage>,
+    isGenerating: Boolean
+): List<IndexedValue<ChatMessage>> {
+    val lastIndex = messages.lastIndex
+    return messages.withIndex().filterNot { (index, msg) ->
+        isGenerating && index == lastIndex && !msg.isUser && msg.text.isBlank()
+    }
+}
+
+/**
+ * Menampilkan "Empati sedang mengetik…" hanya sampai karakter pertama balasan
+ * mulai tampil di gelembung chat agar tidak muncul dua gelembung bersamaan.
+ */
+internal fun shouldShowThinkingBubble(
+    messages: List<ChatMessage>,
+    isGenerating: Boolean
+): Boolean {
+    if (!isGenerating) return false
+    val last = messages.lastOrNull() ?: return true
+    return last.isUser || last.text.isBlank()
+}
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -764,7 +793,7 @@ private fun ThinkingBubble(modifier: Modifier = Modifier) {
                 BreathingDots(color = MaterialTheme.empati.presence.accent)
                 Spacer(Modifier.width(EmpatiSpace.sm))
                 Text(
-                    text = "SRYA Emora sedang mengetik…",
+                    text = "Empati sedang mengetik…",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

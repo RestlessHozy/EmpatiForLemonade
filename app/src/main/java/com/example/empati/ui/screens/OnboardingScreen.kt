@@ -114,7 +114,7 @@ private val slides = listOf(
     ),
     OnboardSlide(
         tag = "Teman cerita",
-        title = "Ngobrol bersama SRYA Emora",
+        title = "Ngobrol bersama Empati",
         body = "Tanyakan seputar kesehatan tekanan darah, cara meredakan stres, atau informasi dukungan ruang aman kapan pun Anda membutuhkannya.",
         tone = SlideTone.Presence,
         mainIcon = Icons.Rounded.ChatBubbleOutline,

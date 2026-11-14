@@ -74,14 +74,17 @@ class CorpusIndexer(private val embedder: Embedder) {
             }
         }
 
+        // Chunk yang gagal di-embed (server mati, model belum dimuat) tidak masuk indeks sama sekali.
+        // Menyimpan vektor kosong hanya membuang tempat dan memaksa penulisan ulang di setiap pesan.
         val fresh = if (toEmbed.isEmpty()) {
             emptyList()
         } else {
             val vectors = embedder.embed(toEmbed.map { "${it.title}. ${it.text}" })
-            toEmbed.mapIndexed { index, chunk ->
+            toEmbed.mapIndexedNotNull { index, chunk ->
+                val vector = vectors.getOrNull(index)?.takeIf { it.isNotEmpty() } ?: return@mapIndexedNotNull null
                 IndexedChunk(
                     chunk = chunk,
-                    vector = vectors.getOrElse(index) { FloatArray(0) },
+                    vector = vector,
                     textHash = hashOf(chunk.text)
                 )
             }
@@ -125,8 +128,21 @@ object CitationPicker {
                     add("who")
                     add("organisasi kesehatan dunia")
                 }
-                full.startsWith("kementerian kesehatan") -> add("kemenkes")
-                full.startsWith("kementerian pemberdayaan perempuan") -> add("kemenpppa")
+                full.startsWith("kementerian kesehatan") -> {
+                    add("kemenkes")
+                    add("kementerian kesehatan")
+                }
+                full.startsWith("kementerian pemberdayaan perempuan") -> {
+                    add("kemenpppa")
+                    add("sapa 129")
+                }
+                full.startsWith("perhimpunan dokter spesialis kardiovaskular") -> {
+                    add("perki")
+                    add("perhimpunan dokter spesialis kardiovaskular")
+                }
+                full.startsWith("komisi nasional anti kekerasan terhadap perempuan") -> {
+                    add("komnas perempuan")
+                }
             }
         }
     }

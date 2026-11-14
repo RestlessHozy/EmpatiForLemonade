@@ -111,6 +111,41 @@ class EmpatiPromptBuilderTest {
     }
 
     @Test
+    fun `saved snapshot replaces the empty screening note when the engine context is absent`() {
+        val snapshot = com.example.empati.data.rag.ScreeningContextSnapshot(
+            riskLevelLabel = "Tinggi",
+            integratedCategoryLabel = "Risiko Hipertensi dengan Dominasi Faktor Kesehatan dan Gaya Hidup",
+            screeningDate = "05 Nov 2026",
+            keyFactors = listOf("Pola makan & aktivitas")
+        )
+
+        val prompt = EmpatiPromptBuilder.buildUserPrompt(
+            query = "analisis hasil saya",
+            context = null,
+            chunks = emptyList(),
+            snapshot = snapshot
+        )
+
+        assertFalse(prompt.contains("Belum ada hasil skrining pada sesi ini"))
+        assertTrue(prompt.contains("Tinggi"))
+        assertTrue(prompt.contains("05 Nov 2026"))
+    }
+
+    @Test
+    fun `engine context wins over a saved snapshot`() {
+        val snapshot = com.example.empati.data.rag.ScreeningContextSnapshot(
+            riskLevelLabel = "Rendah",
+            integratedCategoryLabel = null,
+            screeningDate = "01 Jan 2026"
+        )
+
+        val prompt = EmpatiPromptBuilder.buildUserPrompt("tanya", context(), emptyList(), snapshot)
+
+        assertTrue(prompt.contains("Sedang"))
+        assertFalse(prompt.contains("01 Jan 2026"))
+    }
+
+    @Test
     fun `user prompt instructs refusal when no reference is available`() {
         val prompt = EmpatiPromptBuilder.buildUserPrompt(
             query = "bagaimana cara menurunkan tensi",

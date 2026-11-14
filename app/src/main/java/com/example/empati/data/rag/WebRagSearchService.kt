@@ -29,7 +29,7 @@ object WebRagSearchService {
 
     private const val WIKIPEDIA_ID_API = "https://id.wikipedia.org/w/api.php"
     private const val EUROPE_PMC_API = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
-    private const val USER_AGENT = "AI-EMPATI-Clinical-Assistant/3.1 (Android; Medical Education)"
+    private const val USER_AGENT = "Empati-Clinical-Assistant/4.1.5 (Android; Medical Education)"
 
     private val htmlTagRegex = Regex("<[^>]+>")
     private val multiSpaceRegex = Regex("\\s+")

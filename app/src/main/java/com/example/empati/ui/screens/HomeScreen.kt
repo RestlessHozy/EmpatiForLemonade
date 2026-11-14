@@ -416,7 +416,7 @@ private fun ServicesSection(onStartScreening: () -> Unit, onOpenChat: () -> Unit
                     .fillMaxHeight()
             )
             FeatureCard(
-                title = "Tanya SRYA Emora",
+                title = "Tanya Empati",
                 subtitle = "Teman cerita & tanya",
                 icon = Icons.Rounded.ChatBubbleOutline,
                 tone = MaterialTheme.empati.presence,
@@ -524,7 +524,7 @@ private fun SupportStrip(onClick: () -> Unit) {
                 }
                 Spacer(Modifier.height(EmpatiSpace.xxs))
                 Text(
-                    text = "Privasi Anda terlindungi enkripsi satu arah. Butuh teman bicara atau bantuan? Hubungi SAPA 129 atau ngobrol dengan SRYA Emora.",
+                    text = "Privasi Anda terlindungi enkripsi satu arah. Butuh teman bicara atau bantuan? Hubungi SAPA 129 atau ngobrol dengan Empati.",
                     style = MaterialTheme.typography.bodySmall,
                     color = tone.onContainer
                 )

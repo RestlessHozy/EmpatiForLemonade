@@ -20,7 +20,7 @@ import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 /**
- * Layanan sinkronisasi Cloud Supabase (`empati-research`) untuk persistensi akun pengguna,
+ * Layanan sinkronisasi Cloud Supabase (`empati-lemonade`) untuk persistensi akun pengguna,
  * keperluan riset disertasi, dan proxy Edge Function OpenRouter (`empati-chat`).
  *
  * Prinsip Keamanan & Privasi:
@@ -33,11 +33,11 @@ import java.nio.charset.StandardCharsets
  */
 object SupabaseCloudSyncService {
 
-    const val PROJECT_ID = "qnvcuhmvrrffzdxxdloc"
-    const val SUPABASE_URL = "https://qnvcuhmvrrffzdxxdloc.supabase.co"
-    const val SUPABASE_PUBLISHABLE_KEY = "sb_publishable_eF1IqgzAvjXf_NVZUPTFZg_fiOrLgn7"
+    const val PROJECT_ID = "mevrnxtrulidgpgfipsc"
+    const val SUPABASE_URL = "https://mevrnxtrulidgpgfipsc.supabase.co"
+    const val SUPABASE_PUBLISHABLE_KEY = "sb_publishable_U1N3vCm8ZCqSFWD7_S_rIQ_ls6xcF94"
     const val SUPABASE_ANON_KEY =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFudmN1aG12cnJmZnpkeHhkbG9jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQxMzg1MTYsImV4cCI6MjEwOTcxNDUxNn0.4FS2HCFdpK-0bQoNhqMPXjgdXVVxBK-5abSEjpl_NeU"
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1ldnJueHRydWxpZGdwZ2ZpcHNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ0NDYzNzMsImV4cCI6MjExMDAyMjM3M30.JJzdfyoy0FqEKvblahcrZf-_ssZw-IAvUP0nfkHfovo"
 
     const val REST_USER_ACCOUNTS_ENDPOINT = "$SUPABASE_URL/rest/v1/user_accounts"
     const val REST_RESEARCH_CF_ENDPOINT = "$SUPABASE_URL/rest/v1/research_cf_records"
@@ -177,7 +177,7 @@ object SupabaseCloudSyncService {
                     setRequestProperty("apikey", SUPABASE_ANON_KEY)
                     setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
                     setRequestProperty("Accept", "application/json")
-                    setRequestProperty("User-Agent", "SRYA-Emora-Android/4.1.3")
+                    setRequestProperty("User-Agent", "Empati-Android/4.1.5")
                 }
                 if (conn.responseCode !in 200..299) return@runCatching null
                 val body = BufferedReader(InputStreamReader(conn.inputStream, StandardCharsets.UTF_8))
@@ -238,7 +238,7 @@ object SupabaseCloudSyncService {
                 setRequestProperty("apikey", SUPABASE_ANON_KEY)
                 setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
                 setRequestProperty("Prefer", "return=minimal")
-                setRequestProperty("User-Agent", "SRYA-Emora-Android/4.1.3")
+                setRequestProperty("User-Agent", "Empati-Android/4.1.5")
             }
             conn.responseCode in 200..299
         }.getOrDefault(false)
@@ -381,7 +381,7 @@ object SupabaseCloudSyncService {
                 setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
                 setRequestProperty("Content-Type", "application/json; charset=utf-8")
                 setRequestProperty("Prefer", preferHeader)
-                setRequestProperty("User-Agent", "SRYA-Emora-Android/4.1.3")
+                setRequestProperty("User-Agent", "Empati-Android/4.1.5")
             }
             OutputStreamWriter(conn.outputStream, StandardCharsets.UTF_8).use { writer ->
                 writer.write(jsonBody)

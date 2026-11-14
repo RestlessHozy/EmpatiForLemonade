@@ -961,7 +961,7 @@ fun EmpatiTextField(
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
- * Logo resmi SRYA Emora (monogram SA dengan hati dan balon percakapan).
+ * Logo resmi Empati (hati dan balon percakapan).
  * Mendukung varian tanpa background ([withBackground] = false, default untuk Splash & Auth)
  * maupun dengan background ([withBackground] = true, untuk Avatar & Badge).
  */
@@ -997,7 +997,7 @@ fun EmpatiLogo(
 
     Image(
         painter = painterResource(id = resId),
-        contentDescription = "Logo SRYA Emora",
+        contentDescription = "Logo Empati",
         contentScale = ContentScale.Fit,
         modifier = modifier
             .size(size)

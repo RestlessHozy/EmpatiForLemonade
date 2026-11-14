@@ -105,6 +105,18 @@ class LemonadeUnifiedClientTest {
     }
 
     @Test
+    fun `chat payloads switch reasoning off for Qwen3`() {
+        responder = { MockResponse(200, """{"choices":[{"message":{"content":"ok"}}]}""") }
+        client().chatCompletion(listOf(ChatMessage("user", "halo"))).getOrThrow()
+        assertTrue(only("/v1/chat/completions").bodyText.contains("\"enable_thinking\":false"))
+
+        captured.clear()
+        responder = { MockResponse(200, "data: [DONE]\n\n", "text/event-stream") }
+        client().streamChatCompletion(listOf(ChatMessage("user", "halo")), onDelta = {})
+        assertTrue(only("/v1/chat/completions").bodyText.contains("\"enable_thinking\":false"))
+    }
+
+    @Test
     fun `chat completion omits authorization header when no key configured`() {
         responder = {
             MockResponse(200, """{"choices":[{"message":{"content":"ok"}}]}""")
