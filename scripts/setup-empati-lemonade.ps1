@@ -1,30 +1,29 @@
 #Requires -Version 7.0
 <#
 .SYNOPSIS
-Menyiapkan Lemonade Server untuk Empati: host, model, alias, dan benchmark.
+Provisions AMD Lemonade Server for Empati: host binding, models, contract aliases, and benchmarks.
 
 .DESCRIPTION
-Mengatur host server, menarik model LLM utama dan cadangan, model embedding,
-Whisper untuk transkripsi, serta Kokoro untuk suara. Setelah itu memasang lima
-alias kontrak, memeriksa /v1/models, lalu menjalankan benchmark.
+Configures the server host binding, pulls the primary and backup chat LLMs,
+embedding model, Whisper STT model, and Kokoro TTS model, registers all five
+contract aliases, verifies /v1/models, and runs latency benchmarks.
 
-Jalankan dengan -DryRun untuk melihat perintah tanpa mengeksekusi apa pun.
+Pass -DryRun to preview every command without executing anything.
 
 .PARAMETER DryRun
-Cetak perintah saja, tanpa memanggil lemonade.
+Print planned commands only without invoking lemonade.
 
 .PARAMETER LocalOnly
-Pertahankan host=127.0.0.1. Tanpa switch ini, server dibuka di 0.0.0.0 agar
-perangkat fisik bisa terhubung.
+Keep host=127.0.0.1 instead of exposing host=0.0.0.0 on the LAN for physical phones.
 
 .PARAMETER SkipPull
-Lewati unduhan model, misalnya ketika model sudah ada di mesin demo.
+Skip pulling model weights (useful when models are already cached locally).
 
 .PARAMETER SkipBench
-Lewati benchmark di akhir penyiapan.
+Skip running benchmarks at the end of setup.
 
 .PARAMETER BaseUrl
-Alamat server yang diperiksa dan diukur. Bawaan http://localhost:13305.
+Target Lemonade Server URL for verification and benchmarks. Defaults to http://localhost:13305.
 #>
 [CmdletBinding()]
 param(
@@ -39,7 +38,7 @@ $ErrorActionPreference = 'Stop'
 $BaseUrl = $BaseUrl.TrimEnd('/')
 $scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 
-# Tambahkan direktori instalasi Lemonade standar ke PATH jika belum ada
+# Add default user-local Lemonade installation bin directory to PATH when missing
 $lemonadeBin = "$env:LOCALAPPDATA\lemonade_server\bin"
 if ((Test-Path (Join-Path $lemonadeBin 'lemonade.exe')) -and ($env:PATH -notlike "*$lemonadeBin*")) {
     $env:PATH = "$lemonadeBin;$env:PATH"
@@ -78,21 +77,21 @@ function Invoke-Step {
 if (-not $DryRun) {
     $lemonade = Get-Command lemonade -ErrorAction SilentlyContinue
     if (-not $lemonade) {
-        throw "Perintah 'lemonade' tidak ada di PATH. Pasang Lemonade Server dulu, lalu jalankan skrip ini lagi."
+        throw "'lemonade' was not found on PATH. Install AMD Lemonade Server first, then re-run this script."
     }
 }
 
-Invoke-Step -Description "Mengatur host Lemonade ke $bindHost" `
+Invoke-Step -Description "Setting Lemonade host binding to $bindHost" `
     -Command @('lemonade', 'config', 'set', "host=$bindHost") `
     -Action { lemonade config set "host=$bindHost" }
 
 if (-not $LocalOnly) {
-    Write-Host "   Server terbuka ke LAN. Batasi akses jaringan dan set LEMONADE_API_KEY di server." -ForegroundColor Yellow
+    Write-Host "   Server bound to LAN (0.0.0.0). Restrict firewall access and set LEMONADE_API_KEY in untrusted networks." -ForegroundColor Yellow
 }
 
 if (-not $SkipPull) {
     foreach ($model in @($llm, $llmBackup, $embed, $stt, $tts)) {
-        Invoke-Step -Description "Menarik model $model" `
+        Invoke-Step -Description "Pulling model $model" `
             -Command @('lemonade', 'pull', $model) `
             -Action { lemonade pull $model }
     }
@@ -100,35 +99,35 @@ if (-not $SkipPull) {
 
 foreach ($alias in $aliases.Keys) {
     $target = $aliases[$alias]
-    Invoke-Step -Description "Memasang alias $alias" `
+    Invoke-Step -Description "Registering alias $alias -> $target" `
         -Command @('lemonade', 'alias', 'add', $alias, $target) `
         -Action { lemonade alias add $alias $target }
 }
 
-Invoke-Step -Description "Memeriksa $BaseUrl/v1/models" `
+Invoke-Step -Description "Verifying aliases at $BaseUrl/v1/models" `
     -Command @('curl', "$BaseUrl/v1/models") `
     -Action {
         $response = Invoke-RestMethod -Uri "$BaseUrl/v1/models" -TimeoutSec 15
         $ids = $response.data | ForEach-Object { $_.id }
         $missing = @($aliases.Keys | Where-Object { $_ -notin $ids })
         if ($missing.Count -gt 0) {
-            throw "Alias belum terdaftar: $($missing -join ', ')"
+            throw "Missing expected aliases in /v1/models: $($missing -join ', ')"
         }
-        Write-Host "   Alias siap: $($aliases.Keys -join ', ')" -ForegroundColor Green
+        Write-Host "   All aliases ready: $($aliases.Keys -join ', ')" -ForegroundColor Green
     }
 
 if (-not $SkipBench) {
-    Invoke-Step -Description 'Menjalankan benchmark bawaan Lemonade' `
+    Invoke-Step -Description 'Running built-in Lemonade benchmark' `
         -Command @('lemonade', 'bench') `
         -Action {
             try {
                 lemonade bench
             } catch {
-                Write-Warning "lemonade bench tidak tersedia di mesin ini. Memakai scripts/bench-empati.ps1."
+                Write-Warning "lemonade bench is unavailable on this host. Proceeding with scripts/bench-empati.ps1."
             }
         }
 
-    Invoke-Step -Description 'Mengukur endpoint Empati' `
+    Invoke-Step -Description 'Benchmarking Empati contract endpoints' `
         -Command @('pwsh', '-File', (Join-Path $scriptRoot 'bench-empati.ps1'), '-BaseUrl', $BaseUrl) `
         -Action {
             & (Join-Path $scriptRoot 'bench-empati.ps1') -BaseUrl $BaseUrl
@@ -137,7 +136,7 @@ if (-not $SkipBench) {
 
 Write-Host ""
 if ($DryRun) {
-    Write-Host 'DryRun selesai. Tidak ada perintah yang dijalankan.' -ForegroundColor Yellow
+    Write-Host 'DryRun complete. No commands were executed.' -ForegroundColor Yellow
 } else {
-    Write-Host "Lemonade siap dipakai Empati di $BaseUrl." -ForegroundColor Green
+    Write-Host "Lemonade Server is ready for Empati at $BaseUrl." -ForegroundColor Green
 }

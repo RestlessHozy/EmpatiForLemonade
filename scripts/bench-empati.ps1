@@ -1,13 +1,12 @@
-#Requires -Version 7.0
+﻿#Requires -Version 7.0
 <#
 .SYNOPSIS
-Mengukur latensi chat, embedding, transkripsi, dan TTS pada Lemonade Server.
+Measures chat, embedding, transcription, and TTS latency against AMD Lemonade Server.
 
 .DESCRIPTION
-Menjalankan beberapa permintaan ke port 13305 memakai alias Empati, lalu
-menampilkan ringkasan dalam milidetik. Untuk transkripsi, skrip membuat WAV
-hening 1 detik bila tidak ada -WavPath, jadi pengukuran tetap bisa dijalankan
-tanpa rekaman asli.
+Sends repeated benchmark requests to port 13305 using Empati's contract aliases
+and reports median response times in milliseconds. Generates a 1-second 16 kHz
+mono silent WAV automatically if -WavPath is omitted.
 #>
 [CmdletBinding()]
 param(
@@ -22,7 +21,7 @@ $ErrorActionPreference = 'Stop'
 $BaseUrl = $BaseUrl.TrimEnd('/')
 
 if (-not $DryRun -and -not (Get-Command lemonade -ErrorAction SilentlyContinue)) {
-    throw "Perintah 'lemonade' tidak ada di PATH. Pasang Lemonade Server dulu, lalu jalankan skrip ini lagi."
+    throw "'lemonade' was not found on PATH. Install AMD Lemonade Server first, then re-run this script."
 }
 
 function Measure-Endpoint {
@@ -44,7 +43,7 @@ function Measure-Endpoint {
             & $Call | Out-Null
             $ok++
         } catch {
-            Write-Warning "$Name gagal pada percobaan $($i + 1): $($_.Exception.Message)"
+            Write-Warning "$Name failed on attempt $($i + 1): $($_.Exception.Message)"
         } finally {
             $watch.Stop()
         }
@@ -110,11 +109,11 @@ if ($DryRun) {
 }
 
 $chatBody = @{
-    model      = 'empati-llm'
-    messages   = @(@{ role = 'user'; content = 'Sebutkan satu kebiasaan kecil untuk menjaga tekanan darah.' })
-    max_tokens = 64
+    model           = 'empati-llm'
+    messages        = @(@{ role = 'user'; content = 'Sebutkan satu kebiasaan kecil untuk menjaga tekanan darah.' })
+    max_tokens      = 64
     enable_thinking = $false
-    stream     = $false
+    stream          = $false
 } | ConvertTo-Json -Depth 5
 
 $embedBody = @{
@@ -130,15 +129,15 @@ $ttsBody = @{
 
 if (-not $WavPath) {
     $WavPath = New-SilentWav
-    Write-Host "Membuat WAV hening: $WavPath" -ForegroundColor DarkGray
+    Write-Host "Generated silent test WAV: $WavPath" -ForegroundColor DarkGray
 }
 
 Write-Host ""
-Write-Host "Memanaskan model sebelum pengukuran..." -ForegroundColor DarkGray
+Write-Host "Warming up chat model before measurement..." -ForegroundColor DarkGray
 try {
     Invoke-RestMethod -Uri "$BaseUrl/v1/chat/completions" -Method Post -ContentType 'application/json' -Body $chatBody -TimeoutSec 180 | Out-Null
 } catch {
-    Write-Warning "Pemanasan gagal: $($_.Exception.Message)"
+    Write-Warning "Warmup request failed: $($_.Exception.Message)"
 }
 
 $results = @()
@@ -161,36 +160,36 @@ $results += Measure-Endpoint -Name 'speech' -Call {
 }
 
 Write-Host ""
-Write-Host "Empati benchmark, Lemonade $BaseUrl, $Repeats percobaan" -ForegroundColor Cyan
+Write-Host "Empati benchmark — Lemonade $BaseUrl — $Repeats repeats" -ForegroundColor Cyan
 $results | Format-Table Name, MedianMs, Ok, Total -AutoSize
 
 $failed = @($results | Where-Object { $_.Ok -lt $_.Total })
 
 $lines = @(
-    '# Hasil benchmark Empati',
+    '# Empati Benchmark Results',
     '',
-    "- Tanggal: $((Get-Date).ToString('yyyy-MM-dd HH:mm:ss zzz'))",
+    "- Date: $((Get-Date).ToString('yyyy-MM-dd HH:mm:ss zzz'))",
     "- Base URL: $BaseUrl",
-    "- Percobaan per endpoint: $Repeats",
-    '- Perangkat: isi manual (CPU, GPU/NPU, RAM, driver)',
+    "- Repeats per endpoint: $Repeats",
+    '- Hardware: fill manually (CPU, GPU/NPU, unified RAM, GPU driver, Lemonade version)',
     '',
-    '| Endpoint | Median (ms) | Berhasil |',
+    '| Endpoint | Median (ms) | Succeeded |',
     '|---|---|---|'
 )
 foreach ($row in $results) {
     $lines += "| $($row.Name) | $($row.MedianMs) | $($row.Ok)/$($row.Total) |"
 }
 $lines += ''
-$lines += 'Angka adalah median setelah satu pemanasan. Isi kolom perangkat dari mesin yang dipakai.'
+$lines += 'Figures represent median latencies measured after a single chat warmup call. Populate hardware details above for reproducibility.'
 
 $reportDir = Split-Path -Parent $ReportPath
 if ($reportDir -and -not (Test-Path $reportDir)) {
     New-Item -ItemType Directory -Path $reportDir -Force | Out-Null
 }
 [System.IO.File]::WriteAllText((Join-Path (Get-Location) $ReportPath), ($lines -join [Environment]::NewLine))
-Write-Host "Ringkasan ditulis ke $ReportPath" -ForegroundColor DarkGray
+Write-Host "Summary written to $ReportPath" -ForegroundColor DarkGray
 
 if ($failed.Count -gt 0) {
-    Write-Warning "Sebagian endpoint gagal: $($failed.Name -join ', ')"
+    Write-Warning "One or more endpoints failed: $($failed.Name -join ', ')"
     exit 1
 }
