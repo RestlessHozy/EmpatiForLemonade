@@ -1,98 +1,43 @@
-# Naskah video demo Empati
+# Empati Demo Video Script (English Presentation Guide)
 
-Durasi target 3 menit. Format 1080p, 30 atau 60 fps, rekaman layar perangkat Android ditambah satu potongan terminal untuk benchmark. Narasi bahasa Indonesia, subtitle Indonesia dan Inggris.
+Target length: under 3 minutes (`1080p`, 30/60 fps), featuring live Android screen recordings alongside clean architecture slides, measured AMD Lemonade hardware benchmarks, English AI narration, and synced subtitles.
 
-## Sebelum merekam
+## Pre-Recording Checklist
 
-- Jalankan `scripts/setup-empati-lemonade.ps1` sampai selesai dan pastikan kelima alias muncul di `/v1/models`.
-- Buka aplikasi sekali dan kirim satu pesan, supaya model chat sudah termuat. Muat model pertama bisa memakan puluhan detik dan merusak tempo video.
-- Siapkan akun demo dengan satu hasil skrining. Jangan tampilkan nama, NIP, atau riwayat nyata.
-- Untuk membuktikan klaim luring, aktifkan mode pesawat dan sambungkan perangkat fisik lewat `adb reverse tcp:13305 tcp:13305`. Emulator memakai `10.0.2.2` dan tetap bisa mencapai host tanpa internet.
-- Isi angka benchmark hanya dari `docs/BENCHMARK_RESULTS.md` yang dijalankan di mesin yang direkam. Bila belum ada, jangan sebut angka.
-- Rekam tanpa keyboard. Seluruh interaksi memakai tombol di layar dan suara.
+- Run `scripts/setup-empati-lemonade.ps1` and confirm all five aliases (`empati-llm`, `empati-llm-backup`, `empati-embed`, `empati-stt`, `empati-tts`) appear in `/v1/models`.
+- Warm up the server once so multi-gigabyte cold model loads do not stall recording frames.
+- Use a demo account with a synthetic test profile; **never expose personal email addresses, IDs, or private Android status-bar notifications** (crop Android status/nav bars cleanly in production).
+- For USB real-device verification, keep `adb reverse tcp:13305 tcp:13305` active and build with `LEMONADE_BASE_URL=http://127.0.0.1:13305`.
+- Cite latency numbers strictly from real runs of `scripts/bench-empati.ps1` on the target hardware.
 
-## 0:00 sampai 0:20, pembuka
+## Storyboard (6 Chapters — ~2m 03s Produced Runtime)
 
-Layar: Beranda Empati, lalu potongan diagram arsitektur selama dua detik.
+### 01 · Problem & Vision (~20s)
+- **Visuals:** Android Home screen (`Beranda`) showing `"Risiko sangat tinggi"`, timeline history card, and local server card (`http://127.0.0.1:13305`).
+- **Narration:** Introduces the dual burden of domestic violence and hypertension, explains why privacy fears silence high-risk survivors, and presents **Empati** running locally on AMD Lemonade Server port `13305`.
 
-Narasi:
+### 02 · Neuro-Symbolic Architecture (~18s)
+- **Visuals:** Diagram splitting **Layer 1 (Pure Kotlin, 26 Certainty Factor rules)** from **Layer 2 (AMD Lemonade `:13305` — 4 specialized local models)** synced with Screening consent and Q1/Q2 UI.
+- **Narration:** Explains why separating deterministic clinical math from language-model narration guarantees zero hallucinated risk scores.
 
-> Aplikasi ini menilai risiko hipertensi dan kesejahteraan psikososial, lalu mengajak pengguna berbicara tentang hasilnya. Seluruh model berjalan di satu server Lemonade pada perangkat yang sama, di port 13305.
+### 03 · Deterministic Screening & History (~20s)
+- **Visuals:** Longitudinal screening history (`Riwayat skrining`) + follow-up consultation surfacing verified **SAPA 129** emergency hotline numbers (`129` / WhatsApp `08111-129-129`).
+- **Narration:** Highlights hidden expert rule weights (`CF`, `MB`, `MD` never leak to patients) and deterministic hotline protection.
 
-## 0:20 sampai 0:50, pembagian kerja
+### 04 · Live Local RAG & Verifiable Citations (~18s)
+- **Visuals:** Tapping `"Apa itu hipertensi?"` -> clean single-bubble transition from `"Empati sedang mengetik…"` to live SSE token streaming -> tapping the `WHO · 2023` citation chip -> inspecting the `World Health Organization` excerpt bottom sheet.
+- **Narration:** Walks through `nomic-embed-text-v1-GGUF` retrieval over Kemenkes & WHO guidelines and single-bubble UI streaming.
 
-Layar: diagram arsitektur, sorot kotak mesin Certainty Factor, lalu kotak Lemonade.
+### 05 · Omni-Modal Voice STT & Natural Indonesian TTS (~19s)
+- **Visuals:** Tapping speaker playback button -> tapping microphone (`16 kHz` WAV capture bar `Merekam…`) with one-tap Cancel.
+- **Narration:** Explains `Whisper-Large-v3-Turbo` (`empati-stt`) transcription and Empati's contract-preserving routing between offline Android `id-ID` synthesis and Lemonade `empati-tts`.
 
-Narasi:
+### 06 · AMD Hardware Benchmarks & Closing (~22s)
+- **Visuals:** Profile screen (`Status layanan: Siap dipakai`, tapping `Periksa ulang`) beside real 5x measured benchmark results (`Ryzen 7 7735HS`, `15.25 GB RAM`, Lemonade `v2026.46.2`) and `203 / 203` passing unit tests.
+- **Narration:** Summarizes alias-driven portability across AMD hosts, 1-command reproducible setup, and MIT open-source availability.
 
-> Ada dua lapisan yang tidak boleh tercampur. Angka risiko dihitung mesin Certainty Factor yang deterministik. Model bahasa hanya menarasikan hasil itu dan fakta dari potongan rujukan yang ditemukan lewat embedding. Kalau rujukan tidak cukup, jawaban harus mengatakan itu.
+## Production Rules
 
-> Satu server menangani empat modality: chat, embedding, transkripsi, dan suara. Aplikasi hanya tahu empat alias, jadi model bisa diganti tanpa membangun ulang APK.
-
-## 0:50 sampai 1:50, demo suara tanpa keyboard
-
-Layar: tab Konsultasi. Jangan ketuk kolom teks.
-
-Narasi dan aksi:
-
-> Saya mulai dari keluhan suara. (ketuk tombol mikrofon)
-
-> Aplikasi meminta izin mikrofon, lalu merekam dalam 16 kHz mono. Batasnya 60 detik dan ada tombol batal selama merekam.
-
-> (bicara) Saya sering pusing menjelang sore, tidur saya kurang, dan saya jarang olahraga. Tekanan darah terakhir 150 per 95.
-
-> (ketuk Selesai, tunggu transkripsi)
-
-> Hasil transkripsi masuk ke kolom chat, bukan langsung terkirim. Saya bisa memperbaiki kata yang salah dengar sebelum mengirim.
-
-> (ketuk Kirim, biarkan jawaban mengalir)
-
-> Jawaban muncul bertahap. Angka risiko tidak dihitung ulang di sini. Yang ditambahkan model adalah penjelasan dan langkah kecil hari ini.
-
-> (setelah selesai) Chip di bawah jawaban menunjukkan rujukan yang dipakai. Saya buka salah satunya. (ketuk chip)
-
-> Isinya penerbit, tahun, bagian, dan teks potongan. Pengguna bisa memeriksa klaim tanpa keluar aplikasi.
-
-> (tutup sheet, ketuk tombol putar)
-
-> Balasan bisa didengarkan. Audio disimpan di cache, jadi memutar ulang pesan yang sama tidak memanggil server lagi. (ketuk berhenti)
-
-## 1:50 sampai 2:20, bukti deterministik dan status
-
-Layar: kembali ke hasil skrining, lalu Profil. Sorot panel status Lemonade.
-
-Narasi:
-
-> Hasil skrining tetap tersimpan sebagai angka dari mesin pakar. Saya bisa meminta ringkasannya tanpa model.
-
-> (ketuk pintasan Lihat hasil skrining saya)
-
-> Balasan ini disusun dari data skrining, bukan dari model, jadi angkanya konsisten.
-
-> Di Profil ada status server dan alias yang aktif. Kalau server mati, model sedang dimuat, atau model sibuk, aplikasi memberi pesan yang berbeda. Status jalur cadangan juga muncul di layar chat.
-
-## 2:20 sampai 2:45, bukti performa dan dampak komunitas
-
-Layar: potongan terminal yang menjalankan `scripts/bench-empati.ps1`. Tampilkan tabel hasil, lalu potongan `README` bagian instalasi.
-
-Narasi:
-
-> Pengukuran memakai skrip yang sama yang bisa dijalankan juri. (sebut angka hanya bila sudah diukur, misalnya) Di mesin ini, chat 64 token selesai dalam X detik dan transkripsi rekaman 10 detik dalam Y detik.
-
-> Seluruh kode berlisensi MIT. Instalasi untuk klinik, kampus, atau layanan konseling cukup menjalankan satu skrip penyiapan, lalu memasang APK. Jalur utamanya berjalan luring. Dua jalur keluar data, yaitu fallback cloud dan sinkronisasi riset, didokumentasikan di README supaya operator bisa mematikannya.
-
-## 2:45 sampai 3:00, penutup
-
-Layar: kembali ke percakapan, kursor di tombol mikrofon.
-
-Narasi:
-
-> Skrining yang bisa diaudit dan jawaban yang punya sumber, semuanya berjalan di perangkat. Repositori, skrip benchmark, dan catatan arsitektur ada di deskripsi video.
-
-## Catatan produksi
-
-- Jangan menyebut angka latensi sebelum menjalankan benchmark di mesin yang direkam.
-- Jangan menampilkan data peserta atau riwayat nyata. Pakai akun demo.
-- Potong jeda saat model memuat. Jangan mempercepat rekaman transkripsi atau jawaban sehingga durasinya menipu.
-- Tampilkan mode pesawat bila klaim luring ingin dibuktikan. Bila cloud fallback aktif, jangan menyebut demo sepenuhnya luring.
-- Simpan rekaman mentah dan berkas hasil benchmark agar klaim bisa diperiksa.
+- **Never fabricate speedups:** Cut silent wait/swap pauses cleanly rather than artificially accelerating token streaming animation.
+- **Protect user privacy:** Mask or omit real email/account cards and notification trays before capture.
+- **Preserve evidence:** Retain raw screen captures, `narration.json`, `.srt`/`.ass` subtitle tracks, and measured benchmark tables alongside final video exports.

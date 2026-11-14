@@ -1,6 +1,6 @@
 # Empati
 
-> **English Summary — AMD Lemonade Developer Challenge 2026 Submission**
+> **AMD Lemonade Developer Challenge 2026 Submission**
 >
 > **Empati** is a local-first, trauma-informed Android clinical triage and counseling companion powered by a **single AMD Lemonade Server (`:13305`)**. It pairs a **deterministic neuro-symbolic Certainty Factor expert engine** (26 screening rules across hypertension & gender-based psychosocial risk) with a **grounded local omni-modal RAG pipeline** (`Qwen3-4B-GGUF`, `nomic-embed-text-v1-GGUF`, `Whisper-Large-v3-Turbo`, plus `kokoro-v1` server contract & offline Android `id-ID` TTS for natural Indonesian speech).
 >
@@ -13,45 +13,45 @@
 
 ---
 
-Empati adalah aplikasi Android untuk skrining risiko hipertensi dan kesejahteraan psikososial, lalu percakapan lanjutan dengan asisten yang berjalan di Lemonade Server pada perangkat yang sama. Skrining memakai Certainty Factor deterministik. Percakapan memakai model bahasa lokal untuk menarasikan hasil itu dan potongan rujukan yang ditemukan lewat embedding, sehingga angka risiko tetap berasal dari kode, bukan dari model.
+Empati is an Android application for hypertension risk and psychosocial well-being screening, followed by guided counseling conversations running on a local **AMD Lemonade Server**. Screening uses a deterministic Certainty Factor expert engine. Follow-up counseling uses a local language model strictly to narrate those screening outputs and curated reference excerpts retrieved via embeddings, ensuring that risk levels always originate from deterministic code rather than generative guesswork.
 
-Aplikasi ini dibuat untuk submisi AMD Lemonade Developer Challenge 2026 dan untuk penelitian disertasi tentang skrining hipertensi berbasis gender. Repositori berisi aplikasi Android, korpus rujukan, dua skrip PowerShell untuk menyiapkan server dan mengukur latensi, serta catatan arsitektur.
+This project is built for the **AMD Lemonade Developer Challenge 2026** and dissertation research on gender-aware hypertension screening. The patient-facing UI, clinical knowledge corpus (`EmpatiCorpus`), and voice output target **Bahasa Indonesia** healthcare accessibility (`SAPA 129`, Indonesian Ministry of Health / Kemenkes, WHO), while repository documentation, scripts, and walkthrough guides are written in **English** for judges and contributors.
 
 ## Status
 
-Yang sudah berjalan di kode:
+Working and verified in code:
 
-- Skrining dua modul, 16 pertanyaan hipertensi dan 10 pertanyaan kekerasan berbasis gender, dengan mesin Certainty Factor dan analisis integrasi.
-- Klien Lemonade tunggal di port 13305 untuk chat, embedding, transkripsi, dan sintesis suara. Nama model tidak ada di kode aplikasi, hanya alias.
-- Retrieval lokal dengan penyimpanan vektor, ambang skor, fallback leksikal, dan chip sitasi untuk potongan (`30` chunk korpus) yang disebut dalam jawaban.
-- Chat streaming single-bubble, pemulihan jawaban parsial, guardrail keluaran, serta status capability yang membedakan server mati, model dimuat, dan model sibuk.
-- Input suara 16 kHz mono dengan batas 60 detik (`empati-stt`) dan output suara Bahasa Indonesia offline-first via `AndroidIndonesianTtsSynthesizer` (`id-ID`) dengan fallback ke `empati-tts` Lemonade serta cache lokal.
-- Benchmark 5x terukur pada perangkat pengembang AMD (`AMD Ryzen 7 7735HS`, `15.25 GB` RAM, Lemonade `v2026.46.2`) di `docs/BENCHMARK_EVALUATION.md`.
-- **203 unit test JVM (24 suite)** dan preview screenshot Compose.
+- Two-module bilingual clinical screening: 16 hypertension items and 10 gender-based violence (GBV) psychosocial items backed by the Shortliffe & Buchanan Certainty Factor engine and integrated cross-domain analysis.
+- Unified Lemonade HTTP client on port `13305` handling chat, embeddings, speech-to-text, and text-to-speech. Model IDs never appear in Kotlin source code—only stable contract aliases.
+- Local vector retrieval (`EmbeddingIndex`) with similarity threshold (`0.35`), lexical fallback, and clickable source citation chips covering `30` curated clinical chunks.
+- Single-bubble SSE streaming chat, partial-response recovery on disconnects, post-generation output guardrails, and explicit server capability states distinguishing offline server, loading model, and busy slots.
+- 16 kHz mono WAV voice input with a 60-second recording cap (`empati-stt`) and offline-first Indonesian voice synthesis via `AndroidIndonesianTtsSynthesizer` (`id-ID`) with graceful fallback to Lemonade `empati-tts` and SHA-256 local disk caching.
+- Measured 5x repeated hardware benchmarks on an AMD developer laptop (`AMD Ryzen 7 7735HS`, `15.25 GB` unified RAM, Lemonade `v2026.46.2`) recorded in [`docs/BENCHMARK_EVALUATION.md`](docs/BENCHMARK_EVALUATION.md).
+- **203 passing JVM unit tests across 24 suites** plus Compose screenshot tests.
 
-Yang belum selesai dan tidak diklaim selesai:
+Not finished yet (explicitly not claimed as complete):
 
-- Belum diukur langsung pada unit Ryzen AI Max+ 395 (Strix Halo 32–128 GB); angka Strix Halo di `docs/BENCHMARK_EVALUATION.md` masih analisis kapasitas teoretis, sedangkan angka terukur berasal dari `AMD Ryzen 7 7735HS` (`15.25 GB`).
-- Belum ada gerbang persetujuan pengguna untuk fallback cloud Supabase.
-- Indeks vektor disimpan sebagai JSON di SharedPreferences, bukan blob float32 di SQLite seperti rencana awal.
-- Chip sitasi memakai nama penerbit sebagai sinyal, jadi satu penyebutan penerbit dapat menandai beberapa potongan dari penerbit yang sama.
-- Guardrail belum menolak semua angka 0 sampai 100 yang berdiri sendiri dan belum memverifikasi bahwa level risiko yang disebut model sama dengan keluaran mesin CF. Aturan angka yang lebih ketat perlu dirancang hati-hati karena angka klinis sah seperti 140/90 dan 129 akan ikut terkena.
-- Status jalur cadangan tampil di layar chat, belum di layar Profil seperti rencana awal.
-- Bobot Certainty Factor masih placeholder dan belum divalidasi tenaga kesehatan.
-- Belum ada CI, signing release, atau audit keamanan pihak ketiga.
+- Has not yet been benchmarked directly on a Ryzen AI Max+ 395 (`Strix Halo` 32–128 GB) system; Strix Halo numbers in [`docs/BENCHMARK_EVALUATION.md`](docs/BENCHMARK_EVALUATION.md) remain theoretical memory-bandwidth capacity estimates, while measured results come from `AMD Ryzen 7 7735HS` (`15.25 GB`).
+- No dedicated UI consent toggle gate yet for disabling optional Supabase cloud fallback.
+- Local embedding vectors persist as JSON in `SharedPreferences` rather than binary `float32` blobs in SQLite as outlined in the original spec.
+- Citation chip matching checks publisher/title tokens, so mentioning one publisher name can highlight multiple retrieved chunks from that publisher.
+- Guardrails block explicit score tokens (`CF`, `MB`, `MD`, `%`, decimal `0.xx dari 1.00`), but do not yet reject every standalone `0–100` integer or assert semantic equivalence between narration text and CF level labels (stricter numeric filtering must avoid stripping valid blood pressure thresholds like `140/90` or hotline `129`).
+- Backup path status details render inside the chat header/banner rather than inside the Profile screen.
+- Certainty Factor expert weights are still research placeholders pending formal clinician validation.
+- No CI pipeline, release signing config, or third-party security audit yet.
 
-## Arsitektur
+## Architecture
 
 ```mermaid
 flowchart LR
-    subgraph device[Perangkat Android]
+    subgraph device[Android Device]
         UI[Compose UI]
         VM[EmpatiViewModel]
-        CF[Mesin Certainty Factor]
-        IDX[Indeks embedding lokal]
+        CF[Certainty Factor Engine]
+        IDX[Local Embedding Index]
         VIN[VoiceInputController]
         VOUT[SpeechPlaybackController]
-        IDTTS[Android id-ID TTS Offline]
+        IDTTS[Android id-ID Offline TTS]
     end
 
     subgraph lemonade[Lemonade Server :13305]
@@ -71,139 +71,147 @@ flowchart LR
     VM --> EMB
     VM --> LLM
     VOUT --> IDTTS
-    VOUT -. fallback id-ID kosong .-> TTS
-    VM -. Lemonade gagal .-> EDGE
+    VOUT -. empty id-ID fallback .-> TTS
+    VM -. Lemonade unreachable .-> EDGE
 ```
 
-Pembagian tugasnya sengaja kaku. `CfEngine` menghitung level, kategori dominan, dan faktor protektif. `HybridTriageBridge` mengubah hasil itu menjadi konteks `empati.screening_context/v1` untuk model. `EmpatiPromptBuilder` menyusun prompt dengan potongan rujukan. `AnswerGuardrail` memeriksa teks akhir sebelum ditampilkan. Model tidak menghitung ulang angka dan tidak menentukan diagnosis.
+Role separation is strictly enforced. `CfEngine` computes the risk level, dominant categories, and protective factors. `HybridTriageBridge` serializes those results into `empati.screening_context/v1`. `EmpatiPromptBuilder` builds a grounded prompt with retrieved reference excerpts. `AnswerGuardrail` validates the generated text before rendering. The LLM never recomputes risk scores and never issues a medical diagnosis.
 
-Alur chat ada di `EmpatiChatUseCase`, dengan port untuk gateway, retriever, dan sumber konteks triage. `GroundedChatGateway` memanggil Lemonade, meneruskan prompt yang sama ke Supabase Edge Function bila Lemonade gagal, lalu jatuh ke penyusun offline. `ChatFallbackLadder` menguji urutan itu.
+Conversation orchestration lives in `EmpatiChatUseCase`, decoupled behind ports for gateway, retriever, and triage context. `GroundedChatGateway` targets local Lemonade first, forwards the same grounded prompt to Supabase Edge Function `empati-chat` only if Lemonade fails, and drops back to a deterministic offline composer (`ChatFallbackLadder`).
 
-## Menjalankan
+## Running Locally
 
-Prasyarat:
+Prerequisites:
 
-- Android Studio dengan SDK 37 dan JDK 17 atau lebih baru.
+- Android Studio with SDK 37 and JDK 17+.
 - PowerShell 7.
-- Lemonade Server yang mendukung endpoint `/v1/chat/completions`, `/v1/embeddings`, `/v1/audio/transcriptions`, dan `/v1/audio/speech`.
-- Perangkat AMD dengan driver yang sudah mendukung Lemonade. Emulator Android juga bisa dipakai dengan host `10.0.2.2`.
+- AMD Lemonade Server supporting `/v1/chat/completions`, `/v1/embeddings`, `/v1/audio/transcriptions`, and `/v1/audio/speech`.
+- AMD Ryzen/Radeon hardware supported by Lemonade (or Android Emulator pointed at host `10.0.2.2`).
 
-Siapkan server:
+Set up the Lemonade server:
 
 ```powershell
 pwsh ./scripts/setup-empati-lemonade.ps1
 ```
 
-Skrip mengatur `host=0.0.0.0`, menarik lima model, memasang alias, memeriksa `/v1/models`, lalu menjalankan `lemonade bench` dan `scripts/bench-empati.ps1`. Pakai `-LocalOnly` untuk tetap di `127.0.0.1`, `-SkipPull` bila model sudah ada, dan `-DryRun` untuk melihat perintah tanpa mengeksekusi. Bila server dibuka ke LAN, batasi jaringannya dan set `LEMONADE_API_KEY` di server.
+This script configures `host=0.0.0.0`, pulls all five models, registers aliases, verifies `/v1/models`, and runs `lemonade bench` plus `scripts/bench-empati.ps1`. Pass `-LocalOnly` to bind strictly to `127.0.0.1`, `-SkipPull` if models are already downloaded, and `-DryRun` to preview commands without executing them. When binding on a LAN interface, restrict firewall access and set `LEMONADE_API_KEY`.
 
-Konfigurasi build ada di `local.properties`:
+Build configuration lives in `local.properties` (or environment variables):
 
 ```properties
 LEMONADE_BASE_URL=http://10.0.2.2:13305
 LEMONADE_API_KEY=
 ```
 
-`LEMONADE_BASE_URL` dan `LEMONADE_API_KEY` juga bisa datang dari variabel lingkungan. Keduanya masuk ke `BuildConfig`, jadi host dan port tidak perlu diubah di kode. Untuk perangkat fisik lewat USB, jalankan `adb reverse tcp:13305 tcp:13305` dan pakai `http://127.0.0.1:13305`. Bila memakai IP LAN, tambahkan IP itu ke `app/src/main/res/xml/network_security_config.xml`; konfigurasi bawaan hanya mengizinkan HTTP polos ke `10.0.2.2`, `127.0.0.1`, dan `localhost`.
+Both properties flow into `BuildConfig`, so host and port never require source edits. For physical Android phones connected over USB, forward the local port and point the build to loopback:
 
-Build dan pasang:
+```bash
+adb reverse tcp:13305 tcp:13305
+# set LEMONADE_BASE_URL=http://127.0.0.1:13305 in local.properties
+```
+
+If connecting over Wi-Fi LAN in debug builds, [`app/src/debug/res/xml/network_security_config.xml`](app/src/debug/res/xml/network_security_config.xml) permits LAN cleartext HTTP, whereas release builds strictly lock cleartext traffic to `10.0.2.2`, `127.0.0.1`, and `localhost`.
+
+Build and install the Android app:
 
 ```bash
 ./gradlew assembleDebug
 ./gradlew installDebug
 ```
 
-## Model dan alias
+## Models and Aliases
 
-Alias adalah kontrak antara aplikasi dan server. Ganti model cukup di server, tanpa membangun ulang APK.
+Aliases serve as the contract between Android client and server. Swap underlying models on Lemonade without rebuilding the APK:
 
-| Alias | Model | Kegunaan |
+| Alias | Model | Role |
 |---|---|---|
-| `empati-llm` | `Qwen3-4B-GGUF` | Chat utama |
-| `empati-llm-backup` | `Qwen3-1.7B-GGUF` | Cadangan yang disiapkan skrip |
-| `empati-embed` | `nomic-embed-text-v1-GGUF` | Embedding korpus dan kueri |
-| `empati-stt` | `Whisper-Large-v3-Turbo` | Transkripsi suara |
-| `empati-tts` | `kokoro-v1` | Kontrak sintesis suara server (fallback) |
+| `empati-llm` | `Qwen3-4B-GGUF` | Primary grounded counseling chat |
+| `empati-llm-backup` | `Qwen3-1.7B-GGUF` | Lightweight server-side backup model |
+| `empati-embed` | `nomic-embed-text-v1-GGUF` | Corpus & query embeddings |
+| `empati-stt` | `Whisper-Large-v3-Turbo` | 16 kHz Indonesian voice transcription |
+| `empati-tts` | `kokoro-v1` | Server speech synthesis contract (fallback) |
 
-Aplikasi memakai empat alias pada kontrak server. Karena `kokoro-v1` belum mendukung fonem Bahasa Indonesia, `HybridSpeechSynthesizer` memprioritaskan paket `id-ID` offline pada perangkat Android agar pelafalan alami dan tetap zero-leak, lalu jatuh kembali ke `empati-tts` saat perangkat belum memasang data suara Indonesia. Alias cadangan `empati-llm-backup` disiapkan untuk failover manual di sisi server; aplikasi tetap memanggil `empati-llm`. Detail endpoint dan alasan pemilihan model ada di `docs/research/lemonade-omnimodal-spec.md`.
+The app calls four active contract aliases on `:13305`. Because upstream `kokoro-v1` does not include Indonesian phonetics, `HybridSpeechSynthesizer` prioritizes offline `id-ID` synthesis on Android for natural pronunciation with zero cloud traffic, falling back to `empati-tts` when an offline voice pack is absent. `empati-llm-backup` is pulled by setup scripts for instant server-side failover. Detailed wire contracts and model rationale live in [`docs/research/lemonade-omnimodal-spec.md`](docs/research/lemonade-omnimodal-spec.md).
 
-## Pengujian
+## Testing
 
 ```bash
 ./gradlew testDebugUnitTest
 ./gradlew updateDebugScreenshotTest
 ```
 
-Unit test mencakup Certainty Factor, presentasi hasil, kontrak HTTP Lemonade, parsing SSE, guardrail, fallback ladder, retrieval dan sitasi, state machine input suara, cache dan pemutaran suara, serta status capability. Preview screenshot mencakup alur onboarding, hasil, chat, kontrol suara, dan status server.
+Unit tests cover Certainty Factor inference, result presentation, Lemonade HTTP wire contracts, SSE parsing, output guardrails, fallback ladder behavior, local embedding retrieval and citations, voice input state machine, TTS caching and playback routing, and server capability checks (**24 suites, 203 tests, 0 failures**). Screenshot tests cover onboarding, results, chat, voice controls, and server status UI.
 
-Pemeriksaan cepat skrip tanpa Lemonade terpasang:
+Run the standalone script dry-run verifier (no Lemonade installation required):
 
 ```powershell
 pwsh ./scripts/tests/verify-dryrun.ps1
 ```
 
-## Benchmark
+## Benchmarks
 
-`scripts/bench-empati.ps1` mengukur chat, embedding, transkripsi, dan TTS, lalu menulis `docs/BENCHMARK_RESULTS.md`. Metodologi, template tabel, dan analisis batas memori Strix Halo ada di `docs/BENCHMARK_EVALUATION.md`. Berkas hasil tidak disimpan di repositori karena bergantung pada mesin yang dipakai.
+`scripts/bench-empati.ps1` measures chat completion, embeddings, transcription, and TTS synthesis, saving outputs to `docs/BENCHMARK_RESULTS.md` (gitignored so machine-specific numbers stay separated from source control). Full methodology, measured `2026-11-14` developer benchmarks (`AMD Ryzen 7 7735HS`), and Strix Halo capacity modeling are documented in [`docs/BENCHMARK_EVALUATION.md`](docs/BENCHMARK_EVALUATION.md).
 
-## Privasi dan jalur data keluar
+## Privacy and Outbound Data Paths
 
-Jalur utama aplikasi berjalan di perangkat. Rekaman tidak dikirim ke layanan pihak ketiga. Audio balasan disimpan di cache internal dan diputar lewat MediaPlayer.
+The core triage and counseling loop executes locally on-device and on local Lemonade. Voice recordings are never uploaded to external third parties. Synthesized speech is cached internally and played locally via `MediaPlayer`.
 
-Ada dua jalur keluar yang perlu diketahui operator:
+Operators should be aware of two optional outbound paths:
 
-- Bila Lemonade gagal, `GroundedChatGateway` dapat memanggil Supabase Edge Function `empati-chat`. Prompt yang dikirim berisi konteks skrining dan potongan rujukan. Saat ini jalur ini aktif tanpa gerbang persetujuan.
-- Alur akun menyinkronkan data penelitian dan profil ke Supabase setelah login. Data penelitian memakai `subject_hash`, bukan identitas langsung.
+- If Lemonade is unreachable, `GroundedChatGateway` can invoke Supabase Edge Function `empati-chat` with the structured screening context and retrieved clinical excerpts (currently active without a dedicated UI toggle).
+- Authenticated account mode syncs anonymized research records and profile data to Supabase using a one-way `subject_hash` rather than direct identifiers.
 
-Untuk pemakaian yang benar-benar luring, jalankan aplikasi tanpa konfigurasi Supabase dan hapus pemanggilan sinkronisasi pada alur akun, atau blokir jaringan pada perangkat. Langkah itu belum dibungkus sebagai sakelar aplikasi dan masih menjadi pekerjaan produksi.
+For strict air-gapped clinical deployments, omit Supabase configuration / network access on the tablet or remove sync calls in account setup.
 
-## Pemakaian di klinik, kampus, dan layanan konseling
+## Clinic, Campus, and Counseling Deployments
 
-Klinik kecil bisa menempatkan satu server di ruang perawat dan memasang APK di tablet konsultasi. Kampus bisa memakai satu server untuk beberapa laboratorium, dengan catatan kapasitas perlu diukur untuk akses bersamaan. Layanan konseling bisa memakai alur suara untuk klien yang lebih nyaman bercerita lisan, lalu menyimpan hasil skrining secara lokal.
+Small clinics or university counseling centers can deploy a single AMD host running Lemonade Server on an isolated LAN and install the Empati APK onto consultation tablets. Guided voice input lowers barriers for clients uncomfortable typing sensitive trauma or health histories while retaining local screening history on-device.
 
-Biaya operasional utama ada pada perangkat dan listrik, bukan langganan model. Lisensi MIT mengizinkan perubahan untuk kebutuhan lokal, termasuk mengganti korpus rujukan atau menambah pertanyaan skrining. Panduan pemasangan ada di bagian Menjalankan, dan skrip penyiapan tidak memerlukan akun cloud.
+Under the **MIT License**, local teams can replace the clinical corpus, expand Certainty Factor questions, or swap models via aliases at zero per-token API cost.
 
-## Menuju produksi
+## Path to Production
 
-Urutan yang saya sarankan sebelum dipakai di luar demo:
+Recommended engineering steps before moving beyond competition & research demos:
 
-1. Validasi bobot Certainty Factor bersama tenaga kesehatan dan catat versi basis aturan.
-2. Tambahkan sakelar persetujuan cloud, lalu matikan fallback Supabase secara bawaan.
-3. Pindahkan indeks vektor ke SQLite sebagai blob float32 dengan panjang dan hash, sesuai spesifikasi.
-4. Perketat guardrail angka dan tambahkan uji kepatuhan terhadap level risiko.
-5. Ukur TTFT, latensi STT dan TTS, serta pemakaian memori pada perangkat target, lalu simpan hasilnya.
-6. Siapkan CI untuk unit test, screenshot test, dan pemeriksaan dry-run skrip.
-7. Ganti signing debug dengan kunci rilis, aktifkan R8 penuh, dan audit izin serta lalu lintas jaringan.
-8. Tambahkan instrumented test untuk alur suara dan pemutaran audio di perangkat nyata.
+1. Clinically validate Certainty Factor expert weights with medical practitioners and version the knowledge base.
+2. Add an explicit user consent toggle for cloud fallback, defaulting strict offline-only mode.
+3. Migrate the embedding vector store from SharedPreferences JSON to binary SQLite `float32` blobs per spec.
+4. Harden post-generation numeric checks alongside domain-aware allowlists for BP readings and crisis numbers.
+5. Profile Time-To-First-Token (TTFT), concurrent STT+chat memory usage, and thermals on target 32 GB+ Strix Halo hardware.
+6. Wire automated GitHub Actions CI for `testDebugUnitTest`, screenshot tests, and `verify-dryrun.ps1`.
+7. Configure release signing keys, full R8 minification, and network traffic audits.
+8. Add instrumented Android UI & real-microphone/playback integration tests.
 
-## Lisensi
+## License
 
-MIT. Teks lengkap ada di `LICENSE`.
+MIT — full text in [`LICENSE`](LICENSE).
 
-## Struktur repositori
+## Repository Layout
 
 ```text
-app/                     Aplikasi Android (Kotlin, Compose)
+app/                     Android application (Kotlin, Jetpack Compose)
   src/main/java/com/example/empati/
-    data/chat/           Orkestrasi chat, gateway, guardrail, fallback
-    data/lemonade/       Klien HTTP, konfigurasi, status, kapabilitas
-    data/retrieval/      Embedding, indeks lokal, pemilih sitasi
-    data/speech/         Rekaman, transkripsi, cache dan pemutaran TTS
-    data/triage/         Skema konteks dan penyusun prompt
-    data/rag/            Korpus rujukan dan adaptor lama
-    ui/                  Layar dan komponen Soft Daylight
-  src/test/              203 unit test JVM (24 suite)
-  src/screenshotTest/    Preview screenshot Compose
+    data/chat/           Chat orchestration, gateway, guardrails, fallback ladder
+    data/lemonade/       Unified HTTP client, build config, server capability parser
+    data/retrieval/      Embeddings client, local vector index, citation selector
+    data/speech/         16 kHz recorder, STT, Indonesian & Kokoro TTS routing/cache
+    data/triage/         Context JSON serializer and grounded prompt builder
+    data/rag/            Curated WHO / Kemenkes clinical corpus & legacy adapters
+    ui/                  Soft Daylight theme, screens, and Compose components
+  src/test/              203 JVM unit tests across 24 suites
+  src/screenshotTest/    Compose screenshot tests
 docs/
-  adr/                   Keputusan arsitektur
-  specs/                 Spesifikasi tiket
-  research/              Catatan endpoint Lemonade
+  adr/                   Architecture Decision Records (ADR 001)
+  audit/                 Deep architecture audit & remediation tracking
+  specs/                 Feature & triage specifications
+  research/              Lemonade omni-modal wire spec & RAG evaluation
   BENCHMARK_EVALUATION.md
   YOUTUBE_DEMO_SCRIPT.md
 scripts/
   setup-empati-lemonade.ps1
   bench-empati.ps1
   tests/verify-dryrun.ps1
-supabase/                Skema riset dan Edge Function
+supabase/                Research DB schema migrations & empati-chat Edge Function
 ```
 
-Dokumen lain di akar repositori, seperti `FRONTEND_DESIGN.md` dan `EXPERT_SYSTEM.md`, menjelaskan sistem desain dan mesin pakar secara terpisah.
+Additional root technical reference files — including [`EXPERT_SYSTEM.md`](EXPERT_SYSTEM.md), [`FRONTEND_DESIGN.md`](FRONTEND_DESIGN.md), [`TYPOGRAPHY_AND_CLINICAL_UX.md`](TYPOGRAPHY_AND_CLINICAL_UX.md), and [`DATABASE_AUTH_AND_RAG_ARCHITECTURE.md`](DATABASE_AUTH_AND_RAG_ARCHITECTURE.md) — cover individual subsystems in detail.

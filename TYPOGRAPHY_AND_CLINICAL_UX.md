@@ -1,163 +1,164 @@
-# 🩺 SRYA Emora — Tipografi 3-Suara & UX Empati Klinis "Soft Daylight" (v4.1.5)
+# Empati — 3-Voice Typography & "Soft Daylight" Clinical UX (v4.1.5 Design Baseline)
 
-Dokumen ini menjelaskan rasional di balik **Sistem Tipografi 3-Suara (*3-Voice Typography*: Fraunces + Inter + JetBrains Mono)**, pemetaan **Semantik Afektif (`MaterialTheme.empati`)**, visualisasi **`StateOrb`**, ergonomi antarmuka obrolan klinis (*IME keyboard placement & clipboard actions*), dan pendekatan **UX Empati Klinis & Bahasa Manusiawi (*Anti AI-Slop*)** pada aplikasi **SRYA Emora**.
+> **Note:** This document originated during the v4.1.5 "Soft Daylight" UI redesign (historically titled *SRYA Emora* / *AI-EMPATI*, now branded **Empati** and powered locally by AMD Lemonade `:13305`; see [`README.md`](README.md)). The typography tokens, affective color system, `StateOrb`, IME ergonomics, and zero-leak presenter rules documented below remain active in production. Patient-facing runtime copy shown in quotes (e.g., `"Rendah · Batas Wajar"`, `"Yang sudah baik"`) intentionally remains in Bahasa Indonesia inside the app to serve Indonesian users and match the clinical knowledge base.
 
----
-
-## 📋 Daftar Isi
-
-1. [Mengapa UX Empati Klinis & "Soft Daylight"?](#1-mengapa-ux-empati-klinis--soft-daylight)
-2. [Arsitektur Tipografi 3-Suara (`Type.kt`)](#2-arsitektur-tipografi-3-suara-typekt)
-   - [Aset Font Bundel (`res/font/`)](#aset-font-bundel-resfont)
-   - [Pemetaan 3 Suara Kognitif](#pemetaan-3-suara-kognitif)
-   - [Mengapa Sentence-Case & Angka Tabular?](#mengapa-sentence-case--angka-tabular)
-3. [Semantik Afektif & `StateOrb` pada Hasil Skrining (`ResultScreen.kt`)](#3-semantik-afektif--stateorb-pada-hasil-skrining-resultscreenkt)
-   - [Pemetaan Nada Afektif (`MaterialTheme.empati`)](#pemetaan-nada-afektif-materialthemeempati)
-   - [Layar Hasil per Modul (`ModuleResultScreen`)](#layar-hasil-per-modul-moduleresultscreen)
-   - [Layar Analisis Terintegrasi (`IntegratedResultScreen`)](#layar-analisis-terintegrasi-integratedresultscreen)
-4. [Ergonomi Konsultasi Chatbot: Penempatan Chatbox & Salin Rujukan (`ChatScreen.kt`)](#4-ergonomi-konsultasi-chatbot-penempatan-chatbox--salin-rujukan-chatscreenkt)
-5. [Standar Copywriting Klinis Ringkas & *Zero-Leak* (`UserResultPresenter.kt`)](#5-standar-copywriting-klinis-ringkas--zero-leak-userresultpresenterkt)
-6. [Referensi File](#6-referensi-file)
+This document explains the design rationale behind the **3-Voice Typography System** (`Fraunces` + `Inter` + `JetBrains Mono`), **Affective Semantics (`MaterialTheme.empati`)**, the **`StateOrb`** visualization, clinical chat interface ergonomics (IME keyboard placement & clipboard actions), and the **Clinical Empathy UX & Human Language (Anti-AI-Slop)** approach in Empati.
 
 ---
 
-## 1. Mengapa UX Empati Klinis & "Soft Daylight"?
+## Table of Contents
 
-Pada aplikasi kesehatan yang menangani topik sensitif (risiko hipertensi dan pengalaman Kekerasan Berbasis Gender / KBG), dua kesalahan desain sering terjadi:
-1. **Kesan dingin seperti laboratorium** — penggunaan huruf kapital penuh (*ALL-CAPS*), font monospace pada setiap lencana status, dan warna merah menyala yang memicu kecemasan kesehatan (*health anxiety*).
-2. **Tumpukan teks panjang (*wall of text*)** — pengulangan paragraf yang memicu beban kognitif tinggi (*cognitive overload*).
-
-Desain **"Soft Daylight" (v4.0)** menyelesaikan keduanya melalui:
-- **Hierarki Afektif Terlebih Dahulu (*How It Feels First*)**: Bagian puncak layar hasil (`ResultHero`) membuka dengan **`StateOrb`** yang bernapas lembut dan judul hangat ber-font **Fraunces**, diikuti 1 kalimat kesimpulan utama.
-- **Progressive Disclosure (`FindingChip` → `FindingDetailSheet`)**: Faktor risiko disajikan sebagai chip kapsul yang dapat diketuk untuk membuka penjelasan awam di dalam `ModalBottomSheet` tanpa memenuhi layar utama.
-- **Penguatan Positif (`StrengthsCard` — "Yang sudah baik")**: Kebiasaan sehat responden ditampilkan dalam kartu bernada `calm` (Sage) untuk menyeimbangkan persepsi risiko.
-- **Zero Redundancy**: Pada layar Analisis Terintegrasi, status kedua modul dirangkum berdampingan melalui **2 ubin `ModuleStatusTile`** (**Hipertensi** & **Kesejahteraan**).
+1. [Why Clinical Empathy UX & "Soft Daylight"?](#1-why-clinical-empathy-ux--soft-daylight)
+2. [3-Voice Typography Architecture (`Type.kt`)](#2-3-voice-typography-architecture-typekt)
+   - [Bundled Font Assets (`res/font/`)](#bundled-font-assets-resfont)
+   - [Mapping the 3 Cognitive Voices](#mapping-the-3-cognitive-voices)
+   - [Why Sentence-Case & Tabular Numerals?](#why-sentence-case--tabular-numerals)
+3. [Affective Semantics & `StateOrb` on Screening Results (`ResultScreen.kt`)](#3-affective-semantics--stateorb-on-screening-results-resultscreenkt)
+   - [Affective Tone Mapping (`MaterialTheme.empati`)](#affective-tone-mapping-materialthemeempati)
+   - [Per-Module Result Screen (`ModuleResultScreen`)](#per-module-result-screen-moduleresultscreen)
+   - [Integrated Analysis Screen (`IntegratedResultScreen`)](#integrated-analysis-screen-integratedresultscreen)
+4. [Chatbot Consultation Ergonomics: Composer Placement & Referral Copying (`ChatScreen.kt`)](#4-chatbot-consultation-ergonomics-composer-placement--referral-copying-chatscreenkt)
+5. [Concise Clinical Copywriting & Zero-Leak Standards (`UserResultPresenter.kt`)](#5-concise-clinical-copywriting--zero-leak-standards-userresultpresenterkt)
+6. [File References](#6-file-references)
 
 ---
 
-## 2. Arsitektur Tipografi 3-Suara (`Type.kt`)
+## 1. Why Clinical Empathy UX & "Soft Daylight"?
 
-AI-EMPATI membundel tiga keluarga font variabel resmi (Open Font License) langsung di dalam `app/src/main/res/font/`, di mana setiap font mewakili **suara psikologis dan fungsi kognitif yang berbeda**:
+In health apps addressing sensitive topics (hypertension risk and Gender-Based Violence / GBV experiences), two design mistakes occur frequently:
+1. **Cold, laboratory-like atmosphere** — ALL-CAPS headings, monospace fonts across every status badge, and alarming bright reds that trigger health anxiety.
+2. **Walls of text** — repetitive clinical paragraphs that cause high cognitive overload.
 
-### Aset Font Bundel (`res/font/`)
+The **"Soft Daylight" (v4.0)** design resolves both through:
+- **Affective Hierarchy First ("How It Feels First")**: The top of the result screen (`ResultHero`) opens with a gently breathing **`StateOrb`** and a warm **Fraunces** headline, followed by a single primary summary sentence.
+- **Progressive Disclosure (`FindingChip` → `FindingDetailSheet`)**: Risk factors are presented as tappable pill chips that open plain-language explanations in a `ModalBottomSheet` without cluttering the primary canvas.
+- **Positive Reinforcement (`StrengthsCard` — *"Yang sudah baik"* / What Is Already Good)**: Healthy protective habits are highlighted in a `calm` (Sage) surface card to balance risk perception.
+- **Zero Redundancy**: On the Integrated Analysis screen, both module statuses are summarized side by side via **2 `ModuleStatusTile` cards** (**Hypertension** & **Well-being**).
 
-| Suara | Nama Font | File Resource | Variabel di `Type.kt` | Karakteristik Visual & Peran |
+---
+
+## 2. 3-Voice Typography Architecture (`Type.kt`)
+
+Empati bundles three official variable font families (Open Font License) directly under `app/src/main/res/font/`, where each typeface represents a **distinct psychological voice and cognitive function**:
+
+### Bundled Font Assets (`res/font/`)
+
+| Voice | Font Name | Resource File | Variable in `Type.kt` | Visual Characteristics & Role |
 |---|---|---|---|---|
-| **1. Suara Ekspresif & Manusiawi** | **Fraunces** | [`fraunces.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/fraunces.ttf) | `DisplayFont` | Variable soft-serif dengan sumbu `opsz=72`, `SOFT=100`, `WONK=0`. Menghadirkan kehangatan manusiawi dan ketenangan editorial pada sapaan waktu, pertanyaan kuesioner, pernyataan hasil skrining, inisial `EmpatiAvatar`, dan nama `AI-EMPATI`. |
-| **2. Suara Fungsional & Bacaan** | **Inter** | [`inter.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/inter.ttf) | `BodyFont` + `EmpatiNumeralStyle` | Sans-serif ber-*x-height* tinggi dengan *line-height* ~1.6x untuk bacaan klinis, opsi kuesioner, lencana *sentence-case*, dan percakapan chat. |
-| **3. Suara Telemetri & Identitas** | **JetBrains Mono** | [`jetbrains_mono.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/jetbrains_mono.ttf) | `MetricFont` (`EmpatiMetricStyle`) | Monospace `13sp/18sp` yang digunakan **khusus** untuk data pengenal mentah (ID akun di Profil, rincian anatomi NIP 18 digit, kode dokumen)—**tidak pernah** dipakai untuk label UI atau badge. |
+| **1. Expressive & Human Voice** | **Fraunces** | [`fraunces.ttf`](app/src/main/res/font/fraunces.ttf) | `DisplayFont` | Variable soft-serif with `opsz=72`, `SOFT=100`, `WONK=0`. Brings human warmth and editorial calm to time-of-day greetings, questionnaire prompts, screening result headlines, `EmpatiAvatar` initials, and screen titles. |
+| **2. Functional & Reading Voice** | **Inter** | [`inter.ttf`](app/src/main/res/font/inter.ttf) | `BodyFont` + `EmpatiNumeralStyle` | High x-height sans-serif with ~1.6x line height for clinical reading, questionnaire options, sentence-case badges, and chat conversations. |
+| **3. Telemetry & Identity Voice** | **JetBrains Mono** | [`jetbrains_mono.ttf`](app/src/main/res/font/jetbrains_mono.ttf) | `MetricFont` (`EmpatiMetricStyle`) | Monospace `13sp/18sp` reserved **exclusively** for raw identifiers (account IDs in Profile, 18-digit NIP anatomy breakdowns, document codes)—**never** used for UI labels or badges. |
 
-### Pemetaan 3 Suara Kognitif
+### Mapping the 3 Cognitive Voices
 
-Diimplementasikan di [`Type.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Type.kt):
+Implemented in [`Type.kt`](app/src/main/java/com/example/empati/ui/theme/Type.kt):
 
-```
+```text
 ┌───────────────────────────────────────────────────────────────────────────┐
 │ 1. DisplayFont — Fraunces (opsz=72, SOFT=100, WONK=0)                     │
 │    • displayLarge (48/54), displayMedium (40/46), displaySmall (34/40)    │
 │    • headlineLarge (30/38), headlineMedium (26/34), headlineSmall (22/30) │
-│    → Digunakan pada: Sapaan Beranda, pertanyaan kuesioner, ResultHero,    │
-│      judul halaman (ScreenHeader), judul bottom sheet, & EmpatiAvatar     │
+│    → Used for: Home greetings, questionnaire prompts, ResultHero,         │
+│      ScreenHeader titles, bottom sheet headers, & EmpatiAvatar            │
 ├───────────────────────────────────────────────────────────────────────────┤
 │ 2. BodyFont — Inter (+ EmpatiNumeralStyle tabular numerals 'tnum')        │
 │    • titleLarge (20/28), titleMedium (16/24), titleSmall (14/20)          │
 │    • bodyLarge (16/26), bodyMedium (14/22), bodySmall (12/18)             │
 │    • labelLarge (14/20), labelMedium (12/16), labelSmall (11/16)          │
 │    • EmpatiNumeralStyle (12/16, tnum)                                     │
-│    → Digunakan pada: Narasi klinis, tombol, chip/badge sentence-case,     │
-│      percakapan AI-EMPATI, & penghitung langkah kuesioner (3 / 16)        │
+│    → Used for: Clinical narrative, buttons, sentence-case chips/badges,   │
+│      Empati chat messages, & questionnaire step counters (3 / 16)         │
 ├───────────────────────────────────────────────────────────────────────────┤
 │ 3. MetricFont — JetBrains Mono (EmpatiMetricStyle 13/18)                  │
-│    → Digunakan HANYA pada: ID akun pengguna & anatomi NIP 18 digit        │
+│    → Used ONLY for: User account IDs & 18-digit NIP breakdowns            │
 └───────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Mengapa Sentence-Case & Angka Tabular?
+### Why Sentence-Case & Tabular Numerals?
 
-1. **Sentence-Case yang Menenangkan (`String.toSentenceCase()`)**:
-   - Label seperti `"Rendah · Batas Wajar"`, `"Sedang · Perlu Pemantauan"`, `"Modul hipertensi"`, dan `"Faktor kardiovaskular · gaya hidup"` ditulis dalam *sentence-case* menggunakan **Inter** (`BodyFont`), bukan huruf kapital penuh ber-monospace yang terasa seperti peringatan mesin.
-2. **Angka Tabular Bebas Jitter (`EmpatiNumeralStyle`)**:
-   - Penghitung langkah kuesioner (`3 / 16`) menggunakan `BodyFont` dengan `fontFeatureSettings = "tnum"` sehingga lebar digit selalu konstan saat pengguna berpindah pertanyaan tanpa perlu berganti ke font monospace.
+1. **Calming Sentence-Case (`String.toSentenceCase()`)**:
+   - Labels such as `"Rendah · Batas Wajar"` (Low · Within Normal Limits), `"Sedang · Perlu Pemantauan"` (Moderate · Needs Monitoring), `"Modul hipertensi"`, and `"Faktor kardiovaskular · gaya hidup"` are rendered in sentence-case using **Inter** (`BodyFont`), avoiding machine-like ALL-CAPS monospace warnings.
+2. **Jitter-Free Tabular Numerals (`EmpatiNumeralStyle`)**:
+   - Questionnaire step counters (`3 / 16`) use `BodyFont` with `fontFeatureSettings = "tnum"` so digit widths stay constant as the user advances through questions without switching into monospace.
 
 ---
 
-## 3. Semantik Afektif & `StateOrb` pada Hasil Skrining (`ResultScreen.kt`)
+## 3. Affective Semantics & `StateOrb` on Screening Results (`ResultScreen.kt`)
 
-### Pemetaan Nada Afektif (`MaterialTheme.empati`)
+### Affective Tone Mapping (`MaterialTheme.empati`)
 
-Status risiko diselaraskan 100% antara `ResultScreen`, `HomeScreen`, dan `HistoryScreen`:
+Risk status labels and tones are 100% aligned across `ResultScreen`, `HomeScreen`, and `HistoryScreen`:
 
-| Tingkat Risiko (`CfLevel` / `RiskLevel`) | Label Status Konsisten | Nada Afektif (`MaterialTheme.empati`) | Palet Warna |
+| Risk Level (`CfLevel` / `RiskLevel`) | Runtime Status Label (ID) | Affective Tone (`MaterialTheme.empati`) | Color Palette |
 |---|---|---|---|
 | `RENDAH` / `LOW` (`CF < 0.25`) | **`Rendah · Batas Wajar`** | `calm` | **Sage** (`#2E6A57` / `#D6EEE3`) |
-| `SEDANG` / `MEDIUM` (`0.25 ≤ CF < 0.50` atau hipertensi terkendali) | **`Sedang · Perlu Pemantauan`** | `attentive` | **Honey** (`#D29A2E` / `#FBE8BE`) |
-| `TINGGI` / `HIGH` (`0.50 ≤ CF < 0.75`) | **`Tinggi · Perlu Perhatian`** | `concerned` (atau `attentive` pada modul) | **Terracotta** (`#A8402B` / `#FCE6E0`) |
+| `SEDANG` / `MEDIUM` (`0.25 ≤ CF < 0.50` or controlled hypertension) | **`Sedang · Perlu Pemantauan`** | `attentive` | **Honey** (`#D29A2E` / `#FBE8BE`) |
+| `TINGGI` / `HIGH` (`0.50 ≤ CF < 0.75`) | **`Tinggi · Perlu Perhatian`** | `concerned` (or `attentive` per module) | **Terracotta** (`#A8402B` / `#FCE6E0`) |
 | `SANGAT_TINGGI` / `VERY_HIGH` (`CF ≥ 0.75`) | **`Sangat Tinggi · Perlu Perhatian`** | `urgent` | **Berry** (`#8E2F55` / `#F9D9E4`) |
-| Pendamping AI / Modul Kesejahteraan | **`Terdapat indikasi`** / **`AI-EMPATI`** | `presence` | **Mist** (`#5A5896` / `#F0EFFD`) |
+| AI Companion / Well-being Module | **`Terdapat indikasi`** / **`Empati`** | `presence` | **Mist** (`#5A5896` / `#F0EFFD`) |
 
-### Layar Hasil per Modul (`ModuleResultScreen`)
+### Per-Module Result Screen (`ModuleResultScreen`)
 
 1. **`ResultHero` + `StateOrb`**:
-   - Menampilkan `StateOrb` (`148.dp`) yang menggambar cincin progres melingkar saat pertama kali muncul dan bernapas halus (atau statis bila `LocalReducedMotion` aktif), diikuti `ToneBadge`, judul `headlineLarge` (**Fraunces**), dan kesimpulan 1 kalimat (`bodyLarge` **Inter**).
-2. **Kartu Faktor Interaktif (`FindingChip` → `FindingDetailSheet`)**:
-   - Menampilkan `FlowRow` berisi `FindingChip` (dengan ikon `Icons.Outlined.Info`) yang saat diketuk membuka `ModalBottomSheet` (`FindingDetailSheet`) berisi penjelasan edukatif awam, pengingat keterkaitan kronis non-kausal, dan tombol `"Diskusikan dengan AI-EMPATI"`.
-3. **`StrengthsCard` ("Yang sudah baik")**:
-   - Kartu permukaan `calm.container` yang merayakan hingga 5 kebiasaan pelindung (*protective factors*) responden.
-4. **`SoftNotice` Dukungan (Kondisional) & `NextStepsCard` ("Langkah selanjutnya")**:
-   - Menampilkan hingga 3 langkah tindak lanjut konkret yang dipisahkan oleh `SoftDivider()`.
+   - Displays a `148.dp` `StateOrb` that draws a circular progress ring on first appear and breathes softly (or stays static when `LocalReducedMotion` is active), followed by a `ToneBadge`, `headlineLarge` (**Fraunces**) title, and 1-sentence conclusion (`bodyLarge` **Inter**).
+2. **Interactive Factor Chips (`FindingChip` → `FindingDetailSheet`)**:
+   - Renders a `FlowRow` of `FindingChip` items (with `Icons.Outlined.Info`) that open a `ModalBottomSheet` (`FindingDetailSheet`) containing a plain-language educational explanation, a non-causal chronic-stress reminder, and an action button to discuss with Empati.
+3. **`StrengthsCard` (*"Yang sudah baik"*)**:
+   - A `calm.container` surface card celebrating up to 5 protective lifestyle habits reported by the respondent.
+4. **Conditional Support `SoftNotice` & `NextStepsCard` (*"Langkah selanjutnya"*)**:
+   - Lists up to 3 concrete follow-up steps separated by `SoftDivider()`.
 
-### Layar Analisis Terintegrasi (`IntegratedResultScreen`)
+### Integrated Analysis Screen (`IntegratedResultScreen`)
 
-1. **`ResultHero`**: Menampilkan `StateOrb`, judul kategori terintegrasi (`headlineLarge` **Fraunces**), dan ringkasan 1 kalimat.
-2. **2 Ubin Status Modul Berdampingan (`ModuleStatusTile`)**:
-   - Menampilkan ubin **Hipertensi** dan **Kesejahteraan** secara berdampingan dengan `SoftIconTile`, titik warna afektif (`tone.accent`), dan status singkat.
-3. **`SoftNotice` ("Bagaimana keduanya berkaitan")**:
-   - Menjelaskan jalur stres kronis (*chronic stress pathway*) secara empatik dan non-kausal dengan nada `presence` (Mist).
-4. **Kartu Faktor Kunci (`FindingChip`), `StrengthsCard`, `NextStepsCard`, serta CTA `Simpan ke riwayat` & `Tanyakan ke AI-EMPATI`**.
-
----
-
-## 4. Ergonomi Konsultasi Chatbot: Penempatan Chatbox & Salin Rujukan (`ChatScreen.kt`)
-
-Dalam pengalaman konsultasi kesehatan dan ruang aman, interaksi percakapan membutuhkan kenyamanan motorik dan kemudahan penyimpanan informasi tanpa membebani responden:
-
-1. **Penempatan Chatbox Tepat di Atas Keyboard (`Modifier.imePadding()` & Adaptasi Navbar)**:
-   - Responden yang sedang mengetik keluhan kesehatan atau pertanyaan sensitif membutuhkan visibilitas penuh terhadap apa yang mereka tulis tanpa terhalang keyboard virtual atau bilah navigasi.
-   - Menggunakan `Modifier.imePadding()` pada kanvas utama `ChatContent` dan menyembunyikan `BottomNavBar` saat keyboard aktif (`WindowInsets.isImeVisible == true`) menjamin komposer obrolan (*chatbox*) dan teks placeholder selalu berada tepat dan nyaman di atas keyboard.
-   - `LaunchedEffect(isImeVisible)` secara otomatis menggulir daftar pesan ke item terakhir sehingga konteks obrolan terdahulu tidak hilang saat keyboard terangkat.
-2. **Kemudahan Menyalin Informasi Klinis & Kontak Darurat (`SelectionContainer` & `ContentCopy`)**:
-   - Informasi penting seperti tips manajemen stres, panduan diet DASH, maupun nomor darurat hotline **SAPA 129** (WhatsApp 08111-129-129) sering kali perlu disimpan atau dibagikan ke anggota keluarga.
-   - Teks pada seluruh gelembung pesan dibungkus dalam `SelectionContainer` untuk memungkinkan seleksi teks sebagian secara leluasa.
-   - Disediakan tombol salin satu sentuhan berikon `Icons.Rounded.ContentCopy` pada setiap pesan dengan umpan balik toast menenangkan (*"Pesan disalin ke clipboard"*).
-   - Disediakan pula tombol salin draf pada bilah chatbox saat pengguna sedang menyusun pertanyaan panjang sehingga mereka tidak khawatir kehilangan draf pesan yang sedang ditulis.
+1. **`ResultHero`**: Renders `StateOrb`, the integrated category headline (`headlineLarge` **Fraunces**), and a 1-sentence summary.
+2. **Side-by-Side Module Status Tiles (`ModuleStatusTile`)**:
+   - Displays **Hypertension** and **Well-being** tiles side by side with `SoftIconTile`, affective color dot (`tone.accent`), and concise status text.
+3. **`SoftNotice` (*"Bagaimana keduanya berkaitan"* / How Both Relate)**:
+   - Explains the chronic stress pathway empathetically and non-causally in the `presence` (Mist) tone.
+4. **Key Factor Chips (`FindingChip`), `StrengthsCard`, `NextStepsCard`, plus `Save to History` & `Ask Empati` CTAs**.
 
 ---
 
-## 5. Standar Copywriting Klinis Ringkas & *Zero-Leak* (`UserResultPresenter.kt`)
+## 4. Chatbot Consultation Ergonomics: Composer Placement & Referral Copying (`ChatScreen.kt`)
 
-Seluruh teks pada [`UserResultPresenter.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt) diverifikasi otomatis oleh `UserPresentationTest`:
+In health consultations and safe-space support, conversational interaction requires comfortable motor ergonomics and effortless information capture without overwhelming the user:
 
-- **Label Faktor Hipertensi Ringkas**:
-  - `Riwayat keluarga`
-  - `Kondisi medis & tensi`
-  - `Pola makan & aktivitas`
-  - `Stres & kualitas tidur`
-- **Penjelasan Tag Klinis Universal (`explainClinicalTag`)**:
-  - Memberikan penjelasan 1–2 kalimat berbahasa awam untuk setiap tag hipertensi maupun KBG tanpa jargon medis rumit.
-- **Jaminan *Zero-Leak***:
-  - Tidak ada nilai `CF`, `MB`, `MD`, persentase (`%`), bobot, atau angka desimal (`0.xx`) yang bocor ke permukaan UI.
+1. **Composer Docked Directly Above Keyboard (`Modifier.imePadding()` & Navbar Adaptation)**:
+   - Respondents typing sensitive health questions need unobstructed visibility of their input without virtual keyboard or bottom navigation bar overlap.
+   - Applying `Modifier.imePadding()` on `ChatContent` and hiding `BottomNavBar` while the keyboard is open (`WindowInsets.isImeVisible == true`) keeps the chat composer and placeholder anchored comfortably above the IME.
+   - `LaunchedEffect(isImeVisible)` automatically scrolls the message list to the latest item so prior conversation context remains visible when the keyboard opens.
+2. **Easy Copying of Clinical Guidance & Crisis Hotlines (`SelectionContainer` & `ContentCopy`)**:
+   - Critical details such as stress-management tips, DASH dietary guidance, or the **SAPA 129** hotline (`129` / WhatsApp `08111-129-129`) often need to be saved or shared with trusted family members.
+   - Message bubble text is wrapped in `SelectionContainer` for partial text selection.
+   - A one-tap `Icons.Rounded.ContentCopy` button appears on messages with calm toast feedback, alongside a draft-copy button on the composer bar for longer questions.
 
 ---
 
-## 6. Referensi File
+## 5. Concise Clinical Copywriting & Zero-Leak Standards (`UserResultPresenter.kt`)
 
-| File | Peran |
+All user-facing copy emitted by [`UserResultPresenter.kt`](app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt) is automatically verified by `UserPresentationTest`:
+
+- **Concise Hypertension Factor Labels** (runtime Bahasa Indonesia):
+  - `Riwayat keluarga` (Family history)
+  - `Kondisi medis & tensi` (Medical conditions & blood pressure)
+  - `Pola makan & aktivitas` (Diet & physical activity)
+  - `Stres & kualitas tidur` (Stress & sleep quality)
+- **Universal Clinical Tag Explanations (`explainClinicalTag`)**:
+  - Provides 1–2 sentence layperson explanations for every hypertension and GBV tag without dense medical jargon.
+- **Zero-Leak Guarantee**:
+  - No `CF`, `MB`, `MD`, percentages (`%`), rule weights, or decimal numbers (`0.xx`) ever leak onto user-facing screens.
+
+---
+
+## 6. File References
+
+| File | Role |
 |---|---|
-| [`fraunces.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/fraunces.ttf) | Font variabel soft-serif bundel untuk `DisplayFont` (judul, sapaan, pernyataan hasil) |
-| [`inter.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/inter.ttf) | Font variabel sans-serif bundel untuk `BodyFont` & `EmpatiNumeralStyle` (`tnum`) |
-| [`jetbrains_mono.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/jetbrains_mono.ttf) | Font variabel monospace bundel untuk `MetricFont` (`EmpatiMetricStyle` pada ID akun/NIP) |
-| [`Type.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Type.kt) | Konfigurasi `DisplayFont`, `BodyFont`, `MetricFont`, `EmpatiNumeralStyle`, `EmpatiMetricStyle`, dan `EmpatiTypography` |
-| [`Color.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Color.kt) & [`Theme.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Theme.kt) | Palet "Soft Daylight" v4 & sistem nada afektif `MaterialTheme.empati` |
-| [`Components.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/components/Components.kt) | `StateOrb`, `ToneBadge`, `RiskBadge`, `SoftNotice`, `toSentenceCase()` |
-| [`ResultScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ResultScreen.kt) | `ModuleResultScreen`, `IntegratedResultScreen`, `ResultHero`, `FindingChip`, `StrengthsCard`, & `FindingDetailSheet` |
-| [`UserResultPresenter.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt) | Copywriting klinis ringkas bebas istilah teknis CF & penyelarasan status risiko |
+| [`fraunces.ttf`](app/src/main/res/font/fraunces.ttf) | Bundled variable soft-serif font for `DisplayFont` (headlines, greetings, result statements) |
+| [`inter.ttf`](app/src/main/res/font/inter.ttf) | Bundled variable sans-serif font for `BodyFont` & `EmpatiNumeralStyle` (`tnum`) |
+| [`jetbrains_mono.ttf`](app/src/main/res/font/jetbrains_mono.ttf) | Bundled variable monospace font for `MetricFont` (`EmpatiMetricStyle` for account ID/NIP) |
+| [`Type.kt`](app/src/main/java/com/example/empati/ui/theme/Type.kt) | Configures `DisplayFont`, `BodyFont`, `MetricFont`, `EmpatiNumeralStyle`, `EmpatiMetricStyle`, and `EmpatiTypography` |
+| [`Color.kt`](app/src/main/java/com/example/empati/ui/theme/Color.kt) & [`Theme.kt`](app/src/main/java/com/example/empati/ui/theme/Theme.kt) | "Soft Daylight" v4 palette & `MaterialTheme.empati` affective tone system |
+| [`Components.kt`](app/src/main/java/com/example/empati/ui/components/Components.kt) | `StateOrb`, `ToneBadge`, `RiskBadge`, `SoftNotice`, `toSentenceCase()` |
+| [`ResultScreen.kt`](app/src/main/java/com/example/empati/ui/screens/ResultScreen.kt) | `ModuleResultScreen`, `IntegratedResultScreen`, `ResultHero`, `FindingChip`, `StrengthsCard`, & `FindingDetailSheet` |
+| [`UserResultPresenter.kt`](app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt) | Concise clinical copywriting with zero CF technical leaks and aligned risk status labels |

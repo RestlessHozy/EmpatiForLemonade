@@ -1,130 +1,82 @@
-# 🩺 AI-EMPATI — Tipografi Fungsional & Minimalisme Klinis (v3.1)
+# [Historical Archive v3.1] — Functional Typography & Clinical Minimalism
 
-Dokumen ini menjelaskan arsitektur **Tipografi Fungsional 3-Peran (*3-Role Functional Typography*)** dan prinsip **Minimalisme Klinis (*Clinical Minimalism*)** yang diterapkan pada layar hasil skrining, penyelarasan status risiko lintas layar (`Rendah · Batas Wajar`, `Sedang · Perlu Pemantauan`, `Tinggi · Perlu Perhatian`, `Sangat Tinggi · Perlu Perhatian`), serta header bersih pada layar konsultasi **`AI-EMPATI`**.
-
----
-
-## 📋 Daftar Isi
-
-1. [Mengapa Minimalisme Klinis?](#1-mengapa-minimalisme-klinis)
-2. [Arsitektur Tipografi Fungsional 3-Peran](#2-arsitektur-tipografi-fungsional-3-peran)
-   - [Aset Font Bundel (`res/font/`)](#aset-font-bundel-resfont)
-   - [Pemetaan Peran Fungsional](#pemetaan-peran-fungsional)
-   - [Mengapa Kombinasi Ini Bebas *AI Slop*?](#mengapa-kombinasi-ini-bebas-ai-slop)
-3. [Reduksi Informasi pada Layar Hasil (`ResultScreen.kt`)](#3-reduksi-informasi-pada-layar-hasil-resultscreenkt)
-   - [Layar Hasil per Modul (`ModuleResultScreen`)](#layar-hasil-per-modul-moduleresultscreen)
-   - [Layar Analisis Terintegrasi (`IntegratedResultScreen`)](#layar-analisis-terintegrasi-integratedresultscreen)
-4. [Standar Copywriting Klinis Ringkas (`UserResultPresenter.kt`)](#4-standar-copywriting-klinis-ringkas-userresultpresenterkt)
-5. [Referensi File](#5-referensi-file)
+> **Superseded Historical Archive:** This document describes the **v3.1** design iteration (which used *Plus Jakarta Sans + Inter + JetBrains Mono*). That typography system was later superseded in **v4.0+ ("Soft Daylight")** by **Fraunces + Inter + JetBrains Mono** (`fraunces.ttf`, keeping *JetBrains Mono* strictly for raw telemetry/IDs). See the current active guide in [`TYPOGRAPHY_AND_CLINICAL_UX.md`](../../TYPOGRAPHY_AND_CLINICAL_UX.md) and [`FRONTEND_DESIGN.md`](../../FRONTEND_DESIGN.md).
 
 ---
 
-## 1. Mengapa Minimalisme Klinis?
+## Table of Contents
 
-Pada aplikasi kesehatan yang menangani topik sensitif (risiko hipertensi dan pengalaman Kekerasan Berbasis Gender / KBG), tumpukan paragraf panjang (*wall of text*) memicu **beban kognitif tinggi (*cognitive overload*)** dan kelelahan membaca. Selain itu, pengulangan kalimat yang sama di beberapa kartu memberikan kesan seperti teks hasil *prompt* generatif (*AI slop*).
-
-Prinsip **Minimalisme Klinis** menyusun ulang hasil skrining layaknya ringkasan rekam medis modern (*Executive Clinical Summary*):
-
-- **Scannable dalam 3 detik**: Status utama, kesimpulan 1 kalimat, dan tag faktor risiko terlihat dalam satu pandangan tanpa harus menggulir panjang.
-- **Zero Redundancy**: Pada layar Analisis Terintegrasi, kesimpulan masing-masing modul tidak lagi ditulis ulang sebagai paragraf panjang, melainkan diringkas menjadi **Matriks Status 2-Kolom** (`HIPERTENSI` | `KESEJAHTERAAN`).
-- **Chips menggantikan Bullet Paragraphs**: Faktor risiko dan kategori temuan disajikan sebagai `ClinicalTagChip` di dalam `FlowRow` yang ringkas dan presisi.
-- **1-Line Footnote Disclaimer**: Catatan edukatif diringkas menjadi satu baris kaki (*footnote*) yang tenang di bagian bawah layar.
+1. [Why Clinical Minimalism?](#1-why-clinical-minimalism)
+2. [3-Role Functional Typography Architecture](#2-3-role-functional-typography-architecture)
+   - [Bundled Font Assets (v3.1)](#bundled-font-assets-v31)
+   - [Functional Role Mapping](#functional-role-mapping)
+   - [Why This Pairing Avoided "AI Slop"](#why-this-pairing-avoided-ai-slop)
+3. [Information Reduction on Result Screens (`ResultScreen.kt`)](#3-information-reduction-on-result-screens-resultscreenkt)
+4. [Concise Clinical Copywriting Standards (`UserResultPresenter.kt`)](#4-concise-clinical-copywriting-standards-userresultpresenterkt)
+5. [Historical File References](#5-historical-file-references)
 
 ---
 
-## 2. Arsitektur Tipografi Fungsional 3-Peran
+## 1. Why Clinical Minimalism?
 
-AI-EMPATI meninggalkan font sistem generik (`FontFamily.Serif` / `FontFamily.Default`) dan beralih ke **tiga keluarga font variabel resmi (Open Font License)** yang dibundel langsung di dalam APK. Setiap font dipilih khusus untuk **fungsi kognitif yang berbeda**:
+On sensitive health screens (hypertension risk and Gender-Based Violence / GBV exposure), long walls of prose trigger cognitive overload and fatigue, while repeating identical phrasing across multiple stacked cards produces generic "AI slop".
 
-### Aset Font Bundel (`res/font/`)
+**Clinical Minimalism** restructured result screens like a modern executive clinical summary:
+- **Scannable in 3 Seconds**: Primary status, 1-sentence summary, and contributing factor tags fit cleanly in a single glance.
+- **Zero Redundancy**: On Integrated Analysis, individual module summaries collapsed into a **2-Column Status Matrix** (**HYPERTENSION** | **WELL-BEING**).
+- **Chips Over Bullet Paragraphs**: Risk factors and protective findings appeared as compact `ClinicalTagChip` items inside a `FlowRow`.
+- **1-Line Footnote Disclaimer**: Educational disclaimers shortened to a single understated footer line.
 
-| Peran | Nama Font | File Resource | Karakteristik Visual |
+---
+
+## 2. 3-Role Functional Typography Architecture
+
+In v3.1, AI-EMPATI replaced generic system fonts with three bundled variable typefaces:
+
+### Bundled Font Assets (v3.1)
+
+| Role | Font Family | Resource Asset (v3.1) | Visual Character |
 |---|---|---|---|
-| **1. Heading & Otoritas Klinis** | **Plus Jakarta Sans** | [`plus_jakarta_sans.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/plus_jakarta_sans.ttf) | Geometris-humanis kontemporer dengan bukaan (*aperture*) tegas; sangat relevan dengan ekosistem produk digital Indonesia modern dan memberikan wibawa medis yang hangat. |
-| **2. Body & Bacaan Klinis** | **Inter** | [`inter.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/inter.ttf) | *X-height* tinggi dan proporsi netral yang dirancang khusus untuk layar berkerapatan tinggi; menjaga kejelasan bacaan pada kuesioner, kesimpulan, dan konsultasi chat. |
-| **3. Metadata & Label Diagnostik** | **JetBrains Mono** | [`jetbrains_mono.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/jetbrains_mono.ttf) | Monospace teknis berpresisi tinggi untuk lencana status (`PERLU PERHATIAN`), penghitung langkah (`3 / 16`), kode modul (`MODUL HIPERTENSI`), tanggal skrining, sitasi dokumen RAG (`DOC-HT-02`), dan ID Akun pengguna. |
+| **1. Headings & Clinical Authority** | **Plus Jakarta Sans** | `res/font/plus_jakarta_sans.ttf` *(replaced by `fraunces.ttf` in v4.0)* | Contemporary geometric humanist sans giving calm authority to titles and headings. |
+| **2. Body & Clinical Reading** | **Inter** | [`inter.ttf`](../../app/src/main/res/font/inter.ttf) | High x-height sans-serif optimized for questionnaire legibility, summaries, and chat. |
+| **3. Metadata & Diagnostic Labels** | **JetBrains Mono** | [`jetbrains_mono.ttf`](../../app/src/main/res/font/jetbrains_mono.ttf) | Monospace precision used in v3.1 for badges, step counters (`3 / 16`), module codes, citations, and account IDs *(narrowed exclusively to raw IDs in v4.0)*. |
 
-### Pemetaan Peran Fungsional
+### Functional Role Mapping
 
-Diimplementasikan di [`Type.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Type.kt):
+- **`HeadingFont` (Plus Jakarta Sans)**: `displaySmall`, `headlineLarge..headlineSmall`, `titleLarge..titleSmall`, `labelLarge`.
+- **`BodyFont` (Inter)**: `bodyLarge`, `bodyMedium`, `bodySmall`.
+- **`MonoFont` (JetBrains Mono)**: `labelMedium`, `labelSmall`, status pills, and numeric NIP telemetry.
 
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ 1. HeadingFont (Plus Jakarta Sans)                                      │
-│    • displaySmall, headlineLarge, headlineMedium, headlineSmall         │
-│    • titleLarge, titleMedium, titleSmall, labelLarge                    │
-│    → Digunakan pada: Judul layar, kesimpulan utama, pertanyaan, CTA     │
-├─────────────────────────────────────────────────────────────────────────┤
-│ 2. BodyFont (Inter)                                                     │
-│    • bodyLarge, bodyMedium, bodySmall                                   │
-│    → Digunakan pada: Kalimat ringkasan klinis, poin tindakan, chat      │
-├─────────────────────────────────────────────────────────────────────────┤
-│ 3. MonoFont (JetBrains Mono)                                            │
-│    • labelMedium, labelSmall (+ eksplisit pada StatusPill & NIP)        │
-│    → Digunakan pada: SectionChip, RiskBadge, StatusPill, counter, NIP   │
-└─────────────────────────────────────────────────────────────────────────┘
-```
+### Why This Pairing Avoided "AI Slop"
 
-### Mengapa Kombinasi Ini Bebas *AI Slop*?
-
-1. **Kontras Berbasis Fungsi, Bukan Hiasan**: Perbedaan antara **Plus Jakarta Sans** (judul), **Inter** (narasi), dan **JetBrains Mono** (label/metadata) membantu mata pengguna membedakan *apa yang harus dibaca sebagai narasi* vs *apa yang merupakan indikator/status sistem*.
-2. **Estetika Instrumen Medis Kontemporer**: Penggunaan monospace (`JetBrains Mono`) secara terukur pada kapsul status (`DALAM BATAS WAJAR`, `PERLU PEMANTAUAN`) dan nomor indeks kuesioner menghadirkan presisi ala perangkat diagnostik klinis modern (seperti One Medical, Oura, atau Apple Health).
-3. **Konsistensi Lintas Perangkat**: Karena ketiga file `.ttf` dibundel di `app/src/main/res/font/`, tampilan tipografi identik 100% di seluruh perangkat Android tanpa bergantung pada font OEM bawaan pabrik.
+1. **Function-Driven Contrast**: Distinct fonts separated narrative copy from system indicators.
+2. **Modern Clinical Instrumentation Feel**: Measured monospace metadata recalled modern digital clinic instruments without decorative gradients.
+3. **Cross-Device Consistency**: Bundled `.ttf` variable fonts rendered identically regardless of OEM system fonts.
 
 ---
 
-## 3. Reduksi Informasi pada Layar Hasil (`ResultScreen.kt`)
+## 3. Information Reduction on Result Screens (`ResultScreen.kt`)
 
-### Layar Hasil per Modul (`ModuleResultScreen`)
-
-| Komponen Sebelumnya (Verbose) | Komponen Baru (Minimalis Klinis) | Manfaat UX |
-|---|---|---|
-| 4–5 kartu terpisah dengan paragraf panjang | **1 Kartu Ringkasan Klinis Terpadu** + **1 Kartu Langkah Tindak Lanjut** | Mengurangi tinggi layar hingga ~45% dan menghilangkan pengulangan |
-| Daftar berpoin kalimat panjang untuk faktor risiko | **`FlowRow` berisi `ClinicalTagChip`** (`Riwayat keluarga`, `Stres & kualitas tidur`) | Dapat dipindai (*scannable*) seketika seperti tag rekam medis |
-| Kartu dukungan muncul dengan teks panjang | **`SupportStrip` kontekstual** — hanya tampil bila ada catatan dukungan (`supportNote != null`) | Menjaga layar tetap bersih saat risiko rendah, namun tetap responsif saat dibutuhkan |
-| Kotak `DisclaimerBox` 3 kalimat | **`MinimalDisclaimer` 1 baris** di bagian bawah | Tidak mendominasi hierarki visual utama |
-
-### Layar Analisis Terintegrasi (`IntegratedResultScreen`)
-
-Sebelumnya menampilkan **6 kartu bertumpuk** yang mengulang kesimpulan Modul 1, kesimpulan Modul 2, paragraf hubungan, faktor, saran, dan disclaimer. Kini disederhanakan menjadi **3 blok eksekutif**:
-
-1. **Kartu Sintesis Utama + Matriks Status 2-Kolom (`ModuleStatusCell`)**:
-   - Menampilkan kategori terintegrasi dan 1 kalimat ringkasan.
-   - Di bawahnya terdapat matriks 2 kolom berdampingan: **`HIPERTENSI`** dan **`KESEJAHTERAAN`** lengkap dengan indikator titik warna semantik dan status singkat (`Perlu perhatian` / `Tidak ada indikasi`).
-   - Jika terdapat faktor kontribusi, ditampilkan langsung di bagian bawah kartu menggunakan `FlowRow` `ClinicalTagChip` (maksimal 4 tag utama).
-2. **Kartu Langkah yang Disarankan (`ActionPlanCard`)**:
-   - Menampilkan maksimal 3 langkah tindakan konkret dalam kalimat singkat 1 baris.
-3. **Catatan Bantuan (`SupportStrip` — kondisional) & `MinimalDisclaimer`**.
+- **`ModuleResultScreen`**: Condensed 4–5 verbose cards into **1 Unified Clinical Summary Card** + **1 Action Plan Card**, replacing long lists with `ClinicalTagChip` `FlowRow` chips, a conditional `SupportStrip`, and a single-line `MinimalDisclaimer`.
+- **`IntegratedResultScreen`**: Collapsed 6 stacked cards into **3 Executive Blocks** featuring a side-by-side 2-column module status matrix (`ModuleStatusCell`), up to 4 factor chips, max 3 one-line action items, conditional `SupportStrip`, and `MinimalDisclaimer`.
 
 ---
 
-## 4. Standar Copywriting Klinis Ringkas (`UserResultPresenter.kt`)
+## 4. Concise Clinical Copywriting Standards (`UserResultPresenter.kt`)
 
-Seluruh teks pada [`UserResultPresenter.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt) telah dipadatkan dengan tetap mematuhi aturan pengujian unit (`UserPresentationTest`):
-
-- **Label Faktor Hipertensi Ringkas**:
-  - `Riwayat keluarga`
-  - `Kondisi medis & tensi`
-  - `Pola makan & aktivitas`
-  - `Stres & kualitas tidur`
-- **Kesimpulan 1 Kalimat Padat**:
-  - Contoh: *"Ditemukan beberapa faktor risiko hipertensi yang perlu mulai dikendalikan."* (menggantikan paragraf 3 kalimat).
-- **Saran Tindak Lanjut Maksimal 3 Poin**:
-  - Setiap poin ditulis sebagai kalimat aktif yang langsung dapat ditindaklanjuti (*actionable*), seperti *"Periksa tekanan darah secara berkala di fasilitas kesehatan."*
-- **Keamanan Data Penelitian Tetap Terjamin**:
-  - Tidak ada nilai `CF`, `MB`, `MD`, persentase (`%`), bobot, atau angka desimal (`0.xx`) yang bocor ke permukaan UI.
+Runtime copy emitted in Bahasa Indonesia enforced strict brevity and zero-leak guarantees verified by `UserPresentationTest`:
+- **Concise Hypertension Tags**: `Riwayat keluarga`, `Kondisi medis & tensi`, `Pola makan & aktivitas`, `Stres & kualitas tidur`.
+- **Single-Sentence Conclusions** and **Max 3 Action Items** phrased actively.
+- **Zero Technical Leakage**: No `CF`, `MB`, `MD`, percentages (`%`), rule weights, or decimal scores (`0.xx`).
 
 ---
 
-## 5. Referensi File
+## 5. Historical File References
 
-| File | Peran |
-|---|---|
-| [`plus_jakarta_sans.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/plus_jakarta_sans.ttf) | Font variabel bundel untuk Heading & Title |
-| [`inter.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/inter.ttf) | Font variabel bundel untuk Body & narasi klinis |
-| [`jetbrains_mono.ttf`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/res/font/jetbrains_mono.ttf) | Font variabel bundel untuk Metadata, Badge, & kode klinis |
-| [`Type.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Type.kt) | Konfigurasi `HeadingFont`, `BodyFont`, `MonoFont`, dan `EmpatiTypography` |
-| [`ResultScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ResultScreen.kt) | Implementasi minimalis `ModuleResultScreen` & `IntegratedResultScreen` |
-| [`UserResultPresenter.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt) | Copywriting klinis ringkas bebas istilah teknis CF |
-| [`Components.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/components/Components.kt) | `RiskBadge` & `SectionChip` dengan tipografi `MonoFont` |
-
+- `res/font/plus_jakarta_sans.ttf` *(v3.1 historical font asset — superseded by `fraunces.ttf`)*
+- [`inter.ttf`](../../app/src/main/res/font/inter.ttf)
+- [`jetbrains_mono.ttf`](../../app/src/main/res/font/jetbrains_mono.ttf)
+- [`Type.kt`](../../app/src/main/java/com/example/empati/ui/theme/Type.kt)
+- [`ResultScreen.kt`](../../app/src/main/java/com/example/empati/ui/screens/ResultScreen.kt)
+- [`UserResultPresenter.kt`](../../app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt)
+- [`Components.kt`](../../app/src/main/java/com/example/empati/ui/components/Components.kt)

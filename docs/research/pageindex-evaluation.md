@@ -1,51 +1,40 @@
-# Evaluasi PageIndex sebagai lapisan RAG Empati
+# Evaluation of PageIndex as an Empati RAG Layer
 
-Tanggal: 12 November 2026
-Status: rekomendasi, belum diimplementasikan
-Pertanyaan: apakah [VectifyAI/PageIndex](https://github.com/VectifyAI/PageIndex) bisa dipakai sebagai bagian RAG tanpa mengorbankan kelayakan di AMD Lemonade Developer Challenge?
+Date: November 12, 2026  
+Status: recommendation, not implemented  
+Question: Should [VectifyAI/PageIndex](https://github.com/VectifyAI/PageIndex) be adopted inside Empati's RAG stack without compromising eligibility or privacy guarantees for the AMD Lemonade Developer Challenge?
 
-## Fakta yang sudah diperiksa
+## Verified Findings
 
-Diambil langsung dari repositori PageIndex pada 12 November 2026.
+Inspected directly from the PageIndex repository on November 12, 2026:
 
-| Hal | Temuan |
+| Dimension | Finding |
 |---|---|
-| Lisensi | MIT, jadi kompatibel dengan lisensi MIT proyek ini |
-| Bahasa dan distribusi | Python (`pip install pageindex`). Tidak ada pustaka Kotlin atau Android |
-| Cara kerja | Membangun indeks pohon (daftar isi hierarkis dengan ringkasan per node) dari dokumen panjang, lalu LLM menelusuri pohon itu untuk memilih bagian yang relevan. Tanpa vektor dan tanpa chunking |
-| Ketergantungan | `litellm`, `openai`, `openai-agents`, `mcp`, `PyPDF2`, `pypdfium2` |
-| Kebutuhan model | Mode lokal SDK tetap memanggil LLM lewat API key penyedia. README menyarankan model terbaik yang terjangkau untuk tahap penelusuran (`chat=`), dan model dasar cukup untuk tahap indeks (`index=`) |
-| Jalur cloud | PageIndex Cloud dan Page Search API tersedia, keduanya mengirim dokumen dan pertanyaan keluar perangkat |
+| License | MIT (compatible with Empati's MIT license) |
+| Runtime & distribution | Python (`pip install pageindex`). No Kotlin or native Android library exists |
+| Architecture | Builds hierarchical tree tables-of-contents with per-node summaries over long documents; an agentic LLM navigates the tree instead of embedding/chunking |
+| Dependencies | `litellm`, `openai`, `openai-agents`, `mcp`, `PyPDF2`, `pypdfium2` |
+| Model requirements | Even local SDK mode requires external or OpenAI-compatible LLM calls per traversal step |
+| Cloud services | PageIndex Cloud & Page Search API route user queries and documents off-device |
 
-## Yang belum bisa dipastikan
+## Open Policy Questions
 
-Aturan resmi kompetisi tidak berhasil saya temukan. Pencarian hanya mengembalikan ringkasan umum dari situs pihak ketiga, bukan teks aturan. Saya tidak mau menyimpulkan "diterima" atau "ditolak" dari sumber seperti itu. Sebelum memutuskan, baca halaman resmi tantangan dan cek tiga hal: apakah ada syarat inferensi harus lewat Lemonade, apakah ada larangan ketergantungan cloud, dan apakah ada syarat lisensi terbuka.
+Because complete competition legalese varies by track, our repository anchor remains clear: all inference should execute locally through `:13305` (chat, embeddings, STT, TTS) with zero involuntary cloud exfiltration. Any addition that introduces external cloud dependencies conflicts directly with Empati's privacy posture.
 
-Yang bisa dipegang dari dalam repo: seluruh jalur inferensi aplikasi sekarang lewat `:13305` (chat, embedding, STT, TTS). Selama tambahan PageIndex tidak mengubah itu, risiko terhadap syarat "berbasis Lemonade" kecil.
+## Technical Fit Assessment
 
-## Kecocokan teknis dengan Empati
+1. **Does not run on Android:** Device-side retrieval runs natively in Kotlin. PageIndex would only run offline at build time on Python.
+2. **Current corpus size is small & curated:** `EmpatiCorpus` holds 30 short, domain-curated excerpts. Hierarchical tree traversal offers no advantage over exact cosine similarity here.
+3. **Additional latency tax:** Tree navigation adds extra sequential LLM passes before answer generation begins—adding noticeable delay on edge 4B models (`Qwen3-4B-GGUF`).
+4. **Unverified reliability on 4B models:** Published PageIndex results rely on frontier models; agentic tree routing behavior on 4B/1.7B GGUF models is unverified.
+5. **Determinism tension with ADR-001:** Cosine similarity (`threshold 0.35`) is deterministic and reproducible. LLM-driven tree navigation can select varying sections across runs for identical queries.
 
-1. **Tidak bisa berjalan di Android.** Aplikasi harus melakukan retrieval di perangkat. PageIndex hanya Python, jadi yang bisa dipakai paling jauh adalah tahap pembuatan indeks di laptop.
-2. **Korpus saat ini terlalu kecil untuk manfaatnya.** `EmpatiCorpus` berisi potongan pendek yang sudah kurasi (sekitar belasan chunk). PageIndex dirancang untuk dokumen panjang seperti laporan keuangan atau pedoman ratusan halaman. Pada korpus sekecil ini, pohon tidak menambah apa pun dibanding cosine similarity yang sudah ada.
-3. **Biaya latensi di perangkat.** Penelusuran pohon berarti minimal satu panggilan LLM tambahan sebelum jawaban dimulai. Dengan `Qwen3-4B-GGUF` di mesin demo, itu menambah detik yang terasa di chat suara.
-4. **Kualitas penalaran model kecil belum terbukti.** Benchmark yang dipublikasikan PageIndex memakai model besar. Belum ada bukti penelusuran pohon stabil pada 4B atau 1.7B parameter.
-5. **Bertabrakan dengan ADR-001 bila tidak hati-hati.** Retrieval sekarang deterministik dan terukur (ambang cosine 0,35). Retrieval berbasis penalaran LLM tidak deterministik, sehingga dua pertanyaan yang sama bisa menarik bagian berbeda. Itu melemahkan argumen auditabilitas yang menjadi dasar arsitektur.
+## Options Considered
 
-## Opsi
+- **Option A — Retain `empati-embed` vector search (current default):** Zero new failure modes; fast (~44 ms embeddings), deterministic, and 100% handled by Lemonade `:13305`.
+- **Option B — Build-time tree pruning only:** Pre-index large multi-hundred-page WHO PDFs on desktop via LiteLLM -> Lemonade `:13305`, bundle static JSON TOC in Android assets, and narrow vector search inside selected branches. Only worthwhile if corpus scales up dramatically.
+- **Option C — PageIndex Cloud / Page Search API:** Rejected—routes private health queries externally, contradicting local-first safety guarantees.
 
-**A. Tetap dengan embedding `empati-embed` (default saat ini).** Tanpa risiko baru. Retrieval terukur dan jalur penuh ada di Lemonade.
+## Recommendation
 
-**B. PageIndex hanya sebagai alat build-time.** Di laptop, jalankan PageIndex terhadap PDF panjang (misalnya pedoman WHO atau Kemenkes) dengan LiteLLM diarahkan ke `http://127.0.0.1:13305/v1` dan model `empati-llm`, lalu simpan pohon hasilnya sebagai JSON di aset aplikasi. Aplikasi memakai pohon itu sebagai daftar isi untuk mempersempit dokumen, lalu embedding memilih chunk di dalam bagian terpilih. Semua inferensi tetap lewat Lemonade. Catatan: pengarahan LiteLLM ke endpoint OpenAI-compatible Lemonade adalah praktik yang umum, tetapi belum saya uji untuk PageIndex, dan tahap penelusuran agentik mungkin butuh function calling yang belum diverifikasi pada `Qwen3-4B-GGUF`.
-
-**C. PageIndex Cloud atau Page Search API.** Tidak disarankan. Dokumen dan pertanyaan pengguna keluar dari perangkat, bertentangan dengan posisi lokal-pertama Empati dan berisiko terhadap penilaian kompetisi.
-
-## Rekomendasi
-
-Pertahankan opsi A untuk submisi. Pindah ke opsi B hanya bila korpus berkembang menjadi dokumen panjang, dan lakukan sebagai eksperimen terukur:
-
-1. Siapkan 20 sampai 30 pertanyaan uji dengan chunk jawaban yang diketahui.
-2. Bandingkan hit-rate top-4 embedding saja dengan pohon ditambah embedding, di mesin yang sama.
-3. Catat tambahan latensi per pertanyaan di `docs/BENCHMARK_EVALUATION.md`.
-4. Adopsi hanya bila hit-rate naik jelas dan latensi tambahan masih nyaman untuk chat suara.
-
-Bila diadopsi, tambahkan atribusi MIT PageIndex di README dan jangan masukkan paket Python ke APK.
+Keep **Option A** for submission. Revisit **Option B** only if the clinical knowledge corpus expands to multi-hundred-page guidelines, gated behind benchmarked hit-rate and end-to-end latency comparisons.

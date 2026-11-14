@@ -1,45 +1,41 @@
-# ADR 001: Mesin triage deterministik, model bahasa untuk narasi
+# ADR 001: Deterministic Triage Engine, Language Model for Narration
 
-Status: diterima
-Tanggal: 11 November 2026
-Konteks: integrasi AMD Lemonade untuk Empati
+Status: accepted  
+Date: November 11, 2026  
+Context: AMD Lemonade integration for Empati
 
-## Masalah
+## Problem
 
-Empati punya dua jenis output yang bercampur di satu layar. Mesin Certainty Factor menghasilkan level risiko dari 26 pertanyaan dengan formula yang tetap, sementara model bahasa menghasilkan kalimat penjelasan. Keduanya sama-sama terlihat seperti "penilaian" bagi pengguna.
+Empati produces two very different kinds of output on one screen. The Certainty Factor expert engine computes risk levels from 26 structured screening items using fixed mathematical rules, while the language model generates conversational explanations. To a patient, both outputs can easily blur together into an undifferentiated "assessment."
 
-Sebelum ini, batas antara keduanya dijaga dengan aturan sederhana: jangan pernah mengirim angka CF ke model, dan jangan biarkan model menyebut CF, MB, MD, atau persen. Aturan itu mudah diuji, tetapi membuat model kekurangan konteks. Model tidak tahu seberapa kuat indikasinya, jadi nada jawaban sering terlalu ringan untuk hasil yang tinggi, atau terlalu khawatir untuk hasil yang rendah.
+Previously, that boundary was defended with an absolute rule: never pass any `CF` numbers to the LLM, and block any occurrence of `CF`, `MB`, `MD`, or `%`. While easy to assert in unit tests, this starved the model of severity calibration—it could not distinguish mild from borderline-severe scores when choosing tone.
 
-Rencana integrasi RAG memperburuk ketegangan ini. Retrieval butuh query yang dibentuk dari hasil skrining, dan query yang baik butuh angka, bukan hanya label.
+Adding Retrieval-Augmented Generation (RAG) amplified the issue: retrieval queries derived from screening results perform far better when structured severity cues guide ranking.
 
-## Keputusan
+## Decision
 
-Mesin Certainty Factor adalah satu-satunya sumber angka risiko. Model bahasa menerima hasil skrining sebagai konteks terstruktur, termasuk nilai CF, tetapi dilarang menyebut, menghitung ulang, atau menerjemahkan nilai itu menjadi label baru. Level dan kategori yang dibaca pengguna datang dari kode deterministik.
+The Certainty Factor engine remains the **sole mathematical source of risk scores**. The language model receives screening results as structured JSON (`empati.screening_context/v1`)—including numeric `cf` values solely for internal tone calibration—but is strictly prohibited from printing, recomputing, or re-labeling numeric risk scores. All user-visible labels and categories originate strictly from deterministic Kotlin code.
 
-Rinciannya:
+Specifically:
 
-1. Konteks dikirim dalam satu skema bernama `empati.screening_context/v1`. Nama enum dipakai apa adanya supaya sama dengan payload riset.
-2. Nilai `cf` dipakai model untuk mengatur nada dan memilih penekanan. Nilai itu tidak boleh muncul di teks akhir.
-3. Validator keluaran memeriksa hasil generasi, bukan hanya prompt. Larangan yang ditegakkan: akronim CF, MB, MD, kata "persen" atau simbol persen, angka skor mandiri, dan klaim diagnosis.
-4. Klaim klinis di luar hasil skrining hanya sah bila ada potongan rujukan dengan id dan judul. Bila retrieval kosong, jawaban berubah menjadi kalimat batasan.
-5. Tes zero-leak lama diganti, bukan dihapus. Tes baru memeriksa teks yang sampai ke pengguna.
+1. Structured context travels under schema `empati.screening_context/v1`, preserving enum identifiers cleanly with research payloads.
+2. Numeric `cf` values calibrate empathy and urgency in LLM responses, never appearing in rendered user text.
+3. Post-generation validators (`AnswerGuardrail`) inspect generated responses—not just static prompts—for leaked `CF`, `MB`, `MD` acronyms, percentage signs, standalone risk scores, decimal confidence ratios, or medical diagnosis claims.
+4. External clinical claims require a grounded citation chunk carrying `id` and `title`; empty retrieval forces an honest limitation statement rather than parametric fabrication.
+5. Legacy prompt-only "zero-leak" tests were replaced with end-to-end output verification tests checking actual text delivered to the UI.
 
-## Konsekuensi
+## Consequences
 
-Yang menguntungkan: hasil triage bisa diaudit karena angkanya tidak pernah melewati model. Pengguna tidak melihat angka yang belum divalidasi pakar. Model mendapat kalibrasi yang cukup untuk memilih nada. Setiap klaim yang bisa salah punya sumber yang bisa dibuka.
+Benefits: Triage scoring remains deterministic and reproducible because scores never originate from stochastic token sampling. Patients are shielded from raw uncalibrated certainty numbers while receiving empathetically scaled guidance backed by inspectable clinical references.
 
-Yang harus diterima: dua lapisan validasi, satu di prompt dan satu di pasca-proses. Ini menambah kode yang harus dirawat dan satu titik kegagalan baru bila validator terlalu agresif memotong kalimat. Pengujian perilaku jadi lebih penting daripada sebelumnya, dan itulah alasan satu seam orkestrasi dipilih.
+Trade-offs: Requires maintaining a dual enforcement layer (prompt instructions + post-generation validation) and carefully handling false positives where legitimate clinical constants—such as systolic/diastolic thresholds (`140/90 mmHg`) or emergency phone numbers (`SAPA 129`)—appear verbatim inside retrieved reference chunks.
 
-Biaya lain: model bisa menyebut angka dari potongan rujukan, misalnya ambang tekanan darah, dan validator harus membedakan angka rujukan dari angka skor. Aturan yang dipakai: angka yang muncul di dalam teks chunk yang dikutip diizinkan, angka yang tidak berasal dari chunk ditolak.
+## Alternatives Rejected
 
-## Alternatif yang ditolak
+- **Zero numeric context at all:** Simple to enforce, but blinds the LLM between borderline vs. extreme risk states (`cf = 0.30` vs. `cf = 0.70`).
+- **Exposing raw CF numbers in UI:** Violates safety design—weights have not yet completed multi-site clinician calibration.
+- **Letting the LLM classify risk from symptom summaries:** Sacrifices determinism; identical answers could yield non-reproducible risk levels across runs.
 
-**Tetap tanpa angka sama sekali.** Paling aman dan paling murah dirawat, tetapi model kehilangan kalibrasi. Jarak antara CF 0,30 dan CF 0,70 menjadi tidak terlihat, padahal keduanya butuh nada berbeda.
+## References
 
-**Menampilkan CF ke pengguna.** Membalik keputusan produk sebelumnya dan menampilkan angka yang belum divalidasi pakar. Berisiko secara klinis dan tidak menambah kepercayaan.
-
-**Menyerahkan penilaian ke model dengan ringkasan gejala.** Lebih sederhana di kode, tetapi menghilangkan sifat deterministik yang menjadi alasan aplikasi ini ada. Dua permintaan dengan jawaban identik bisa menghasilkan level berbeda.
-
-## Rujukan
-
-Riset endpoint dan pola integrasi: `docs/research/lemonade-omnimodal-spec.md`.
+Endpoint contracts and integration details: [`docs/research/lemonade-omnimodal-spec.md`](../research/lemonade-omnimodal-spec.md).

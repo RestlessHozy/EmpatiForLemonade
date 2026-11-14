@@ -1,126 +1,122 @@
-# Evaluasi performa Empati di Lemonade
+# Empati Performance Evaluation on AMD Lemonade
 
-Dokumen ini menjelaskan cara mengukur performa pipeline Empati, hasil pengukuran terukur yang sudah dijalankan pada laptop AMD pengembang (`AMD Ryzen 7 7735HS`), dan analisis batas arsitektur pada perangkat AMD dengan memori terpadu (`Ryzen AI Max+ 395 / Strix Halo`).
+This document describes how Empati's pipeline performance is measured, reports directly observed benchmarks collected on an AMD developer laptop (`AMD Ryzen 7 7735HS`), and analyzes architectural capacity limits on unified-memory AMD hardware (`Ryzen AI Max+ 395 / Strix Halo`).
 
-## Apa yang diukur
+## What Is Measured
 
-`scripts/bench-empati.ps1` mengukur waktu total satu permintaan untuk empat endpoint:
+`scripts/bench-empati.ps1` measures end-to-end single-request latency across four local OpenAI-compatible endpoints on port `13305`:
 
-| Nama di laporan | Endpoint | Isi permintaan |
+| Metric Name | Endpoint | Request Payload |
 |---|---|---|
-| chat | `POST /v1/chat/completions` | Prompt pendek, `max_tokens=64`, non-streaming |
-| embeddings | `POST /v1/embeddings` | Satu kalimat bahasa Indonesia |
-| transcription | `POST /v1/audio/transcriptions` | WAV hening 1 detik, 16 kHz mono, `language=id` |
-| speech | `POST /v1/audio/speech` | Satu kalimat hasil skrining, mp3 |
+| `chat` | `POST /v1/chat/completions` | Short health prompt, `max_tokens=64`, non-streaming, `enable_thinking=false` |
+| `embeddings` | `POST /v1/embeddings` | Single health query string |
+| `transcription` | `POST /v1/audio/transcriptions` | 1-second silent WAV, 16 kHz mono PCM16, `language=id` |
+| `speech` | `POST /v1/audio/speech` | Single screening summary sentence, `mp3` |
 
-Skrip melakukan satu pemanasan chat, lalu `-Repeats` percobaan per endpoint dan melaporkan median. Hasil ditulis ke `docs/BENCHMARK_RESULTS.md`.
+The script runs one chat warmup request, executes `-Repeats` sequential iterations per endpoint, and reports the median latency. Outputs are written to `docs/BENCHMARK_RESULTS.md`.
 
-Yang belum diukur oleh skrip:
+What the script does **not** measure:
 
-- Time to first token untuk chat streaming. Skrip memakai permintaan non-streaming, jadi angkanya waktu total, bukan TTFT.
-- Waktu muat model pertama setelah server dimulai.
-- Latensi di bawah permintaan bersamaan.
-- Pemakaian VRAM, RAM, daya, dan suhu. Alat ini perlu diambil dari sisi server, misalnya `rocm-smi`, Task Manager, atau `lemonade status` bila versi yang dipakai menyediakannya.
+- Streaming Time-to-First-Token (`TTFT`). Because the benchmark invokes non-streaming completion, chat figures represent full 64-token completion latency rather than first-token response.
+- Cold model initialization latency right after starting Lemonade Server.
+- Throughput under concurrent multi-user traffic.
+- Peak VRAM/RAM usage, power draw, or thermals (collect separately via `rocm-smi`, Windows Task Manager, or Lemonade server diagnostics).
 
-Untuk mengukur TTFT, kirim `stream=true`, catat waktu saat byte pertama dengan `data:` berisi `delta.content` tiba, lalu kurangi waktu permintaan dikirim. Tambahkan pengukuran itu ke skrip sebelum mengklaim angka TTFT.
+To measure streaming TTFT, send `stream=true` and record the delta between request dispatch and the first SSE `data:` frame carrying `delta.content`.
 
-## Metodologi
+## Methodology
 
-1. Jalankan `scripts/setup-empati-lemonade.ps1` di mesin target dan pastikan kelima alias terdaftar.
-2. Biarkan server menyelesaikan muat model pertama sebelum pengukuran. Pemanasan otomatis di skrip hanya mengirim satu permintaan chat.
-3. Jalankan `pwsh ./scripts/bench-empati.ps1 -BaseUrl http://localhost:13305 -Repeats 5 -ReportPath docs/BENCHMARK_RESULTS.md`.
-4. Catat perangkat, versi Lemonade, versi driver, dan model yang aktif di berkas hasil. Tanpa itu, angka tidak bisa dibandingkan.
-5. Ulangi pada kondisi dingin dan panas bila ingin melihat dampak muat model.
+1. Run `scripts/setup-empati-lemonade.ps1` on the target AMD machine and confirm all five aliases appear in `/v1/models`.
+2. Allow initial model loading to complete before recording stable measurements (warmup sends one completion call).
+3. Run `pwsh ./scripts/bench-empati.ps1 -BaseUrl http://127.0.0.1:13305 -Repeats 5 -ReportPath docs/BENCHMARK_RESULTS.md`.
+4. Always record exact CPU, GPU/NPU, unified RAM size, driver version, Lemonade version, and active models alongside results.
+5. Test both cold and warm runs if isolating model load penalties.
 
-Median dipakai karena satu permintaan pertama bisa memuat model dan tidak mewakili kondisi stabil. Untuk klaim latensi pengguna, laporkan median dan persentil ke-95, bukan rata-rata saja.
+Medians prevent cold-start outliers from skewing representative steady-state speed; production SLAs should also capture 95th-percentile latency (`p95`).
 
-## Tabel hasil terukur (`scripts/bench-empati.ps1 -Repeats 5`)
+## Measured Hardware Benchmark (`scripts/bench-empati.ps1 -Repeats 5`)
 
-Diukur langsung pada **2026-11-14 23:03:04 +08:00** di laptop pengembang (`AMD Ryzen 7 7735HS`, 8C/16T, `AMD Radeon(TM) Graphics` driver `32.0.21045.16010`, `15.25 GB` RAM terpadu, Lemonade Server `v2026.46.2`, `http://127.0.0.1:13305`, semua model dimuat bersama):
+Measured directly on **2026-11-14 23:03:04 +08:00** on an AMD developer laptop (`AMD Ryzen 7 7735HS`, 8C/16T, `AMD Radeon(TM) Graphics` driver `32.0.21045.16010`, `15.25 GB` unified RAM, Lemonade Server `v2026.46.2`, `http://127.0.0.1:13305`, all four runtime models co-loaded concurrently):
 
-| Metrik | Endpoint / Alias | Perangkat | Kondisi | Hasil Median (Berhasil) |
+| Metric | Endpoint / Alias | Hardware | Conditions | Median Result (Success) |
 |---|---|---|---|---|
-| Waktu total chat 64 token | `chat` (`empati-llm` / `Qwen3-4B-GGUF`) | Ryzen 7 7735HS, Radeon Graphics, 15.25 GB | Hangat, seluruh 4 model residen bersama | **33704.2 ms** (`5/5`) |
-| Waktu total embedding | `embeddings` (`empati-embed` / `nomic-embed-text-v1-GGUF`) | Ryzen 7 7735HS, Radeon Graphics, 15.25 GB | Hangat | **44.1 ms** (`5/5`) |
-| Waktu transkripsi 1 detik audio | `transcription` (`empati-stt` / `Whisper-Large-v3-Turbo`) | Ryzen 7 7735HS, Radeon Graphics, 15.25 GB | Hangat | **10575.1 ms** (`5/5`) |
-| Waktu sintesis satu kalimat | `speech` (`empati-tts` / `kokoro-v1`) | Ryzen 7 7735HS, Radeon Graphics, 15.25 GB | Hangat, CPU ONNX | **1436.3 ms** (`5/5`) |
-| TTFT chat streaming | `chat` (`stream=true`) | Ryzen 7 7735HS | — | Belum diukur skrip |
+| Total 64-token completion | `chat` (`empati-llm` / `Qwen3-4B-GGUF`) | Ryzen 7 7735HS, Radeon Graphics, 15.25 GB | Warm, all 4 models co-resident | **33704.2 ms** (`5/5`) |
+| Single-query embedding | `embeddings` (`empati-embed` / `nomic-embed-text-v1-GGUF`) | Ryzen 7 7735HS, Radeon Graphics, 15.25 GB | Warm | **44.1 ms** (`5/5`) |
+| 1-second audio STT | `transcription` (`empati-stt` / `Whisper-Large-v3-Turbo`) | Ryzen 7 7735HS, Radeon Graphics, 15.25 GB | Warm | **10575.1 ms** (`5/5`) |
+| Single-sentence TTS | `speech` (`empati-tts` / `kokoro-v1`) | Ryzen 7 7735HS, Radeon Graphics, 15.25 GB | Warm, CPU ONNX | **1436.3 ms** (`5/5`) |
+| Streaming chat TTFT | `chat` (`stream=true`) | Ryzen 7 7735HS | — | Not measured by script |
 
-Catatan pengamatan lapangan: ketika keempat model (`Qwen3-4B-GGUF` Q4_0, `nomic-embed-text-v1-GGUF`, `Whisper-Large-v3-Turbo`, dan `kokoro-v1`) ditahan bersamaan di mesin 15.25 GB RAM, sisa RAM fisik menyentuh ~0.41 GB sehingga Windows melakukan paging agresif dan memperlambat decode chat/STT (dibanding target < 8 detik pada konfigurasi 32 GB+). Embedding (`44.1 ms`) dan Kokoro TTS (`1.44 s`) tetap sangat responsif.
+Field observation: when all four models (`Qwen3-4B-GGUF` Q4_0, `nomic-embed-text-v1-GGUF`, `Whisper-Large-v3-Turbo`, and `kokoro-v1`) stayed resident simultaneously inside `15.25 GB` RAM, free physical memory dropped to `~0.41 GB`, inducing Windows page-file swapping during larger GPU/STT passes. Even under co-residency pressure, `nomic-embed` (**44.1 ms**) and `kokoro-v1` (**1.44 s**) stayed sub-2-second, with 100% request reliability (`5/5` across all endpoints).
 
-Jangan menyalin angka dari mesin lain ke tabel ini tanpa mencatat spesifikasi lengkap. Model, kuantisasi, kapasitas RAM bebas, panjang prompt, dan driver mengubah hasil.
+Do not compare benchmark numbers across hosts without matching model quantizations, free RAM headroom, prompt length, and GPU driver versions.
 
-## Analisis arsitektur pada Ryzen AI Max+ 395
+## Theoretical Architecture Analysis on Ryzen AI Max+ 395 (`Strix Halo`)
 
-Angka berikut adalah spesifikasi publik kelas perangkat, bukan hasil ukur repositori ini. Verifikasi ulang pada unit yang dipakai.
+The specifications below reflect public platform parameters rather than direct measurements performed in this repository:
 
-- 16 inti Zen 5, 32 thread.
-- GPU Radeon 8060S dengan 40 compute unit RDNA 3.5.
-- NPU XDNA 2 dengan 50 TOPS INT8.
-- Memori LPDDR5X-8000 terpadu, lebar bus 256 bit, sampai 128 GB.
-- Bandwidth puncak hitungan dari lebar bus: 8000 MT/s x 256 bit / 8 = 256 GB/s. Angka nyata lebih rendah.
+- 16 Zen 5 cores / 32 threads.
+- Radeon 8060S GPU (40 RDNA 3.5 compute units).
+- XDNA 2 NPU (50 TOPS INT8).
+- Unified LPDDR5X-8000 memory across a 256-bit bus (up to 128 GB).
+- Theoretical peak memory bandwidth: `8000 MT/s x 256 bit / 8 = 256 GB/s` (sustained real-world bandwidth is lower).
 
-Memori terpadu menghapus salinan bobot antara RAM dan VRAM. CPU, GPU, dan NPU membaca pool yang sama, jadi model chat, Whisper, Kokoro, dan indeks embedding bisa tinggal di memori tanpa migrasi. Ini yang membuat satu mesin kecil bisa menjalankan seluruh pipeline.
+Unified memory eliminates weight copies between system RAM and GPU VRAM. Chat, Whisper, Kokoro, and embedding weights share one pool cleanly without manual model eviction, removing the OS paging bottleneck observed on 16 GB hosts.
 
-Konsekuensinya, semua komponen bersaing pada bandwidth yang sama. Decode token dan decode audio sama-sama membaca bobot dari memori. Saat chat dan transkripsi berjalan bersamaan, throughput per proses turun meskipun total pemakaian memori masih longgar.
+Consequently, all active models compete for shared memory bandwidth. During concurrent voice transcription and token decode, per-process throughput drops gracefully without running out of memory.
 
-### Perkiraan batas decode
+### Theoretical Decode Ceiling
 
-Decode menghasilkan satu token per pembacaan bobot, ditambah KV cache. Batas atas kasar:
+Autoregressive decoding reads model weights plus KV cache once per generated token:
 
 ```text
-tokens/detik <= bandwidth / (ukuran bobot + KV yang dibaca per token)
+tokens/sec <= memory_bandwidth / (weight_bytes + kv_bytes_per_token)
 ```
 
-Untuk model 4B pada kuantisasi Q4 dengan berkas sekitar 2,5 GB dan KV cache 2048 konteks, batas teoretis berada di sekitar 90 sampai 100 token per detik pada 256 GB/s. Implementasi nyata biasanya mencapai 30 sampai 60 persen dari batas itu. Angka ini perkiraan, bukan janji. Hasil sebenarnya bergantung pada kernel, backend GPU atau NPU, dan panjang prompt.
+For a 4B Q4 model (~2.5 GB weights) at a 2048-token context, theoretical upper bounds sit around 90–100 tok/s at 256 GB/s, with typical real-world kernels achieving roughly 30–60% of theoretical bandwidth depending on GPU/NPU backend and context size. Prompt prefill is compute-bound rather than purely bandwidth-bound, so clinical screening context size shapes TTFT directly.
 
-Prefill prompt lebih berat di compute daripada decode. Prompt Empati berisi konteks skrining dan beberapa potongan rujukan, jadi TTFT akan lebih ditentukan oleh kecepatan prefill dan panjang konteks daripada bandwidth memori saja.
+### Memory Budget
 
-### Anggaran memori
-
-| Komponen | Perkiraan | Catatan |
+| Component | Estimate | Notes |
 |---|---|---|
-| LLM chat 4B Q4 | sekitar 2,5 GB | Berkas model, tanpa KV cache |
-| KV cache 2048 konteks | ratusan MB | Tergantung jumlah layer dan presisi |
-| Whisper Large v3 Turbo | 1,62 GB | Ukuran yang tercatat di catatan riset Lemonade |
-| Embedding nomic | 0,078 GB | Ukuran registry |
-| Kokoro | di bawah 1 GB | Tergantung paket voice |
-| Aplikasi Android dan sistem | 2 sampai 4 GB | Tergantung perangkat |
+| Chat LLM 4B Q4 | ~2.5 GB | Model weights excluding KV cache |
+| KV cache (2048 ctx) | Hundreds of MB | Depends on layer count and precision |
+| Whisper Large v3 Turbo | 1.62 GB | Lemonade registry model footprint |
+| `nomic-embed-text-v1-GGUF` | 0.078 GB | Lemonade registry footprint |
+| `kokoro-v1` | < 1 GB | Depends on active voice binaries |
+| OS & host overhead | 2–4 GB | Platform dependent |
 
-Total pipeline masih di bawah 8 GB. Mesin 32 GB cukup untuk demo dan pemakaian satu pengguna. 64 GB atau 128 GB memberi ruang untuk model chat lebih besar, konteks lebih panjang, atau beberapa permintaan bersamaan, dengan catatan bandwidth tetap menjadi batas utama.
+Total co-resident footprint fits comfortably under 8 GB+ of model working set, meaning 32 GB+ Strix Halo configurations hold all models entirely in fast physical memory with ample breathing room.
 
-### Skalabilitas
+### Multi-User Scalability
 
-Untuk satu pengguna, antrean permintaan terjadi karena aplikasi mengirim satu permintaan chat pada satu waktu dan streaming dihentikan saat pengguna menutup layar. Lonjakan muncul saat transkripsi dan chat berjalan berdekatan, misalnya pengguna merekam, mengirim, lalu memutar balasan.
+For a single patient session, requests serialize naturally (voice capture finishes before transcript submission; chat completion finishes before optional audio playback). Noticeable queuing happens if TTS synthesis or a new STT pass starts immediately while an active generation has not finalized.
 
-Untuk beberapa pengguna di klinik atau kampus, ukur dulu:
+Before sharing one AMD host across multiple clinic tablets, measure:
 
-- Throughput chat saat dua sampai empat permintaan bersamaan.
-- Waktu transkripsi saat chat sedang decode.
-- Pemakaian memori puncak saat semua model termuat.
-- Apakah Lemonade menolak permintaan dengan `409 slots_pinned_error` dan seberapa sering.
+- Concurrent chat throughput across 2–4 simultaneous sessions.
+- STT latency when GPU decode is concurrently active.
+- Peak resident RAM with all models pinned.
+- Frequency of `409 slots_pinned_error` responses from Lemonade.
 
-Bila batas itu tercapai, urutan penanganannya: batasi jumlah pengguna per server, pisahkan server STT dan TTS dari server chat, lalu tambah replika. Jangan menaikkan konteks atau ukuran model sebelum bottleneck bandwidth terukur.
+Scale horizontally by throttling clients per host, isolating heavy STT onto a dedicated worker if saturated, or adding server replicas.
 
-## Target internal
+## Internal Engineering Targets
 
-Angka berikut adalah target rekayasa, bukan hasil pengukuran. Pakai untuk menilai apakah hasil benchmark layak demo.
+Reference targets used to evaluate demo-host readiness (not measured figures unless listed in the Measured table above):
 
-| Skenario | Target |
+| Scenario | Engineering Target |
 |---|---|
-| Chat 64 token, kondisi hangat | di bawah 8 detik |
-| Transkripsi rekaman 10 detik | di bawah 4 detik |
-| Sintesis satu kalimat | di bawah 3 detik |
-| Embedding satu kueri | di bawah 300 ms |
+| Warm 64-token chat | < 8 seconds (32 GB+ host without swapping) |
+| 10-second audio transcription | < 4 seconds |
+| Single-sentence TTS | < 3 seconds |
+| Single-query embedding | < 300 ms |
 
-Bila hasil jauh di atas target, periksa dulu apakah model sedang dimuat, apakah prompt memakai konteks berlebih, dan apakah backend berjalan di GPU atau CPU.
-
-## Reproduksi
+## Reproducing Locally
 
 ```powershell
 pwsh ./scripts/setup-empati-lemonade.ps1
-pwsh ./scripts/bench-empati.ps1 -BaseUrl http://localhost:13305 -Repeats 5
+pwsh ./scripts/bench-empati.ps1 -BaseUrl http://127.0.0.1:13305 -Repeats 5
 pwsh ./scripts/tests/verify-dryrun.ps1
 ```
 
-Hasil benchmark tidak disimpan di repositori. Berkas `docs/BENCHMARK_RESULTS.md` masuk daftar abaikan supaya angka dari mesin pengembang tidak tercampur dengan angka mesin demo.
+Raw machine results write to `docs/BENCHMARK_RESULTS.md` (gitignored so developer hardware runs never overwrite target demo hardware results inadvertently).

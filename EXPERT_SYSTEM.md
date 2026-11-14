@@ -1,59 +1,59 @@
-# 🧠 AI-EMPATI — Dokumentasi Sistem Pakar & Chatbot
+# Empati — Certainty Factor Expert System & Clinical Chatbot Documentation
 
-Dokumen ini mendokumentasikan arsitektur, formula, knowledge base, dan seluruh
-mekanisme inferensi sistem pakar Certainty Factor serta chatbot rule-based
-pada aplikasi AI-EMPATI.
+> **Context Note:** Sections 1 and 2 below document the **active deterministic neuro-symbolic core** of Empati (`CfModels.kt`, `CfQuestions.kt`, `CfInputParser.kt`, `CfKnowledgeBase.kt`, `CfInferenceEngine.kt`, `CfResultGenerator.kt`, `UserResultPresenter.kt`). Section 3.6 reflects the pre-competition v3/v4 fallback notes; in the current **AMD Lemonade Challenge (`:13305`)** architecture, live AI consultation routes through `LemonadeUnifiedClient` (`Qwen3-4B`/`Qwen3-1.7B`) + `EmpatiVectorRag` (`nomic-embed-text-v1`, 30 chunks) + voice I/O (`Whisper-Large-v3-Turbo` & `kokoro-v1`), while deterministic rule-based replies serve as the offline fallback. See [`README.md`](README.md) and [`docs/specs/lemonade-hybrid-triage.md`](docs/specs/lemonade-hybrid-triage.md) for current details and test totals (`203` tests across `24` suites).
+>
+> **Runtime Localization Note:** Patient-facing questionnaire wording (`M01`–`M16`, `K01`–`K10`) and qualitative UI copy emitted by `UserResultPresenter` remain in **Bahasa Indonesia** inside the app to match Indonesian clinical guidelines (`Kemenkes RI`, **SAPA 129**). English translations are provided in parentheses/tables below for international reviewers.
 
 ---
 
-## 📋 Daftar Isi
+## Table of Contents
 
-- [Ikhtisar Arsitektur](#ikhtisar-arsitektur)
-- [Bagian 1 — Sistem Pakar Certainty Factor](#bagian-1--sistem-pakar-certainty-factor)
-  - [1.1 Teori Certainty Factor](#11-teori-certainty-factor)
-  - [1.2 Bank Pertanyaan](#12-bank-pertanyaan)
+- [Architecture Overview](#architecture-overview)
+- [Part 1 — Certainty Factor Expert System](#part-1--certainty-factor-expert-system)
+  - [1.1 Certainty Factor Theory](#11-certainty-factor-theory)
+  - [1.2 Question Bank (26 Questions)](#12-question-bank-26-questions)
   - [1.3 Input Parser](#13-input-parser)
-  - [1.4 Knowledge Base (Basis Pengetahuan)](#14-knowledge-base-basis-pengetahuan)
+  - [1.4 Knowledge Base](#14-knowledge-base)
   - [1.5 Inference Engine](#15-inference-engine)
-  - [1.6 Klasifikasi Level](#16-klasifikasi-level)
-  - [1.7 Analisis Terintegrasi](#17-analisis-terintegrasi)
+  - [1.6 Risk Level Classification](#16-risk-level-classification)
+  - [1.7 Integrated Cross-Module Analysis](#17-integrated-cross-module-analysis)
   - [1.8 Result Generator](#18-result-generator)
-- [Bagian 2 — Lapisan Presentasi](#bagian-2--lapisan-presentasi)
-  - [2.1 Pemisahan Output](#21-pemisahan-output)
+- [Part 2 — Presentation & Research Separation Layer](#part-2--presentation--research-separation-layer)
+  - [2.1 Dual Output Isolation](#21-dual-output-isolation)
   - [2.2 User Result Presenter](#22-user-result-presenter)
-  - [2.3 Data Penelitian](#23-data-penelitian)
-- [Bagian 3 — Chatbot AI](#bagian-3--chatbot-ai)
-  - [3.1 Arsitektur Chatbot](#31-arsitektur-chatbot)
-  - [3.2 Pipeline Pemrosesan](#32-pipeline-pemrosesan)
-  - [3.3 Taksonomi Intent](#33-taksonomi-intent)
-  - [3.4 Respons Lengkap](#34-respons-lengkap)
-  - [3.5 Integrasi Konteks Skrining](#35-integrasi-konteks-skrining)
-  - [3.6 Titik Integrasi LLM](#36-titik-integrasi-llm)
-- [Bagian 4 — Mesin Skor Legacy (v1)](#bagian-4--mesin-skor-legacy-v1)
-- [Bagian 5 — Penyimpanan Data](#bagian-5--penyimpanan-data)
-- [Bagian 6 — Pengujian](#bagian-6--pengujian)
-- [Referensi File](#referensi-file)
+  - [2.3 Research Telemetry Records](#23-research-telemetry-records)
+- [Part 3 — AI Consultation & Deterministic Rule Fallback](#part-3--ai-consultation--deterministic-rule-fallback)
+  - [3.1 Rule-Based Fallback Engine (`ChatEngine.kt`)](#31-rule-based-fallback-engine-chatenginekt)
+  - [3.2 Processing Pipeline](#32-processing-pipeline)
+  - [3.3 Intent Taxonomy](#33-intent-taxonomy)
+  - [3.4 Deterministic Fallback Responses (Translated)](#34-deterministic-fallback-responses-translated)
+  - [3.5 Screening Context Integration](#35-screening-context-integration)
+  - [3.6 Topic-Scoped LLM Integration Evolution](#36-topic-scoped-llm-integration-evolution)
+- [Part 4 — Legacy v1 Scoring Engine](#part-4--legacy-v1-scoring-engine)
+- [Part 5 — Multi-Domain Zero-Collision Storage](#part-5--multi-domain-zero-collision-storage)
+- [Part 6 — Automated Verification](#part-6--automated-verification)
+- [File References](#file-references)
 
 ---
 
-## Ikhtisar Arsitektur
+## Architecture Overview
 
 ```mermaid
 flowchart TD
     subgraph Input
-        A["Jawaban User<br/>(AnswerValue)"]
+        A["User Answers<br/>(AnswerValue)"]
     end
 
     subgraph Parser
-        B["CfInputParser<br/>Dikotomi → 0.0/1.0<br/>Likert → 0.0–1.0<br/>Reverse M08"]
+        B["CfInputParser<br/>Dichotomy → 0.0/1.0<br/>Likert → 0.0–1.0<br/>Reverse M08"]
     end
 
     subgraph KnowledgeBase
-        C["CfKnowledgeBase<br/>26 CfRule<br/>(MB, MD per hipotesis)"]
+        C["CfKnowledgeBase<br/>26 CfRule entries<br/>(MB, MD per hypothesis)"]
     end
 
     subgraph InferenceEngine
-        D["CfInferenceEngine<br/>CF evidence = CF_user × CF_rule<br/>Kombinasi per kategori<br/>Agregasi per modul"]
+        D["CfInferenceEngine<br/>CF evidence = CF_user × CF_rule<br/>Per-category combine<br/>Per-module aggregate"]
     end
 
     subgraph ResultGen
@@ -61,12 +61,12 @@ flowchart TD
     end
 
     subgraph Presentation
-        F["UserResultPresenter<br/>Bahasa awam<br/>Tanpa CF/MB/MD"]
-        G["ResearchRecordFactory<br/>Data teknis lengkap"]
+        F["UserResultPresenter<br/>Plain language<br/>Zero CF/MB/MD leak"]
+        G["ResearchRecordFactory<br/>Full technical telemetry"]
     end
 
     subgraph Chatbot
-        H["ChatEngine<br/>Rule-based<br/>9 intent + fallback"]
+        H["ChatEngine + RAG/LLM<br/>Lemonade (:13305) primary<br/>+ Rule fallback"]
     end
 
     A --> B
@@ -75,51 +75,47 @@ flowchart TD
     D -->|CategoryResult| E
     E -->|ModuleResult| F
     E -->|ModuleResult + IntegratedAnalysis| G
-    E -->|ScreeningResult| H
-    F -->|"UserPresentation (UI)"| UI["🖥️ Tampilan Pengguna"]
-    G -->|"ResearchRecord (privat)"| DB["💾 Penyimpanan Internal"]
-    H -->|String| UI
+    E -->|ScreeningContextSnapshot| H
+    F -->|"UserPresentation (UI)"| UI["Patient UI"]
+    G -->|"ResearchRecord (private)"| DB["Isolated Internal Storage"]
+    H -->|Guarded String| UI
 ```
 
 ---
 
-## Bagian 1 — Sistem Pakar Certainty Factor
+## Part 1 — Certainty Factor Expert System
 
-### 1.1 Teori Certainty Factor
+### 1.1 Certainty Factor Theory
 
-Metode **Certainty Factor (CF)** diperkenalkan oleh Shortliffe & Buchanan (1975)
-dalam sistem pakar MYCIN. CF mengukur tingkat keyakinan terhadap suatu hipotesis
-berdasarkan evidence (bukti) yang diamati.
+The **Certainty Factor (CF)** method introduced by Shortliffe & Buchanan (1975) in MYCIN models degree of clinical belief alongside graded respondent certainty.
 
-#### Formula Dasar
+#### Core Formulas
 
-| Konsep | Formula | Keterangan |
+| Concept | Formula | Meaning |
 |---|---|---|
-| **CF Pakar** | $CF_{rule} = MB - MD$ | Selisih kepercayaan dan ketidakpercayaan pakar |
-| **CF Evidence** | $CF_{evidence} = CF_{user} \times CF_{rule}$ | Bobot evidence = keyakinan user × keyakinan pakar |
+| **Expert Rule CF** | $CF_{rule} = MB - MD$ | Net expert certainty (belief minus disbelief) |
+| **Evidence CF** | $CF_{evidence} = CF_{user} \times CF_{rule}$ | Weighted evidence = respondent certainty × expert rule weight |
 
-Dimana:
-- **MB** (*Measure of Belief*) — ukuran kepercayaan terhadap hipotesis, rentang [0, 1]
-- **MD** (*Measure of Disbelief*) — ukuran ketidakpercayaan terhadap hipotesis, rentang [0, 1]
-- **CF_user** — tingkat keyakinan berdasarkan jawaban pengguna, rentang [0, 1]
-- **CF_rule** — tingkat keyakinan pakar terhadap aturan, rentang [-1, 1]
+Where:
+- **$MB$** (*Measure of Belief*): Range $[0, 1]$
+- **$MD$** (*Measure of Disbelief*): Range $[0, 1]$
+- **$CF_{user}$**: Respondent certainty derived from answer input, range $[0, 1]$
+- **$CF_{rule}$**: Net rule weight, range $[-1, 1]$
 
-#### Formula Kombinasi
+#### Sequential Combination Formulas
 
-Ketika terdapat lebih dari satu evidence untuk hipotesis yang sama, CF digabung
-secara iteratif:
+When multiple pieces of evidence target the same hypothesis, CFs combine iteratively:
 
-| Kondisi | Formula |
+| Condition | Formula |
 |---|---|
-| Keduanya positif ($CF_1 > 0$ dan $CF_2 > 0$) | $CF_{combine} = CF_1 + CF_2 \times (1 - CF_1)$ |
-| Keduanya negatif ($CF_1 < 0$ dan $CF_2 < 0$) | $CF_{combine} = CF_1 + CF_2 \times (1 + CF_1)$ |
-| Konflik (tanda berlawanan) | $CF_{combine} = \dfrac{CF_1 + CF_2}{1 - \min(\|CF_1\|, \|CF_2\|)}$ |
+| Both positive ($CF_1 > 0$ and $CF_2 > 0$) | $CF_{combine} = CF_1 + CF_2 \times (1 - CF_1)$ |
+| Both negative ($CF_1 < 0$ and $CF_2 < 0$) | $CF_{combine} = CF_1 + CF_2 \times (1 + CF_1)$ |
+| Conflicting signs | $CF_{combine} = \dfrac{CF_1 + CF_2}{1 - \min(\|CF_1\|, \|CF_2\|)}$ |
 
 > [!NOTE]
-> Kombinasi positif menghasilkan nilai yang **konvergen mendekati 1.0** — semakin
-> banyak evidence mendukung, semakin tinggi CF, namun tidak pernah melebihi 1.0.
+> Positive combinations **converge asymptotically toward 1.0**: corroborating risk factors reinforce confidence without ever exceeding `1.0`.
 
-#### Implementasi
+#### Implementation
 
 ```kotlin
 // CfInferenceEngine.kt
@@ -137,68 +133,68 @@ fun combine(cf1: Double, cf2: Double): Double = when {
 
 ---
 
-### 1.2 Bank Pertanyaan
+### 1.2 Question Bank (26 Questions)
 
-Total **26 pertanyaan** yang terbagi dalam dua modul:
+A total of **26 structured questions** divided across two independent modules:
 
-#### Modul 1 — Hipertensi (M01–M16)
+#### Module 1 — Hypertension (`M01`–`M16`)
 
-| ID | Kategori | Teks Pertanyaan | Tipe | Reverse |
+| ID | Category | Clinical Concept (Question Summary) | Type | Reverse |
 |---|---|---|---|---|
-| `M01` | Riwayat Kesehatan | Apakah Anda pernah didiagnosis hipertensi oleh tenaga kesehatan? | Dikotomi | — |
-| `M02` | Riwayat Kesehatan | Apakah orang tua atau saudara kandung Anda memiliki riwayat hipertensi? | Dikotomi | — |
-| `M03` | Riwayat Kesehatan | Apakah Anda memiliki riwayat diabetes melitus? | Dikotomi | — |
-| `M04` | Riwayat Kesehatan | Apakah Anda sedang mengonsumsi obat tekanan darah secara rutin? | Dikotomi | — |
-| `M05` | Riwayat Kesehatan | Pada pemeriksaan terakhir, apakah tekanan darah Anda di atas 130/85 mmHg? | Dikotomi | — |
-| `M06` | Riwayat Kesehatan | Apakah Anda sedang hamil atau baru melahirkan dalam 6 bulan terakhir? (Pilih Tidak bila tidak berlaku) | Dikotomi | — |
-| `M07` | Gaya Hidup | Seberapa sering Anda mengonsumsi makanan asin atau tinggi garam? | Likert | — |
-| `M08` | Gaya Hidup | Seberapa sering Anda melakukan aktivitas fisik minimal 30 menit? | Likert | ✅ |
-| `M09` | Gaya Hidup | Apakah Anda merokok atau terpapar asap rokok setiap hari? | Dikotomi | — |
-| `M10` | Gaya Hidup | Seberapa sering Anda mengonsumsi kopi atau minuman berkafein secara berlebihan? | Likert | — |
-| `M11` | Gaya Hidup | Apakah berat badan Anda cenderung berlebih (obesitas)? | Dikotomi | — |
-| `M12` | Faktor Risiko | Seberapa sering Anda merasa stres berat akibat pekerjaan, studi, atau tanggung jawab harian dalam sebulan terakhir? | Likert | — |
-| `M13` | Faktor Risiko | Apakah Anda sering tidur kurang dari 7 jam setiap malam? | Dikotomi | — |
-| `M14` | Faktor Risiko | Seberapa sering Anda merasa cemas atau tertekan tanpa sebab yang jelas? | Likert | — |
-| `M15` | Faktor Risiko | Apakah Anda jarang memeriksakan tekanan darah (kurang dari sekali setahun)? | Dikotomi | — |
-| `M16` | Faktor Risiko | Apakah Anda mengonsumsi makanan cepat saji lebih dari 3 kali seminggu? | Dikotomi | — |
+| `M01` | Medical History | Previously diagnosed with hypertension by a healthcare professional? | Dichotomy | — |
+| `M02` | Medical History | Parental or sibling history of hypertension? | Dichotomy | — |
+| `M03` | Medical History | History of diabetes mellitus? | Dichotomy | — |
+| `M04` | Medical History | Currently taking blood-pressure medication regularly? | Dichotomy | — |
+| `M05` | Medical History | Most recent blood-pressure reading above 130/85 mmHg? | Dichotomy | — |
+| `M06` | Medical History | Currently pregnant or delivered within the past 6 months? (No if N/A) | Dichotomy | — |
+| `M07` | Lifestyle | Frequency of consuming salty or high-sodium foods? | Likert | — |
+| `M08` | Lifestyle | Frequency of at least 30 minutes of physical activity? | Likert | Yes |
+| `M09` | Lifestyle | Daily smoking or secondhand smoke exposure? | Dichotomy | — |
+| `M10` | Lifestyle | Excessive coffee or caffeinated beverage intake? | Likert | — |
+| `M11` | Lifestyle | Body weight tending toward overweight / obesity? | Dichotomy | — |
+| `M12` | Psychosocial Risk | Frequency of severe work, study, or daily-duty stress in the past month? | Likert | — |
+| `M13` | Psychosocial Risk | Habitually sleeping less than 7 hours per night? | Dichotomy | — |
+| `M14` | Psychosocial Risk | Frequency of unexplained anxiety or feeling overwhelmed? | Likert | — |
+| `M15` | Psychosocial Risk | Rarely checking blood pressure (fewer than once per year)? | Dichotomy | — |
+| `M16` | Psychosocial Risk | Eating fast food more than 3 times per week? | Dichotomy | — |
 
-#### Modul 2 — Kekerasan Berbasis Gender / KBG (K01–K10)
+#### Module 2 — Gender-Based Violence / GBV (`K01`–`K10`)
 
-| ID | Kategori | Teks Pertanyaan | Tipe | Sensitif |
+| ID | Category | Clinical Concept (Question Summary) | Type | Sensitive |
 |---|---|---|---|---|
-| `K01` | Kekerasan Fisik | Apakah Anda pernah mengalami tindakan fisik seperti didorong, dipukul, ditampar, atau ditendang oleh seseorang di lingkungan rumah, tempat kerja, atau pergaulan? | Likert | ✅ |
-| `K02` | Kekerasan Fisik | Apakah seseorang di sekitar Anda pernah melemparkan benda ke arah Anda atau melakukan tindakan fisik yang membuat Anda merasa terancam atau terluka? | Likert | ✅ |
-| `K03` | Kekerasan Psikologis | Apakah Anda pernah dihina, dimaki, direndahkan, atau dipermalukan oleh pasangan, anggota keluarga, atasan, maupun orang di sekitar Anda? | Likert | ✅ |
-| `K04` | Kekerasan Psikologis | Apakah Anda pernah sengaja dikucilkan, diabaikan, atau dibatasi dari interaksi sosial maupun kegiatan sehari-hari oleh orang terdekat, rekan, atau lingkungan sekitar? | Likert | ✅ |
-| `K05` | Kekerasan Seksual | Apakah Anda pernah menerima komentar, candaan, atau tindakan bernuansa seksual yang tidak diinginkan di lingkungan tempat tinggal, kerja, atau ruang publik? | Likert | ✅ |
-| `K06` | Kekerasan Seksual | Apakah Anda pernah mengalami sentuhan, ajakan, permintaan, atau tindakan seksual yang tidak diinginkan, termasuk tekanan atau pemaksaan dari seseorang? | Likert | ✅ |
-| `K07` | Kekerasan Ekonomi | Apakah penghasilan, uang, atau hak finansial Anda pernah diambil, ditahan, atau dikuasai orang lain tanpa persetujuan Anda? | Likert | ✅ |
-| `K08` | Kekerasan Ekonomi | Apakah Anda pernah dihalangi untuk bekerja, memperoleh penghasilan, melanjutkan pendidikan, atau mengembangkan diri tanpa alasan yang wajar? | Likert | ✅ |
-| `K09` | Kekerasan Digital | Apakah Anda pernah mengalami penguntitan, pemantauan aktivitas digital, atau pengiriman pesan yang mengganggu secara terus-menerus melalui ponsel atau media digital? | Likert | ✅ |
-| `K10` | Kekerasan Digital | Apakah Anda pernah menerima ancaman, intimidasi, penghinaan, atau penyebaran informasi pribadi melalui media sosial maupun platform pesan digital? | Likert | ✅ |
+| `K01` | Physical Violence | Pushed, hit, slapped, or kicked at home, work, or social circles? | Likert | Yes |
+| `K02` | Physical Violence | Objects thrown toward you or physical intimidation causing fear/harm? | Likert | Yes |
+| `K03` | Psychological Violence | Insulted, yelled at, belittled, or humiliated by partner, family, supervisor, or peers? | Likert | Yes |
+| `K04` | Psychological Violence | Deliberately ostracized, ignored, or isolated from social or daily activities? | Likert | Yes |
+| `K05` | Sexual Violence | Unwanted sexual comments, jokes, or suggestive remarks at home, work, or public spaces? | Likert | Yes |
+| `K06` | Sexual Violence | Unwanted sexual touch, coercion, advances, or pressure? | Likert | Yes |
+| `K07` | Economic Violence | Income, money, or financial rights taken, withheld, or controlled without consent? | Likert | Yes |
+| `K08` | Economic Violence | Blocked from working, earning income, studying, or advancing without valid cause? | Likert | Yes |
+| `K09` | Digital Violence | Digital stalking, activity monitoring, or persistent harassing messages? | Likert | Yes |
+| `K10` | Digital Violence | Online threats, intimidation, humiliation, or non-consensual sharing of personal info? | Likert | Yes |
 
-#### Label Skala Likert
+#### Likert Scale Labels (`CF_user`)
 
-| Nilai | Modul Hipertensi | Modul KBG | CF_user |
+| Value | Hypertension Scale (EN equiv.) | GBV Scale (EN equiv.) | `CF_user` |
 |---|---|---|---|
-| 1 | Tidak pernah | Tidak pernah | 0.0 |
-| 2 | Jarang | Jarang | 0.2 |
-| 3 | Kadang-kadang | Cukup sering | 0.5 |
-| 4 | Sering | Sering | 0.8 |
-| 5 | Sangat sering | Sangat sering | 1.0 |
+| 1 | Never (*Tidak pernah*) | Never (*Tidak pernah*) | `0.0` |
+| 2 | Rarely (*Jarang*) | Rarely (*Jarang*) | `0.2` |
+| 3 | Sometimes (*Kadang-kadang*) | Fairly often (*Cukup sering*) | `0.5` |
+| 4 | Often (*Sering*) | Often (*Sering*) | `0.8` |
+| 5 | Very often (*Sangat sering*) | Very often (*Sangat sering*) | `1.0` |
 
 ---
 
 ### 1.3 Input Parser
 
-**File:** [`CfInputParser.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfInputParser.kt)
+**File:** [`CfInputParser.kt`](app/src/main/java/com/example/empati/data/cf/CfInputParser.kt)
 
-Parser mengonversi jawaban mentah (`AnswerValue`) menjadi nilai CF_user:
+Converts raw answers (`AnswerValue`) into deterministic `CF_user` weights:
 
 ```mermaid
 flowchart LR
-    A["AnswerValue"] --> B{Tipe?}
-    B -->|Unanswered| C["Skip<br/>(tidak masuk cfUser)"]
+    A["AnswerValue"] --> B{Type?}
+    B -->|Unanswered| C["Skip<br/>(omitted from cfUser)"]
     B -->|"Dichotomy(true)"| D["CF_user = 1.0"]
     B -->|"Dichotomy(false)"| E["CF_user = 0.0"]
     B -->|"Likert(v)"| F{Reverse?}
@@ -206,68 +202,46 @@ flowchart LR
     F -->|"Reverse (M08)"| H["reverseLikertMap[v]"]
 ```
 
-#### Pemetaan Dikotomi
-
-| Jawaban | CF_user |
-|---|---|
-| Ya (`true`) | 1.0 |
-| Tidak (`false`) | 0.0 |
-
-#### Pemetaan Likert Normal
-
-| Skala | 1 | 2 | 3 | 4 | 5 |
-|---|---|---|---|---|---|
-| CF_user | 0.0 | 0.2 | 0.5 | 0.8 | 1.0 |
-
-#### Pemetaan Likert Reverse (M08)
-
-| Skala | 1 | 2 | 3 | 4 | 5 |
-|---|---|---|---|---|---|
-| CF_user | 1.0 | 0.8 | 0.5 | 0.2 | 0.0 |
+- **Dichotomous Mapping**: `Yes (true) = 1.0`, `No (false) = 0.0`.
+- **Standard Likert**: `1 → 0.0`, `2 → 0.2`, `3 → 0.5`, `4 → 0.8`, `5 → 1.0`.
+- **Reverse Likert (`M08`)**: `1 → 1.0`, `2 → 0.8`, `3 → 0.5`, `4 → 0.2`, `5 → 0.0`.
 
 > [!IMPORTANT]
-> **M08 bersifat reverse-scored** karena pertanyaan ini mengukur frekuensi aktivitas fisik
-> (protektif). Semakin sering berolahraga → semakin rendah CF_user → semakin rendah risiko.
+> **`M08` is reverse-scored** because physical exercise is a protective habit: higher exercise frequency lowers `CF_user` and lowers overall risk.
 
-#### Validasi
-
-| Kondisi | Hasil |
-|---|---|
-| Jawaban belum diisi (`Unanswered`) | Tidak masuk `cfUser` map — **bukan** CF 0.0 |
-| Tipe jawaban salah (Dikotomi untuk Likert, atau sebaliknya) | `ValidationIssue` |
-| Nilai Likert di luar 1–5 | `ValidationIssue` |
+#### Validation Rules
+- `Unanswered` entries are omitted from `cfUser` (not defaulted to `0.0`).
+- Type mismatches (e.g., Dichotomy supplied for a Likert question) or out-of-range Likert values (`< 1` or `> 5`) emit a `ValidationIssue`.
 
 ---
 
-### 1.4 Knowledge Base (Basis Pengetahuan)
+### 1.4 Knowledge Base
 
-**File:** [`CfKnowledgeBase.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfKnowledgeBase.kt)
+**File:** [`CfKnowledgeBase.kt`](app/src/main/java/com/example/empati/data/cf/CfKnowledgeBase.kt)
 
-#### Struktur Aturan (CfRule)
+#### Rule Structure (`CfRule`)
 
 ```kotlin
 data class CfRule(
-    val id: String,              // "R-M01", "R-K03", dst.
+    val id: String,              // "R-M01", "R-K03", etc.
     val questionId: String,      // "M01", "K03"
-    val hypothesis: Hypothesis,  // sub-hipotesis target
+    val hypothesis: Hypothesis,  // target sub-hypothesis
     val mb: Double,              // Measure of Belief [0,1]
     val md: Double,              // Measure of Disbelief [0,1]
-    val source: String,          // rujukan klinis
-    val expertValidated: Boolean,// sudah divalidasi pakar?
-    val note: String             // catatan validasi
+    val source: String,          // clinical citation
+    val expertValidated: Boolean,// clinical panel validation flag
+    val note: String             // validation status note
 ) {
-    val cfPakar: Double get() = mb - md  // CF rule
+    val cfPakar: Double get() = mb - md  // Net rule CF
 }
 ```
 
 > [!CAUTION]
-> Seluruh bobot MB/MD saat ini adalah **PLACEHOLDER** (`expertValidated = false`,
-> `note = "NEEDS_EXPERT_VALIDATION"`). Bobot ini **wajib divalidasi oleh pakar kesehatan**
-> sebelum digunakan untuk klaim klinis.
+> Current MB/MD rule weights carry `expertValidated = false` and `note = "NEEDS_EXPERT_VALIDATION"`. They are initial clinical prototype weights and **must undergo formal medical/psychosocial expert validation** prior to clinical deployment.
 
-#### Aturan Modul Hipertensi (16 rules)
+#### Hypertension Rules (16 Rules)
 
-| Rule ID | Question | Hipotesis | MB | MD | CF Pakar |
+| Rule ID | Question | Hypothesis | `MB` | `MD` | `CF_rule` |
 |---|---|---|---|---|---|
 | `R-M01` | M01 | `HT_MEDICAL` | 0.95 | 0.05 | **0.90** |
 | `R-M02` | M02 | `HT_GENETIC` | 0.85 | 0.10 | **0.75** |
@@ -286,9 +260,9 @@ data class CfRule(
 | `R-M15` | M15 | `HT_MEDICAL` | 0.65 | 0.20 | **0.45** |
 | `R-M16` | M16 | `HT_LIFESTYLE` | 0.65 | 0.20 | **0.45** |
 
-#### Aturan Modul KBG (10 rules)
+#### GBV Rules (10 Rules)
 
-| Rule ID | Question | Hipotesis | MB | MD | CF Pakar |
+| Rule ID | Question | Hypothesis | `MB` | `MD` | `CF_rule` |
 |---|---|---|---|---|---|
 | `R-K01` | K01 | `GBV_PHYSICAL` | 0.90 | 0.05 | **0.85** |
 | `R-K02` | K02 | `GBV_PHYSICAL` | 0.85 | 0.10 | **0.75** |
@@ -301,37 +275,37 @@ data class CfRule(
 | `R-K09` | K09 | `GBV_DIGITAL` | 0.75 | 0.10 | **0.65** |
 | `R-K10` | K10 | `GBV_DIGITAL` | 0.80 | 0.10 | **0.70** |
 
-#### Peta Hipotesis
+#### Hypothesis Hierarchy
 
 ```mermaid
 flowchart TD
-    subgraph Modul_Hipertensi["Modul 1 — Hipertensi"]
-        HT_G["HT_GENETIC<br/>Riwayat & Genetik<br/>(M02)"]
-        HT_M["HT_MEDICAL<br/>Kondisi Medis<br/>(M01, M03, M04, M05, M06, M15)"]
-        HT_L["HT_LIFESTYLE<br/>Gaya Hidup<br/>(M07, M08, M09, M10, M11, M16)"]
-        HT_P["HT_PSYCHOSOCIAL<br/>Faktor Psikososial<br/>(M12, M13, M14)"]
+    subgraph Module_HT["Module 1 — Hypertension"]
+        HT_G["HT_GENETIC<br/>Family History<br/>(M02)"]
+        HT_M["HT_MEDICAL<br/>Medical Conditions<br/>(M01, M03, M04, M05, M06, M15)"]
+        HT_L["HT_LIFESTYLE<br/>Lifestyle<br/>(M07, M08, M09, M10, M11, M16)"]
+        HT_P["HT_PSYCHOSOCIAL<br/>Psychosocial Stress<br/>(M12, M13, M14)"]
     end
 
-    subgraph Modul_KBG["Modul 2 — KBG"]
-        GBV_PH["GBV_PHYSICAL<br/>Kekerasan Fisik<br/>(K01, K02)"]
-        GBV_PS["GBV_PSYCHOLOGICAL<br/>Kekerasan Psikologis<br/>(K03, K04)"]
-        GBV_SX["GBV_SEXUAL<br/>Kekerasan Seksual<br/>(K05, K06)"]
-        GBV_EC["GBV_ECONOMIC<br/>Kekerasan Ekonomi<br/>(K07, K08)"]
-        GBV_DG["GBV_DIGITAL<br/>Kekerasan Digital<br/>(K09, K10)"]
+    subgraph Module_GBV["Module 2 — GBV"]
+        GBV_PH["GBV_PHYSICAL<br/>Physical Violence<br/>(K01, K02)"]
+        GBV_PS["GBV_PSYCHOLOGICAL<br/>Psychological Violence<br/>(K03, K04)"]
+        GBV_SX["GBV_SEXUAL<br/>Sexual Violence<br/>(K05, K06)"]
+        GBV_EC["GBV_ECONOMIC<br/>Economic Violence<br/>(K07, K08)"]
+        GBV_DG["GBV_DIGITAL<br/>Digital Violence<br/>(K09, K10)"]
     end
 
-    HT_G --> AGG_HT["HYPERTENSION<br/>(Agregat)"]
+    HT_G --> AGG_HT["HYPERTENSION<br/>(Aggregate)"]
     HT_M --> AGG_HT
     HT_L --> AGG_HT
     HT_P --> AGG_HT
 
-    GBV_PH --> AGG_GBV["GBV<br/>(Agregat)"]
+    GBV_PH --> AGG_GBV["GBV<br/>(Aggregate)"]
     GBV_PS --> AGG_GBV
     GBV_SX --> AGG_GBV
     GBV_EC --> AGG_GBV
     GBV_DG --> AGG_GBV
 
-    AGG_HT --> INT["Analisis Terintegrasi"]
+    AGG_HT --> INT["Integrated Analysis"]
     AGG_GBV --> INT
 ```
 
@@ -339,545 +313,206 @@ flowchart TD
 
 ### 1.5 Inference Engine
 
-**File:** [`CfInferenceEngine.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfInferenceEngine.kt)
+**File:** [`CfInferenceEngine.kt`](app/src/main/java/com/example/empati/data/cf/CfInferenceEngine.kt)
 
-#### Alur Inferensi
+#### Inference Algorithm
 
+```text
+For each MODULE:
+  1. Filter rules belonging to the module
+  2. Group rules by sub-hypothesis (category)
+  3. For each category:
+     a. For each rule in the category:
+        - Look up CF_user from ParseResult
+        - Compute CF_evidence = CF_user × CF_rule
+     b. Combine all CF_evidence sequentially using combineAll()
+     c. Store CategoryResult(hypothesis, cf, contributions)
+  4. Module CF = combineAll(all category CFs)
+  5. Level = levelOf(Module CF)
 ```
-Untuk setiap MODUL:
-  1. Filter rules berdasarkan modul
-  2. Kelompokkan rules per sub-hipotesis (kategori)
-  3. Untuk setiap kategori:
-     a. Untuk setiap rule dalam kategori:
-        - Ambil CF_user dari ParseResult
-        - Hitung CF_evidence = CF_user × CF_pakar
-     b. Gabungkan semua CF_evidence dengan combineAll()
-     c. Simpan sebagai CategoryResult(hypothesis, cf, contributions)
-  4. CF Modul = combineAll(semua CF kategori)
-  5. Level = levelOf(CF Modul)
-```
 
-#### Contoh Perhitungan
+#### Worked Calculation Example
 
-Misalkan pengguna menjawab:
-- `M01` = Ya (CF_user = 1.0)
-- `M07` = Sering/4 (CF_user = 0.8)
-- `M08` = Sering/4, reverse (CF_user = 0.2)
+Suppose a respondent answers:
+- `M01` = Yes (`CF_user = 1.0`)
+- `M07` = Often/4 (`CF_user = 0.8`)
+- `M08` = Often/4, reverse-scored (`CF_user = 0.2`)
 
-**Langkah 1 — CF Evidence per rule:**
+**Step 1 — Per-Rule Evidence CF:**
 
-| Rule | CF_user | CF_pakar | CF_evidence |
+| Rule | `CF_user` | `CF_rule` | `CF_evidence` |
 |---|---|---|---|
-| R-M01 (HT_MEDICAL) | 1.0 | 0.90 | 0.900 |
-| R-M07 (HT_LIFESTYLE) | 0.8 | 0.60 | 0.480 |
-| R-M08 (HT_LIFESTYLE) | 0.2 | 0.55 | 0.110 |
+| `R-M01` (`HT_MEDICAL`) | 1.0 | 0.90 | 0.900 |
+| `R-M07` (`HT_LIFESTYLE`) | 0.8 | 0.60 | 0.480 |
+| `R-M08` (`HT_LIFESTYLE`) | 0.2 | 0.55 | 0.110 |
 
-**Langkah 2 — Kombinasi per kategori:**
+**Step 2 — Category Combination:**
+- **`HT_MEDICAL`**: Single rule `R-M01` → `CF = 0.900`
+- **`HT_LIFESTYLE`**: Combine `0.480` and `0.110`: `0.480 + 0.110 × (1 − 0.480) = 0.5372`
 
-- **HT_MEDICAL:** Hanya R-M01 → CF = 0.900
-- **HT_LIFESTYLE:** Gabung R-M07 dan R-M08:
-  - combine(0.480, 0.110) = 0.480 + 0.110 × (1 − 0.480) = 0.480 + 0.0572 = **0.5372**
+**Step 3 — Aggregate Module CF:**
+- `combine(0.900, 0.5372) = 0.900 + 0.5372 × (1 − 0.900) = 0.9537`
 
-**Langkah 3 — CF Modul:**
-- combine(0.900, 0.5372) = 0.900 + 0.5372 × (1 − 0.900) = 0.900 + 0.05372 = **0.9537**
-
-**Langkah 4 — Level:**
-- 0.9537 ≥ 0.75 → **Sangat Tinggi**
+**Step 4 — Level:** `0.9537 ≥ 0.75` → **Very High (`SANGAT_TINGGI`)**
 
 ---
 
-### 1.6 Klasifikasi Level
+### 1.6 Risk Level Classification
 
-| Rentang CF | Level | Label |
+| CF Range | Enum (`CfLevel`) | Display Classification |
 |---|---|---|
-| CF < 0.25 | `RENDAH` | Rendah |
-| 0.25 ≤ CF < 0.50 | `SEDANG` | Sedang |
-| 0.50 ≤ CF < 0.75 | `TINGGI` | Tinggi |
-| CF ≥ 0.75 | `SANGAT_TINGGI` | Sangat Tinggi |
+| `CF < 0.25` | `RENDAH` | Low |
+| `0.25 ≤ CF < 0.50` | `SEDANG` | Moderate |
+| `0.50 ≤ CF < 0.75` | `TINGGI` | High |
+| `CF ≥ 0.75` | `SANGAT_TINGGI` | Very High |
 
 ---
 
-### 1.7 Analisis Terintegrasi
+### 1.7 Integrated Cross-Module Analysis
 
-**File:** [`CfResultGenerator.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfResultGenerator.kt) → `integrate()`
+**File:** [`CfResultGenerator.kt`](app/src/main/java/com/example/empati/data/cf/CfResultGenerator.kt) → `integrate()`
 
-Setelah kedua modul dievaluasi, hasil digabung menjadi 1 dari 6 kategori:
+Once both modules are evaluated, `integrate()` assigns 1 of 6 outcome categories:
 
-#### Matriks Keputusan
+#### Decision Matrix
 
-| Kondisi HT (CF ≥ 0.25) | Kondisi KBG (CF ≥ 0.25) | Kondisi Tambahan | Kategori |
+| HT Condition (`CF ≥ 0.25`) | GBV Condition (`CF ≥ 0.25`) | Additional Condition | Category |
 |---|---|---|---|
-| ❌ | ❌ | — | `LOW_RISK` |
-| ❌ | ✅ | — | `GBV_ONLY` |
-| ✅ | ✅ | — | `HYPERTENSION_WITH_GBV_INDICATION` |
-| ✅ | ❌ | `hasDiagnosis = true` | `HYPERTENSION_MEDICAL_HISTORY` |
-| ✅ | ❌ | dominant = `HT_LIFESTYLE` | `HYPERTENSION_LIFESTYLE_ONLY` |
-| ✅ | ❌ | lainnya | `HYPERTENSION_MEDICAL_HISTORY` |
-| *(data belum lengkap)* | *(data belum lengkap)* | — | `INCONCLUSIVE` |
+| No | No | — | `LOW_RISK` |
+| No | Yes | — | `GBV_ONLY` |
+| Yes | Yes | — | `HYPERTENSION_WITH_GBV_INDICATION` |
+| Yes | No | `hasDiagnosis = true` | `HYPERTENSION_MEDICAL_HISTORY` |
+| Yes | No | dominant = `HT_LIFESTYLE` | `HYPERTENSION_LIFESTYLE_ONLY` |
+| Yes | No | other | `HYPERTENSION_MEDICAL_HISTORY` |
+| *(incomplete data)* | *(incomplete data)* | — | `INCONCLUSIVE` |
 
 > [!IMPORTANT]
-> Ambang indikasi (`INDICATION_THRESHOLD`) adalah **0.25**. Nilai CF di bawah
-> ambang ini dianggap tidak memiliki indikasi yang cukup kuat.
+> The indication threshold (`INDICATION_THRESHOLD`) is **0.25**. Values below `0.25` are treated as insufficient indication.
 
-#### Deskripsi Kategori
+#### Category Descriptions & Recommendations
 
-| Kategori | Label | Hubungan |
+| Category | Meaning & Non-Causal Framing | Guidance |
 |---|---|---|
-| `LOW_RISK` | Risiko Hipertensi Rendah / Normal | Kedua indikator berada pada tingkat rendah |
-| `GBV_ONLY` | Indikasi KBG Tanpa Indikasi Hipertensi | KBG terindikasi tetapi **tidak otomatis** dianggap penyebab HT |
-| `HYPERTENSION_WITH_GBV_INDICATION` | Hipertensi dengan Indikasi Keterkaitan KBG | Pola keterkaitan, **BUKAN bukti kausalitas** |
-| `HYPERTENSION_LIFESTYLE_ONLY` | Hipertensi Murni Faktor Gaya Hidup | Gaya hidup dominan, KBG rendah |
-| `HYPERTENSION_MEDICAL_HISTORY` | Hipertensi dengan Riwayat/Kondisi Medis | Riwayat medis dominan |
-| `INCONCLUSIVE` | Hasil Belum Dapat Disimpulkan | Data belum lengkap |
-
-#### Rekomendasi per Kategori
-
-| Kategori | Rekomendasi |
-|---|---|
-| `HYPERTENSION_WITH_GBV_INDICATION` | Konsultasi tenaga kesehatan + pendampingan psikologis + **SAPA 129** |
-| `HYPERTENSION_LIFESTYLE_ONLY` | Konsultasi dokter/puskesmas + perbaiki gaya hidup |
-| `HYPERTENSION_MEDICAL_HISTORY` | Pemantauan tekanan darah + diskusi riwayat medis dengan dokter |
-| `LOW_RISK` | Pertahankan gaya hidup sehat + pemeriksaan berkala |
-| `GBV_ONLY` | Tindak lanjut KBG independen + **SAPA 129** + dukungan psikologis |
-| `INCONCLUSIVE` | Lengkapi kedua modul skrining |
-
-Semua kategori mendapat disclaimer:
-> *"Hasil ini adalah skrining, bukan diagnosis medis maupun psikologis, dan bukan pembuktian sebab-akibat."*
+| `LOW_RISK` | Both modules remain below threshold | Maintain healthy habits + periodic BP checks |
+| `GBV_ONLY` | GBV indicated without elevated HT risk | Independent GBV support + **SAPA 129** + psychological counseling |
+| `HYPERTENSION_WITH_GBV_INDICATION` | Co-occurring risks (chronic stress pathway, **NOT causal proof**) | Medical follow-up + psychological support + **SAPA 129** |
+| `HYPERTENSION_LIFESTYLE_ONLY` | Lifestyle risk factors dominate | Doctor/clinic visit + lifestyle adjustments |
+| `HYPERTENSION_MEDICAL_HISTORY` | Clinical/medical history dominates | Regular BP monitoring + clinician medication review |
+| `INCONCLUSIVE` | One or both modules incomplete | Complete both questionnaires |
 
 ---
 
 ### 1.8 Result Generator
 
-**File:** [`CfResultGenerator.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfResultGenerator.kt)
+**File:** [`CfResultGenerator.kt`](app/src/main/java/com/example/empati/data/cf/CfResultGenerator.kt)
 
-#### buildModuleResult()
-
-```
-Input:  module, questions, answers
-Output: ModuleResult
-
-Proses:
-1. CfInputParser.parse(questions, answers) → ParseResult
-2. CfInferenceEngine.evaluate(module, cfUser, rules) → List<CategoryResult>
-3. CfInferenceEngine.moduleCf(categories) → cf: Double
-4. CfInferenceEngine.levelOf(cf) → level: CfLevel
-5. interpretationFor(...) → teks interpretasi
-6. buildDominantFactors(categories) → top 3 kategori berdasarkan CF
-7. buildProtectiveFactors(answers) → faktor protektif (hanya HT)
-```
-
-#### Faktor Protektif (Modul Hipertensi)
-
-| Kondisi | Faktor Protektif |
-|---|---|
-| M01 = Tidak | Tidak ada riwayat diagnosis hipertensi |
-| M02 = Tidak | Tidak ada riwayat keluarga hipertensi |
-| M03 = Tidak | Tidak ada riwayat diabetes melitus |
-| M05 = Tidak | Tekanan darah dalam batas normal |
-| M08 ≥ 4 (Likert) | Aktivitas fisik teratur |
-| M09 = Tidak | Tidak merokok / terpapar asap rokok |
-| M11 = Tidak | Berat badan dalam kisaran sehat |
-| M13 = Tidak | Durasi tidur cukup |
-| M15 = Tidak | Rutin memeriksa tekanan darah |
-| M16 = Tidak | Menghindari makanan cepat saji |
-
-Maksimal **5 faktor protektif** ditampilkan.
+`buildModuleResult()` executes parsing, inference, module CF aggregation, interpretation selection, top-3 dominant risk categories, and up to **5 protective factors** (for Hypertension: e.g., no hypertension diagnosis, normal BP, regular exercise `M08 ≥ 4`, non-smoking, healthy weight, adequate sleep, regular BP checks, avoiding fast food).
 
 ---
 
-## Bagian 2 — Lapisan Presentasi
+## Part 2 — Presentation & Research Separation Layer
 
-### 2.1 Pemisahan Output
+### 2.1 Dual Output Isolation
 
-Sejak v2.1, output dibagi menjadi dua jalur:
-
-```
+```text
                     ModuleResult
                    (CF, MB/MD, evidence)
                         │
               ┌─────────┴─────────┐
               ▼                   ▼
     UserResultPresenter    ResearchRecordFactory
-    (bahasa awam)          (data teknis lengkap)
+    (plain language)       (full CF audit)
               │                   │
               ▼                   ▼
     UserPresentation       ResearchRecord
-    (tampil di UI)         (simpan privat)
+    (shown in UI)          (stored privately)
 ```
 
-#### Yang TIDAK ditampilkan ke pengguna:
-
-- ❌ Nilai CF desimal atau persentase
-- ❌ Nilai MB dan MD
-- ❌ Bobot (weight) per aturan
-- ❌ ID evidence dan ID rule
-- ❌ Istilah teknis inferensi
-- ❌ Ring gauge skor numerik
-- ❌ Label "(CF 0.xx)"
-- ❌ Jumlah "Terjawab X dari Y" pada hasil
-
-#### Yang ditampilkan ke pengguna:
-
-- ✅ Kesimpulan skrining dalam bahasa awam
-- ✅ Faktor yang perlu diperhatikan (label deskriptif)
-- ✅ Jenis pengalaman KBG yang terindikasi
-- ✅ Saran tindak lanjut dan dukungan
-- ✅ Kategori terintegrasi versi awam
-- ✅ Disclaimer
+- **Strictly Never Rendered to End Users**: raw CF decimals, MB/MD weights, rule/evidence IDs, percentages, inference terminology, numeric ring gauges, or `"CF 0.xx"` strings.
+- **Rendered to End Users**: calm qualitative conclusions, plain-language contributing factors, protective strengths, next-step guidance, and clear screening disclaimers.
 
 ---
 
 ### 2.2 User Result Presenter
 
-**File:** [`UserResultPresenter.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt)
+**File:** [`UserResultPresenter.kt`](app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt)
 
-#### Terjemahan Label Hipotesis → Tag Klinis Ringkas (Bahasa Awam)
+Maps internal hypotheses and integrated categories into aligned qualitative badges (`LOW` / `MEDIUM` / `HIGH` / `VERY_HIGH` for Hypertension; `"Terdapat indikasi"` vs `"Tidak terindikasi"` for GBV) synchronized across `ResultScreen`, `HomeScreen`, and `HistoryScreen`.
 
-| Hipotesis Internal | Label Tag Pengguna (`ClinicalTagChip`) |
+---
+
+### 2.3 Research Telemetry Records
+
+**File:** [`ResearchModels.kt`](app/src/main/java/com/example/empati/data/research/ResearchModels.kt)
+
+Stores full hierarchical CF telemetry (`ResearchRecord` → `ResearchModule` → `ResearchCategory` → `ResearchEvidence`) keyed strictly by one-way `subject_hash`, never rendered in UI or logged to Logcat.
+
+---
+
+## Part 3 — AI Consultation & Deterministic Rule Fallback
+
+### 3.1 Rule-Based Fallback Engine (`ChatEngine.kt`)
+
+**File:** [`ChatEngine.kt`](app/src/main/java/com/example/empati/data/ChatEngine.kt)
+
+When all neural LLM backends are unreachable or offline, `ChatEngine` provides a deterministic rule-based Indonesian responder (`id-ID`) covering 9 core clinical intents (Screening Result, Prevention, Symptoms, Diet/Sodium, Stress, Physical Activity, Violence/SAPA 129 Safety, Hypertension Definition, Greeting) plus an out-of-scope fallback.
+
+### 3.2 Processing Pipeline & 3.3–3.5 Screening Context Injection
+
+Intent matching normalizes messages in `id-ID`, evaluates keywords in priority order, and injects qualitative context from `ScreeningResult` / `ScreeningContextSnapshot` while never leaking CF scores. GBV/safety triggers always attach the confidential **SAPA 129** hotline (`129` / WhatsApp `08111-129-129`).
+
+### 3.6 Topic-Scoped LLM Integration Evolution
+
+- Earlier v3/v4 iterations routed chat through local Ollama (`qwen2.5:3b-instruct`) or OpenRouter while preserving strict privacy input redaction and topic scoping.
+- The **current AMD Lemonade architecture** replaces legacy `:11434` paths with unified **AMD Lemonade Server (`:13305`)** inference (`empati-llm` / `Qwen3-4B`, `empati-embed` / `nomic-embed-text-v1` cosine RAG over 30 chunks, `empati-stt` / `Whisper-Large-v3-Turbo`, `empati-tts` / `kokoro-v1`)—see [`README.md`](README.md).
+
+---
+
+## Part 4 — Legacy v1 Scoring Engine
+
+**File:** [`ScreeningEngine.kt`](app/src/main/java/com/example/empati/data/ScreeningEngine.kt)
+
+Retained in the repository for archival reference only; bypassed in UI flows since v2.0 in favor of the dual-module Certainty Factor engine.
+
+---
+
+## Part 5 — Multi-Domain Zero-Collision Storage
+
+**Files:** [`EmpatiDatabase.kt`](app/src/main/java/com/example/empati/data/db/EmpatiDatabase.kt) & [`ScreeningStore.kt`](app/src/main/java/com/example/empati/data/ScreeningStore.kt)
+
+Isolates authentication credentials (`auth_asn_users`), qualitative summaries (`user_screening_summaries`), pseudonymized CF research audits (`research_cf_records`), and RAG chunks/chat logs (`rag_knowledge_chunks`, `rag_chat_logs`). See [`DATABASE_AUTH_AND_RAG_ARCHITECTURE.md`](DATABASE_AUTH_AND_RAG_ARCHITECTURE.md).
+
+---
+
+## Part 6 — Automated Verification
+
+The CF expert system, zero-leak presentation layer, PII redaction, RAG retrieval, and AMD Lemonade client contracts are covered by **203 passing JVM unit tests across 24 suites** on the active branch (`./gradlew testDebugUnitTest`; see [`README.md`](README.md#testing) for exact Java 21 execution instructions).
+
+---
+
+## File References
+
+### Certainty Factor Expert System
+| File | Description |
 |---|---|
-| `HT_GENETIC` | Riwayat keluarga |
-| `HT_MEDICAL` | Kondisi medis & tensi |
-| `HT_LIFESTYLE` | Pola makan & aktivitas |
-| `HT_PSYCHOSOCIAL` | Stres & kualitas tidur |
-| `GBV_PHYSICAL` | Kekerasan fisik |
-| `GBV_PSYCHOLOGICAL` | Kekerasan psikologis |
-| `GBV_SEXUAL` | Kekerasan seksual |
-| `GBV_ECONOMIC` | Kekerasan ekonomi |
-| `GBV_DIGITAL` | Kekerasan digital |
+| [`CfModels.kt`](app/src/main/java/com/example/empati/data/cf/CfModels.kt) | Domain models, enums, `Hypothesis`, `CfLevel`, `ModuleResult`, `IntegratedAnalysis` |
+| [`CfQuestions.kt`](app/src/main/java/com/example/empati/data/cf/CfQuestions.kt) | 26-question dual-module bank + Likert scales |
+| [`CfInputParser.kt`](app/src/main/java/com/example/empati/data/cf/CfInputParser.kt) | Answer-to-`CF_user` parser (dichotomy, Likert, reverse `M08`, validation) |
+| [`CfKnowledgeBase.kt`](app/src/main/java/com/example/empati/data/cf/CfKnowledgeBase.kt) | 26 `CfRule` entries with `MB`/`MD` weights per hypothesis |
+| [`CfInferenceEngine.kt`](app/src/main/java/com/example/empati/data/cf/CfInferenceEngine.kt) | CF combination rules, category aggregation, `levelOf` |
+| [`CfResultGenerator.kt`](app/src/main/java/com/example/empati/data/cf/CfResultGenerator.kt) | Builds module results, cross-module integration, recommendations, protective factors |
 
-#### Terjemahan Kategori Terintegrasi → Bahasa Awam
-
-| Kategori Internal | Label Pengguna |
+### Presentation & Research Telemetry
+| File | Description |
 |---|---|
-| `HYPERTENSION_LIFESTYLE_ONLY` | Risiko Hipertensi dengan Dominasi Faktor Kesehatan dan Gaya Hidup |
-| `HYPERTENSION_MEDICAL_HISTORY` | Risiko Hipertensi dengan Dominasi Faktor Kesehatan dan Gaya Hidup |
-| `HYPERTENSION_WITH_GBV_INDICATION` | Risiko Hipertensi dengan Indikasi Keterkaitan Pengalaman KBG |
-| `LOW_RISK` | Risiko Hipertensi Rendah |
-| `GBV_ONLY` | Indikasi KBG Tanpa Indikasi Risiko Hipertensi |
-| `INCONCLUSIVE` | Hasil Belum Dapat Disimpulkan |
+| [`UserPresentation.kt`](app/src/main/java/com/example/empati/data/presentation/UserPresentation.kt) | User-safe presentation DTOs (zero CF fields) |
+| [`UserResultPresenter.kt`](app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt) | Translates technical CF outputs into plain empathetic language |
+| [`ResearchModels.kt`](app/src/main/java/com/example/empati/data/research/ResearchModels.kt) | Full technical CF models for dissertation research |
 
-#### Status & Tone (Tersinkronisasi dengan Beranda & Riwayat)
-
-**Modul Hipertensi (`presentHypertension` & `RiskLevel.statusLabel`):**
-
-| Kondisi / Tingkat CF | Status Label (`ResultScreen`, `HomeScreen`, `HistoryScreen`) | `RiskLevel` | Tone |
-|---|---|---|---|
-| Belum lengkap | `"Belum lengkap"` | — | `INCOMPLETE` |
-| `CfLevel.RENDAH` (`CF < 0.25`) | `"Rendah · Batas Wajar"` | `LOW` | `POSITIVE` |
-| `CfLevel.SEDANG` (`0.25 ≤ CF < 0.50` atau `M01 = Ya` terkendali) | `"Sedang · Perlu Pemantauan"` | `MEDIUM` | `ATTENTION` |
-| `CfLevel.TINGGI` (`0.50 ≤ CF < 0.75`) | `"Tinggi · Perlu Perhatian"` | `HIGH` | `ATTENTION` |
-| `CfLevel.SANGAT_TINGGI` (`CF ≥ 0.75`) | `"Sangat Tinggi · Perlu Perhatian"` | `VERY_HIGH` | `ATTENTION` |
-
-**Modul KBG (`presentGbv`):**
-
-| Kondisi | Status Label | Tone |
-|---|---|---|
-| Belum lengkap | `"Belum lengkap"` | `INCOMPLETE` |
-| `CF ≥ 0.25` | `"Terdapat indikasi"` | `ATTENTION` |
-| `CF < 0.25` | `"Tidak terindikasi"` | `POSITIVE` |
-
----
-
-### 2.3 Data Penelitian
-
-**File:** [`ResearchModels.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/research/ResearchModels.kt)
-
-Struktur data penelitian menyimpan **seluruh nilai teknis** untuk keperluan disertasi:
-
-```
-ResearchRecord
-├── screeningId: UUID
-├── timestamp: Long
-├── hypertensionCf: Double
-├── gbvCf: Double
-├── integratedCategory: String
-├── hypertension: ResearchModule
-│   ├── module, cf, level, complete, answered, total
-│   └── categories: List<ResearchCategory>
-│       ├── hypothesis: String
-│       ├── cf: Double
-│       └── evidence: List<ResearchEvidence>
-│           ├── questionId
-│           ├── cfUser
-│           ├── cfRule
-│           └── cfEvidence
-└── gbv: ResearchModule
-    └── (struktur sama)
-```
-
-Data disimpan via `ScreeningStore.saveResearchRecord()` dan dapat dibaca
-via `loadResearchRecords()` — keduanya menggunakan JSON pada SharedPreferences.
-
-> [!NOTE]
-> Data penelitian **tidak pernah di-render di UI** dan tidak dicatat ke logcat.
-> Akses hanya tersedia secara programatik.
-
----
-
-## Bagian 3 — Chatbot AI
-
-### 3.1 Arsitektur Chatbot
-
-**File:** [`ChatEngine.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/ChatEngine.kt)
-
-```
-┌──────────────────────────────────────────────┐
-│                ChatEngine                     │
-│                                              │
-│  Input: message (String), lastResult (?)     │
-│                                              │
-│  1. Normalize → lowercase(locale="id-ID")    │
-│  2. Keyword matching (first-match-wins)      │
-│  3. Context injection (lastResult)           │
-│  4. Return response String                   │
-│                                              │
-│  Deterministic: same input → same output     │
-│  No network calls, no LLM, no state          │
-└──────────────────────────────────────────────┘
-```
-
-| Properti | Nilai |
+### Chatbot, Legacy & Storage
+| File | Description |
 |---|---|
-| **Tipe** | Rule-based, deterministik |
-| **Versi** | rule-engine v1.0 |
-| **Bahasa** | Indonesia (locale `id-ID`) |
-| **State** | Stateless (tidak menyimpan konteks percakapan) |
-| **Latensi** | Mikrodetik (O(k × r), k=kata kunci, r=aturan) |
-| **Jaringan** | Tidak ada panggilan jaringan |
-
----
-
-### 3.2 Pipeline Pemrosesan
-
-```mermaid
-flowchart LR
-    A["Pesan User"] --> B["lowercase<br/>(locale id-ID)"]
-    B --> C{"Keyword<br/>Match?"}
-    C -->|"hasil/skor/skrining"| D["Intent: Hasil Skrining"]
-    C -->|"cegah/pencegahan"| E["Intent: Pencegahan"]
-    C -->|"gejala/tanda"| F["Intent: Gejala"]
-    C -->|"garam/diet/makan"| G["Intent: Pola Makan"]
-    C -->|"stres/cemas/tekan"| H["Intent: Stres"]
-    C -->|"olahraga/aktivitas"| I["Intent: Aktivitas"]
-    C -->|"kekerasan/aman/sapa"| J["Intent: Kekerasan"]
-    C -->|"hipertensi/darah tinggi"| K["Intent: Definisi"]
-    C -->|"halo/hai/selamat"| L["Intent: Sapaan"]
-    C -->|"tidak cocok"| M["Fallback"]
-```
-
-**Strategi:** Sequential first-match-wins — aturan pertama yang kata kuncinya cocok
-akan digunakan, tanpa mempertimbangkan aturan berikutnya.
-
----
-
-### 3.3 Taksonomi Intent
-
-| # | Intent | Kata Kunci | Prioritas |
-|---|---|---|---|
-| 1 | Hasil Skrining | `hasil`, `skor`, `skrining` | Tertinggi |
-| 2 | Pencegahan | `cegah`, `pencegahan`, `mencegah` | |
-| 3 | Gejala | `gejala`, `tanda` | |
-| 4 | Pola Makan | `garam`, `diet`, `makan` | |
-| 5 | Stres | `stres`, `cemas`, `tekan` | |
-| 6 | Aktivitas Fisik | `olahraga`, `aktivitas`, `gerak` | |
-| 7 | Kekerasan/Keamanan | `kekerasan`, `aman`, `bantuan`, `sapa`, `kdrt` | |
-| 8 | Definisi Hipertensi | `hipertensi`, `darah tinggi` | |
-| 9 | Sapaan | `halo`, `hai`, `selamat`, `assalam` | |
-| — | Fallback | *(tidak cocok)* | Terendah |
-
----
-
-### 3.4 Respons Lengkap
-
-#### 1. Hasil Skrining (dengan data)
-> "Hasil skrining terakhir Anda menunjukkan risiko **{level}** dengan skor **{score}** dari 100.
-> Hasil ini bukan diagnosis medis, jadi konsultasikan kepada tenaga kesehatan untuk langkah selanjutnya."
-
-#### 1b. Hasil Skrining (tanpa data)
-> "Anda belum memiliki hasil skrining. Silakan lakukan skrining terlebih dahulu melalui menu Mulai Skrining."
-
-#### 2. Pencegahan
-> "Untuk mencegah hipertensi: kurangi asupan garam, pertahankan berat badan sehat, rutin berolahraga
-> minimal 30 menit sehari, kelola stres, batasi kafein, dan hindari merokok. Pemeriksaan tekanan darah
-> secara berkala juga sangat dianjurkan."
-
-#### 3. Gejala
-> "Hipertensi sering tidak bergejala. Beberapa orang mengalami sakit kepala, pusing, atau leher terasa
-> kaku, tetapi satu-satunya cara pasti adalah dengan mengukur tekanan darah."
-
-#### 4. Pola Makan
-> "Batasi asupan garam hingga kurang dari 1 sendok teh per hari. Perbanyak buah, sayur, dan makanan
-> rendah lemak. Kurangi makanan olahan dan cepat saji yang tinggi natrium."
-
-#### 5. Stres
-> "Stres berkepanjangan dapat memicu peningkatan tekanan darah. Coba luangkan waktu istirahat, lakukan
-> relaksasi, dan jangan ragu mencari dukungan dari orang terdekat atau tenaga kesehatan."
-
-#### 6. Aktivitas Fisik
-> "Aktivitas fisik ringan seperti jalan kaki 30 menit per hari, senam, atau bersepeda membantu
-> menurunkan tekanan darah dan menjaga kesehatan jantung."
-
-#### 7. Kekerasan/Keamanan
-> "Anda berhak merasa aman. Jika Anda mengalami kekerasan atau merasa terancam, Anda dapat menghubungi
-> layanan **SAPA 129**, atau mencari bantuan dari tenaga kesehatan dan lembaga perlindungan terdekat.
-> Anda tidak sendirian."
-
-#### 8. Definisi Hipertensi
-> "Hipertensi adalah kondisi tekanan darah yang terus-menerus tinggi (≥140/90 mmHg). Kondisi ini sering
-> tanpa gejala, tetapi dapat meningkatkan risiko penyakit jantung dan stroke bila tidak dikelola."
-
-#### 9. Sapaan
-> "Halo! Saya AI-EMPATI, asisten kesehatan Anda. Saya siap menjawab pertanyaan seputar hipertensi dan
-> kesehatan gender. Apa yang ingin Anda tanyakan?"
-
-#### Fallback
-> "Saya hanya dapat menjawab pertanyaan seputar hipertensi, gaya hidup, stres, dan kesehatan gender.
-> Coba tanyakan misalnya tentang gejala hipertensi, pencegahan, atau hasil skrining Anda."
-
----
-
-### 3.5 Integrasi Konteks Skrining
-
-Intent "Hasil Skrining" menggunakan `lastResult` dari ViewModel:
-
-```kotlin
-fun reply(message: String, lastResult: ScreeningResult?): String
-```
-
-| `lastResult` | Behavior |
-|---|---|
-| `null` | Ajakan untuk melakukan skrining |
-| `ScreeningResult(score, level, date)` | Menyisipkan level dan score ke respons |
-
-`ScreeningResult` yang dipakai chatbot berasal dari `CfResultGenerator.toScreeningResult()`:
-- `score` = CF hipertensi × 100 (integer 0–100)
-- `level` = mapping `CfLevel` → `RiskLevel`
-
----
-
-### 3.6 Integrasi LLM Murni Terbatasi Topik (`OllamaRagService.kt`)
-
-**File:** [`OllamaRagService.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/rag/OllamaRagService.kt) & [`ChatEngine.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/ChatEngine.kt)
-
-Arsitektur memisahkan `ChatEngine.replyWithRag()` dan `OllamaRagService` dari mesin inferensi `CfInferenceEngine` sehingga modul LLM **tidak pernah bertabrakan** dengan perhitungan Certainty Factor:
-
-1. **Mode LLM Murni Tanpa Korpus Kaku**: Chatbot menggunakan model `qwen2.5:3b-instruct` (via Ollama lokal pada `127.0.0.1:11434` / `10.0.2.2:11434` dengan `num_predict: 512`, `num_ctx: 2048`) secara murni tanpa menempelkan teks korpus atau chip sitasi, dengan pembatasan ruang lingkup ketat pada **Kesehatan**, **Psikologi**, dan **Perlindungan Kekerasan**.
-2. **Jembatan Konteks Satu Arah (`ScreeningContextSnapshot`)**: Modul Chatbot hanya menerima ringkasan kualitatif (`riskLevelLabel`, `integratedCategoryLabel`, `screeningDate`) dan **dilarang** membaca tabel `research_cf_records` ataupun mengubah hasil perhitungan CF.
-3. **Anti-Truncated Generation (`ensureCompleteResponse`)**: Memastikan setiap respons selesai pada kalimat yang utuh dan menghapus simbol markdown `**`.
-
-> Detail lengkap arsitektur RAG dan isolasi database dapat dilihat di [`DATABASE_AUTH_AND_RAG_ARCHITECTURE.md`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/DATABASE_AUTH_AND_RAG_ARCHITECTURE.md).
-
----
-
-## Bagian 4 — Mesin Skor Legacy (v1)
-
-**File:** [`ScreeningEngine.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/ScreeningEngine.kt)
-
-> [!NOTE]
-> Mesin skor v1 tetap ada di codebase tetapi **tidak lagi dipakai oleh alur UI**.
-> Alur baru menggunakan sistem pakar CF dual-modul sejak v2.0.
-
-#### Formula v1
-
-$$\text{skor} = \text{round}\left(\frac{\text{totalPoin}}{\text{maxPoin}} \times 100\right), \quad \text{dijepit } [0, 100]$$
-
-| Parameter | Nilai |
-|---|---|
-| Jumlah pertanyaan | 24 |
-| maxPoin | 78 |
-| Klasifikasi | 0–24 Rendah, 25–49 Sedang, 50–74 Tinggi, 75–100 Sangat Tinggi |
-
-#### Fungsi Legacy
-
-| Fungsi | Kegunaan |
-|---|---|
-| `computeResult()` | Hitung skor persentase + level risiko |
-| `buildInsights()` | Pilih max 3 kartu wawasan dari 4 kandidat |
-| `buildRecommendations()` | Rekomendasi berdasarkan level + flag GBV |
-| `hasGbvRisk()` | Cek apakah ada jawaban positif pada pertanyaan sensitif |
-
----
-
-## Bagian 5 — Penyimpanan Data Multi-Domain (Zero-Collision Database)
-
-**File:** [`EmpatiDatabase.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/db/EmpatiDatabase.kt) & [`ScreeningStore.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/ScreeningStore.kt)
-
-Penyimpanan lokal menggunakan **SQLite Multi-Domain (`empati_multi_domain.db`)** yang memisahkan 4 domain secara tegas agar tidak saling menimpa:
-
-| Domain | Tabel SQLite | Isolasi & Keamanan |
-|---|---|---|
-| **1. Identitas & Auth Inklusif** | `auth_asn_users` | Menyimpan ID Akun (Email/HP/Username/NIK/NIP), kategori latar belakang, jenis kelamin, domisili/instansi, pekerjaan, `password_hash`, dan menghasilkan pseudonim satu arah `subject_hash`. |
-| **2. Ringkasan Kualitatif (UI)** | `user_screening_summaries` | Hanya menyimpan `risk_level`, `score`, dan `screening_date` per `user_id` untuk Beranda & Riwayat. |
-| **3. Sistem Pakar CF (Riset)** | `research_cf_records` | Menyimpan log CF lengkap yang diikat ke **`subject_hash`** (bukan identitas mentah!) serta mengunci versi aturan **`kb_version = 'cf-kb-v2.0'`**. |
-| **4. RAG & Chatbot** | `rag_knowledge_chunks`, `rag_chat_logs` | Menyimpan potongan dokumen referensi resmi dan riwayat chat tanpa menyentuh tabel CF. |
-
-> Dokumentasi ERD lengkap tersedia di [`DATABASE_AUTH_AND_RAG_ARCHITECTURE.md`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/DATABASE_AUTH_AND_RAG_ARCHITECTURE.md).
-
----
-
-## Bagian 6 — Pengujian
-
-### CfEngineTest — 30 Test
-
-**File:** [`CfEngineTest.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/test/java/com/example/empati/cf/CfEngineTest.kt)
-
-| Kategori | Test |
-|---|---|
-| **Parser** | Dikotomi Ya→1.0, Tidak→0.0; Likert 1–5 mapping; M08 reverse; jawaban kosong skip; tipe salah → ValidationIssue |
-| **Formula CF** | Kombinasi positif; kombinasi negatif; konflik; cfEvidence = cfUser × cfPakar; combineAll sequence |
-| **Modul** | Evaluasi per kategori; moduleCf agregasi; levelOf threshold; contoh Python identik |
-| **Integrasi** | 6 kategori output; matriks keputusan; INCONCLUSIVE bila belum lengkap; determinisme (input sama → output sama) |
-
-### UserPresentationTest — 7 Test & AsnAndRagArchitectureTest — 10 Test
-
-**File:** [`UserPresentationTest.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/test/java/com/example/empati/presentation/UserPresentationTest.kt) & [`AsnAndRagArchitectureTest.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/test/java/com/example/empati/auth/AsnAndRagArchitectureTest.kt)
-
-| Test | Verifikasi |
-|---|---|
-| Bahasa awam | Tidak ada istilah teknis di output |
-| Tidak ada kebocoran CF | Output tidak mengandung CF, MB, MD, %, desimal |
-| Pemisahan modul | Modul HT dan KBG terpisah dengan benar |
-| Konsistensi label & status risiko | Label kategori terintegrasi & 4 tingkat risiko (`Rendah · Batas Wajar` s/d `Sangat Tinggi · Perlu Perhatian`) selaras lintas layar |
-| Ringkasan risiko | `UserRiskSummary` cocok dengan data |
-| Retensi data internal | Data penelitian tetap lengkap meski UI tidak menampilkan |
-| Auth, `subject_hash` & LLM Guardrails | Validasi identitas multi-format, PBKDF2 salt acak, `subject_hash`, firewall privasi input, & `ensureCompleteResponse()` |
-
-**Total: 47 unit test JVM + 6 instrumented SQLite test, 0 gagal** ✅
-
----
-
-## Referensi File
-
-### Sistem Pakar CF
-
-| File | Deskripsi | LOC |
-|---|---|---|
-| [`CfModels.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfModels.kt) | Domain model: enums, data classes (Hypothesis, CfLevel, ModuleResult, IntegratedAnalysis) | 114 |
-| [`CfQuestions.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfQuestions.kt) | Bank 26 pertanyaan + label Likert | 104 |
-| [`CfInputParser.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfInputParser.kt) | Parser jawaban → CF_user (dikotomi, likert, reverse, validasi) | 85 |
-| [`CfKnowledgeBase.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfKnowledgeBase.kt) | 26 aturan CfRule dengan MB/MD per hipotesis | 84 |
-| [`CfInferenceEngine.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfInferenceEngine.kt) | Formula kombinasi CF, evaluasi per kategori, levelOf | 98 |
-| [`CfResultGenerator.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/cf/CfResultGenerator.kt) | Build module results, integrasi, rekomendasi, faktor protektif | 212 |
-
-### Lapisan Presentasi
-
-| File | Deskripsi | LOC |
-|---|---|---|
-| [`UserPresentation.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/presentation/UserPresentation.kt) | Model presentasi user-safe (tanpa CF) | 41 |
-| [`UserResultPresenter.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/presentation/UserResultPresenter.kt) | Translator model internal → bahasa awam | 246 |
-| [`ResearchModels.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/research/ResearchModels.kt) | Model data penelitian (CF lengkap) | 84 |
-
-### Chatbot
-
-| File | Deskripsi | LOC |
-|---|---|---|
-| [`ChatEngine.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/ChatEngine.kt) | Rule-based chatbot, 9 intent + fallback | 56 |
-
-### Legacy & Storage
-
-| File | Deskripsi | LOC |
-|---|---|---|
-| [`ScreeningEngine.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/ScreeningEngine.kt) | Mesin skor v1 (legacy, tidak dipakai UI) | 99 |
-| [`ScreeningStore.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/ScreeningStore.kt) | Persistensi lokal (SharedPreferences + JSON) | 172 |
-| [`Models.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/data/Models.kt) | Model dasar: Question, ScreeningResult, UserProfile | 52 |
-
+| [`ChatEngine.kt`](app/src/main/java/com/example/empati/data/ChatEngine.kt) | Orchestrates Lemonade + Vector RAG chat and deterministic fallback |
+| [`ScreeningEngine.kt`](app/src/main/java/com/example/empati/data/ScreeningEngine.kt) | Legacy v1 scoring engine (inactive in UI) |
+| [`ScreeningStore.kt`](app/src/main/java/com/example/empati/data/ScreeningStore.kt) | Local persistence & sync bridge |
+| [`Models.kt`](app/src/main/java/com/example/empati/data/Models.kt) | Core app models (`Question`, `ScreeningResult`, `UserProfile`) |

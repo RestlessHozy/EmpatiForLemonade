@@ -1,288 +1,277 @@
-# 🎨 SRYA Emora (sebelumnya AI-EMPATI) — Panduan Desain Front-End & Sistem UI/UX "Soft Daylight" (v4.1.5)
+# Empati (formerly SRYA Emora) — Front-End Design Guide & "Soft Daylight" UI/UX System (v4.1.5 Design System)
 
-Dokumen ini mendokumentasikan sistem desain **SRYA Emora "Soft Daylight" (v4.1.5)**, arsitektur warna 3-lapis (*Palettes → Material 3 Roles → Affective Semantics*), sistem tipografi 3-suara (**Fraunces + Inter + JetBrains Mono**), aset logo multi-resolusi (`srya_emora_logo_transparent` & `srya_emora_logo_bg`), token desain (`Tokens.kt`), pustaka komponen (`Components.kt`), sistem gerak beraksesibilitas (`LocalReducedMotion`), penanganan ergonomi keyboard & insets (`WindowInsets.ime` & `imePadding`), kapabilitas salin pesan (`SelectionContainer` & `ContentCopy`), serta spesifikasi 11 layar aplikasi **SRYA Emora**.
-
-> Untuk penjelasan mendalam mengenai filosofi tipografi 3-suara, pemetaan nada afektif (*affective tones*), dan desain hasil skrining berorientasi empati klinis, lihat [`TYPOGRAPHY_AND_CLINICAL_UX.md`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/TYPOGRAPHY_AND_CLINICAL_UX.md) dan [`project_analysis.md`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/project_analysis.md).
-
----
-
-## 📋 Daftar Isi
-
-- [Filosofi & Prinsip Desain "Soft Daylight" (v4.0)](#filosofi--prinsip-desain-soft-daylight-v40)
-- [Arsitektur Warna 3-Lapis (`Color.kt` & `Theme.kt`)](#arsitektur-warna-3-lapis-colorkt--themekt)
-  - [Lapis 1 — Palet Tonal Mentah (Raw Tonal Ramps)](#lapis-1--palet-tonal-mentah-raw-tonal-ramps)
-  - [Lapis 2 — Peran Material 3 (`LightColorScheme` & `DarkColorScheme`)](#lapis-2--peran-material-3-lightcolorscheme--darkcolorscheme)
-  - [Lapis 3 — Semantik Afektif (`EmpatiColors` via `MaterialTheme.empati`)](#lapis-3--semantik-afektif-empaticolors-via-materialthemeempati)
-- [Sistem Tipografi 3-Suara (`Type.kt` & `res/font/`)](#sistem-tipografi-3-suara-typekt--resfont)
-- [Token Desain: Spasi, Elevasi, Bentuk & Gerak (`Tokens.kt`)](#token-desain-spasi-elevasi-bentuk--gerak-tokenskt)
-- [Pustaka Komponen Reusable (`Components.kt`)](#pustaka-komponen-reusable-componentskt)
-- [Spesifikasi 11 Layar Aplikasi (`ui/screens/`)](#spesifikasi-11-layar-aplikasi-uiscreens)
-- [Navigasi & Transisi (`EmpatiApp.kt` & `MainScaffold.kt`)](#navigasi--transisi-empatiappkt--mainscaffoldkt)
-- [Aksesibilitas (WCAG 2.2) & Keamanan Visual](#aksesibilitas-wcag-22--keamanan-visual)
-- [Referensi File](#referensi-file)
+> **Historical Note:** This design guide documents the **"Soft Daylight" (v4.1.5)** UI/UX system originally created under the title *SRYA Emora* (preceded by *AI-EMPATI*). The app is now branded **Empati** and routes local AI chat, vector embeddings, STT, and TTS through **AMD Lemonade Server (`:13305`)** (see [`README.md`](README.md) and [`docs/specs/lemonade-hybrid-triage.md`](docs/specs/lemonade-hybrid-triage.md)), while the color architecture, 3-voice typography, motion tokens, reusable component library, and 11-screen layouts documented here remain active in production.
+>
+> For a deeper dive into the 3-voice typography philosophy, affective tone mapping, and clinical-empathy result presentation, see [`TYPOGRAPHY_AND_CLINICAL_UX.md`](TYPOGRAPHY_AND_CLINICAL_UX.md).
 
 ---
 
-## Filosofi & Prinsip Desain "Soft Daylight" (v4.0)
+## Table of Contents
 
-1. **Suasana "Soft Daylight" & "Quiet Evening"** — Meninggalkan palet ungu/mauve lama dan menggantinya dengan kanvas kertas hangat bernuansa batu-hijau alami (**Stone** `#F7F5F0` di mode terang, `#121512` di mode gelap) yang dipadukan dengan **Sage** (ketenangan medis), **Clay** (kehangatan manusiawi), dan **Mist** (kehadiran pendamping AI).
-2. **Semantik Afektif (*Affective Tones*), Bukan Alarm Klinis** — Status kesehatan diekspresikan melalui nada emosional yang menenangkan namun jujur (`calm`, `attentive`, `concerned`, `urgent`, `neutral`, `presence`) lengkap dengan visualisasi `StateOrb` yang bernapas halus, tanpa angka mentah yang memicu kecemasan (*health anxiety*).
-3. **Suara Percakapan yang Manusiawi (*Conversational Sentence-Case*)** — Seluruh label, badge, dan chip menggunakan *sentence-case* (`String.toSentenceCase()`), bukan huruf kapital penuh (*ALL-CAPS*) yang terkesan menghakimi.
-4. **Arsitektur Stateless Content + Stateful Wrapper** — Setiap layar memisahkan *stateful entry point* (yang terhubung ke `EmpatiViewModel`) dari *stateless composable* (`*Content`) sehingga mendukung *Compose Previews* penuh dan pengujian UI terisolasi.
-5. **Pemisahan Ketat Data Penelitian vs Tampilan Pengguna (*Zero-Leak*)** — Nilai teknis internal (*Certainty Factor*, `MB`, `MD`, bobot, persen `%`, dan angka desimal) tidak pernah dirender di permukaan UI pengguna.
+- [Philosophy & "Soft Daylight" Design Principles (v4.0)](#philosophy--soft-daylight-design-principles-v40)
+- [3-Layer Color Architecture (`Color.kt` & `Theme.kt`)](#3-layer-color-architecture-colorkt--themekt)
+  - [Layer 1 — Raw Tonal Ramps](#layer-1--raw-tonal-ramps)
+  - [Layer 2 — Material 3 Roles (`LightColorScheme` & `DarkColorScheme`)](#layer-2--material-3-roles-lightcolorscheme--darkcolorscheme)
+  - [Layer 3 — Affective Semantics (`EmpatiColors` via `MaterialTheme.empati`)](#layer-3--affective-semantics-empaticolors-via-materialthemeempati)
+- [3-Voice Typography System (`Type.kt` & `res/font/`)](#3-voice-typography-system-typekt--resfont)
+- [Design Tokens: Spacing, Elevation, Shapes & Motion (`Tokens.kt`)](#design-tokens-spacing-elevation-shapes--motion-tokenskt)
+- [Reusable Component Library (`Components.kt`)](#reusable-component-library-componentskt)
+- [11-Screen Application Specification (`ui/screens/`)](#11-screen-application-specification-uiscreens)
+- [Navigation & Transitions (`EmpatiApp.kt` & `MainScaffold.kt`)](#navigation--transitions-empatiappkt--mainscaffoldkt)
+- [Accessibility (WCAG 2.2) & Visual Safety](#accessibility-wcag-22--visual-safety)
+- [File References](#file-references)
 
 ---
 
-## Arsitektur Warna 3-Lapis (`Color.kt` & `Theme.kt`)
+## Philosophy & "Soft Daylight" Design Principles (v4.0)
 
-Sistem warna di [`Color.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Color.kt) dan [`Theme.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Theme.kt) disusun dalam tiga lapisan: **Palettes** (nilai mentah), **Roles** (skema Material 3), dan **Affective Semantics** (`MaterialTheme.empati`).
+1. **"Soft Daylight" & "Quiet Evening" Atmosphere** — Replaces the legacy purple/mauve palette with a warm paper-like natural stone-green canvas (**Stone** `#F7F5F0` in Light Mode, `#121512` in Dark Mode) paired with **Sage** (clinical calm), **Clay** (human warmth), and **Mist** (AI companion presence).
+2. **Affective Semantics Over Clinical Alarms** — Health risk states are communicated through calm, honest affective tones (`calm`, `attentive`, `concerned`, `urgent`, `neutral`, `presence`) paired with a gently breathing `StateOrb`, avoiding raw decimals that trigger health anxiety.
+3. **Conversational Sentence-Case** — Labels, badges, and chips use sentence-case (`String.toSentenceCase()`) rather than harsh ALL-CAPS strings.
+4. **Stateless Content + Stateful Wrapper Architecture** — Every screen decouples its stateful entry point (wired to `EmpatiViewModel`) from a pure `*Content` composable for full Compose Preview support and isolated UI testing.
+5. **Strict Separation of Research Data vs. User Presentation (Zero-Leak)** — Internal computational metrics (`Certainty Factor`, `MB`, `MD`, weights, percentages `%`, rule IDs) never render in user-facing UI surfaces.
 
-### Lapis 1 — Palet Tonal Mentah (*Raw Tonal Ramps*)
+---
 
-| Keluarga Warna | Peran Psikologis | Token & Hex Utama |
+## 3-Layer Color Architecture (`Color.kt` & `Theme.kt`)
+
+The color system in [`Color.kt`](app/src/main/java/com/example/empati/ui/theme/Color.kt) and [`Theme.kt`](app/src/main/java/com/example/empati/ui/theme/Theme.kt) flows unidirectionally across three layers: **Palettes** (raw tonal values) → **Roles** (Material 3 color schemes) → **Affective Semantics** (`MaterialTheme.empati`).
+
+### Layer 1 — Raw Tonal Ramps
+
+| Color Family | Psychological Role | Primary Tokens & Hex |
 |---|---|---|
-| **Sage** (Primary) | Ketenangan, kepercayaan, identitas utama | `Sage10` `#05241B` · `Sage20` `#0A3A2C` · `Sage30` `#1F4F40` · `Sage40` `#2E6A57` · `Sage80` `#9CCFB8` · `Sage90` `#BAEDD6` · `Sage95` `#D6EEE3` · `Sage98` `#EAF6F0` |
-| **Clay** (Secondary) | Kehangatan manusiawi, dukungan empatik | `Clay10` `#3B1808` · `Clay30` `#6E3A25` · `Clay40` `#93482E` · `Clay80` `#F2B79C` · `Clay90` `#FFDBCB` · `Clay95` `#FBE4D8` |
-| **Mist** (Tertiary / AI) | Kehadiran AI-EMPATI, ruang refleksi & informasi | `Mist10` `#1B1948` · `Mist30` `#42407F` · `Mist40` `#5A5896` · `Mist80` `#C6C4F4` · `Mist90` `#E3E1FA` · `Mist95` `#F0EFFD` |
-| **Honey** (Attentive) | Perhatian lembut (*worth monitoring*) | `Honey10` `#3D2800` · `Honey25` `#5C3C00` · `Honey40` `#85570A` · `Honey60` `#D29A2E` · `Honey80` `#F3C56A` · `Honey90` `#FBE8BE` |
-| **Terracotta** (Concerned) | Perlu perhatian klinis / validasi input | `Terra10` `#400A02` · `Terra25` `#6E2415` · `Terra40` `#A8402B` · `Terra80` `#FFB4A3` · `Terra90` `#FFDAD1` · `Terra95` `#FCE6E0` |
-| **Berry** (Urgent) | Perhatian segera / sangat tinggi | `Berry10` `#3F0A22` · `Berry25` `#68183B` · `Berry40` `#8E2F55` · `Berry80` `#F2A9C2` · `Berry90` `#F9D9E4` |
+| **Sage** (Primary) | Calmness, clinical trust, core identity | `Sage10` `#05241B` · `Sage20` `#0A3A2C` · `Sage30` `#1F4F40` · `Sage40` `#2E6A57` · `Sage80` `#9CCFB8` · `Sage90` `#BAEDD6` · `Sage95` `#D6EEE3` · `Sage98` `#EAF6F0` |
+| **Clay** (Secondary) | Human warmth, empathetic support | `Clay10` `#3B1808` · `Clay30` `#6E3A25` · `Clay40` `#93482E` · `Clay80` `#F2B79C` · `Clay90` `#FFDBCB` · `Clay95` `#FBE4D8` |
+| **Mist** (Tertiary / AI) | AI companion presence, reflection & safe-space cues | `Mist10` `#1B1948` · `Mist30` `#42407F` · `Mist40` `#5A5896` · `Mist80` `#C6C4F4` · `Mist90` `#E3E1FA` · `Mist95` `#F0EFFD` |
+| **Honey** (Attentive) | Gentle awareness ("worth monitoring") | `Honey10` `#3D2800` · `Honey25` `#5C3C00` · `Honey40` `#85570A` · `Honey60` `#D29A2E` · `Honey80` `#F3C56A` · `Honey90` `#FBE8BE` |
+| **Terracotta** (Concerned) | Clinical attention / validation needed | `Terra10` `#400A02` · `Terra25` `#6E2415` · `Terra40` `#A8402B` · `Terra80` `#FFB4A3` · `Terra90` `#FFDAD1` · `Terra95` `#FCE6E0` |
+| **Berry** (Urgent) | High priority / immediate attention | `Berry10` `#3F0A22` · `Berry25` `#68183B` · `Berry40` `#8E2F55` · `Berry80` `#F2A9C2` · `Berry90` `#F9D9E4` |
 
-#### Permukaan Netral **Stone** (Warm-Grey Berbias Hijau Halus)
+#### **Stone** Neutral Surfaces (Subtle Green-Biased Warm Grey)
 
-| Mode | Token | Hex | Peran Material 3 (`ColorScheme`) |
+| Mode | Token | Hex | Material 3 Role (`ColorScheme`) |
 |---|---|---|---|
 | **Light** (*Daylight on Paper*) | `StoneLightBackground` | `#F7F5F0` | `background` / `surface` |
-| | `StoneLightLowest` | `#FFFFFF` | `surfaceContainerLowest` (`EmpatiSurfaces.card()` di Light) |
-| | `StoneLightLow` | `#F2F0EA` | `surfaceContainerLow` (`EmpatiSurfaces.inset()` di Light) |
+| | `StoneLightLowest` | `#FFFFFF` | `surfaceContainerLowest` (`EmpatiSurfaces.card()` in Light) |
+| | `StoneLightLow` | `#F2F0EA` | `surfaceContainerLow` (`EmpatiSurfaces.inset()` in Light) |
 | | `StoneLightMid` | `#EDEAE3` | `surfaceContainer` (`EmpatiSurfaces.sunken()`) |
 | | `StoneLightHigh` | `#E7E4DC` | `surfaceContainerHigh` |
 | | `StoneLightHighest` | `#E1DED5` | `surfaceContainerHighest` / `surfaceVariant` |
-| | `StoneLightOnSurface` | `#1B1C19` | `onBackground` / `onSurface` (Kontras 14.3:1 WCAG AAA) |
-| | `StoneLightOnVariant` | `#474B44` | `onSurfaceVariant` (Kontras 7.6:1 WCAG AAA) |
+| | `StoneLightOnSurface` | `#1B1C19` | `onBackground` / `onSurface` (Contrast 14.3:1 WCAG AAA) |
+| | `StoneLightOnVariant` | `#474B44` | `onSurfaceVariant` (Contrast 7.6:1 WCAG AAA) |
 | | `StoneLightOutline` | `#747970` | `outline` |
 | | `StoneLightOutlineVariant` | `#D0D3C9` | `outlineVariant` (`EmpatiSurfaces.hairline()`) |
 | **Dark** (*Quiet Evening*) | `StoneDarkBackground` | `#121512` | `background` / `surface` |
 | | `StoneDarkLowest` | `#0C0F0C` | `surfaceContainerLowest` |
-| | `StoneDarkLow` | `#181B18` | `surfaceContainerLow` (`EmpatiSurfaces.card()` di Dark) |
+| | `StoneDarkLow` | `#181B18` | `surfaceContainerLow` (`EmpatiSurfaces.card()` in Dark) |
 | | `StoneDarkMid` | `#1C1F1C` | `surfaceContainer` (`EmpatiSurfaces.sunken()`) |
-| | `StoneDarkHigh` | `#262A26` | `surfaceContainerHigh` (`EmpatiSurfaces.inset()` di Dark) |
+| | `StoneDarkHigh` | `#262A26` | `surfaceContainerHigh` (`EmpatiSurfaces.inset()` in Dark) |
 | | `StoneDarkHighest` | `#313531` | `surfaceContainerHighest` / `surfaceVariant` |
 | | `StoneDarkOnSurface` | `#E3E3DB` | `onBackground` / `onSurface` |
 | | `StoneDarkOnVariant` | `#BEC3B9` | `onSurfaceVariant` |
 | | `StoneDarkOutline` | `#889084` | `outline` |
 | | `StoneDarkOutlineVariant` | `#40443F` | `outlineVariant` |
 
-### Lapis 2 — Peran Material 3 (`LightColorScheme` & `DarkColorScheme`)
+### Layer 2 — Material 3 Roles (`LightColorScheme` & `DarkColorScheme`)
 
-Dikonfigurasi di [`Theme.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Theme.kt):
+Configured in [`Theme.kt`](app/src/main/java/com/example/empati/ui/theme/Theme.kt):
 - `primary` = `Sage40` (`#2E6A57` Light) / `Sage80` (`#9CCFB8` Dark)
 - `secondary` = `Clay40` (`#93482E` Light) / `Clay80` (`#F2B79C` Dark)
 - `tertiary` = `Mist40` (`#5A5896` Light) / `Mist80` (`#C6C4F4` Dark)
 - `error` = `Terra40` (`#A8402B` Light) / `Terra80` (`#FFB4A3` Dark)
 
-### Lapis 3 — Semantik Afektif (`EmpatiColors` via `MaterialTheme.empati`)
+### Layer 3 — Affective Semantics (`EmpatiColors` via `MaterialTheme.empati`)
 
-Setiap nada afektif dibungkus dalam `ToneColors(accent, container, onContainer, border)` dan diakses melalui `MaterialTheme.empati`:
+Each affective tone wraps `ToneColors(accent, container, onContainer, border)` accessed via `MaterialTheme.empati`:
 
-| Properti `MaterialTheme.empati` | Makna Klinis & Afektif | Palet Dasar | Pemetaan `RiskLevel` / `PresentationTone` |
+| `MaterialTheme.empati` Property | Clinical & Affective Meaning | Base Palette | `RiskLevel` / `PresentationTone` Mapping |
 |---|---|---|---|
-| **`calm`** | Aman, positif, faktor pelindung (*protective*) | **Sage** (`Sage40` / `Sage95`) | `RiskLevel.LOW`, `PresentationTone.POSITIVE` |
-| **`attentive`** | Perlu pemantauan berkala (*worth monitoring*) | **Honey** (`Honey60` / `Honey90`) | `RiskLevel.MEDIUM`, `PresentationTone.ATTENTION` |
-| **`concerned`** | Perlu perhatian klinis (*needs attention*) | **Terracotta** (`Terra40` / `Terra95`) | `RiskLevel.HIGH` |
-| **`urgent`** | Sangat tinggi, disarankan segera berkonsultasi | **Berry** (`Berry40` / `Berry90`) | `RiskLevel.VERY_HIGH` |
-| **`neutral`** | Belum lengkap / catatan informatif netral | **Stone** (`StoneLightLow` / `StoneLightOutline`) | `PresentationTone.NEUTRAL`, `PresentationTone.INCOMPLETE` |
-| **`presence`** | Identitas pendamping AI-EMPATI, modul kesejahteraan, & rujukan dukungan | **Mist** (`Mist40` / `Mist95`) | Avatar AI, `LockNotice`, `SoftNotice` SAPA 129 |
+| **`calm`** | Low risk, positive, protective habits | **Sage** (`Sage40` / `Sage95`) | `RiskLevel.LOW`, `PresentationTone.POSITIVE` |
+| **`attentive`** | Moderate risk, worth monitoring | **Honey** (`Honey60` / `Honey90`) | `RiskLevel.MEDIUM`, `PresentationTone.ATTENTION` |
+| **`concerned`** | High risk, warrants clinical attention | **Terracotta** (`Terra40` / `Terra95`) | `RiskLevel.HIGH` |
+| **`urgent`** | Very high, prompt consultation advised | **Berry** (`Berry40` / `Berry90`) | `RiskLevel.VERY_HIGH` |
+| **`neutral`** | Incomplete / neutral informational note | **Stone** (`StoneLightLow` / `StoneLightOutline`) | `PresentationTone.NEUTRAL`, `PresentationTone.INCOMPLETE` |
+| **`presence`** | AI companion identity, well-being module & hotline card | **Mist** (`Mist40` / `Mist95`) | AI Avatar, `LockNotice`, `SoftNotice` SAPA 129 |
 
 ---
 
-## Sistem Tipografi 3-Suara (`Type.kt` & `res/font/`)
+## 3-Voice Typography System (`Type.kt` & `res/font/`)
 
-Diimplementasikan di [`Type.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Type.kt) menggunakan tiga font variabel berlisensi terbuka yang dibundel di `app/src/main/res/font/`:
+Implemented in [`Type.kt`](app/src/main/java/com/example/empati/ui/theme/Type.kt) using three open-licensed variable fonts bundled under `app/src/main/res/font/`:
 
-| Suara Tipografi | Font Bundel | Variabel di `Type.kt` | Karakteristik & Kegunaan |
+| Typographic Voice | Bundled Font | Variable in `Type.kt` | Characteristics & Purpose |
 |---|---|---|---|
-| **1. Suara Ekspresif & Manusiawi** | **Fraunces** (`res/font/fraunces.ttf`) | `DisplayFont` | Variable soft-serif dengan sumbu `opsz=72`, `SOFT=100`, `WONK=0`. Digunakan untuk momen manusiawi: sapaan waktu, judul halaman, pernyataan hasil utama, inisial `EmpatiAvatar`, dan nama `AI-EMPATI`. |
-| **2. Suara Fungsional & Bacaan** | **Inter** (`res/font/inter.ttf`) | `BodyFont` + `EmpatiNumeralStyle` | Sans-serif humanis ber-*x-height* tinggi untuk kuesioner, ringkasan klinis, langkah tindak lanjut, gelembung chat, serta `EmpatiNumeralStyle` (`fontFeatureSettings = "tnum"`) untuk penghitung langkah (`3 / 16`) agar angka tidak bergeser. |
-| **3. Suara Telemetri & Identitas** | **JetBrains Mono** (`res/font/jetbrains_mono.ttf`) | `MetricFont` (`EmpatiMetricStyle`) | Monospace `13sp/18sp` yang digunakan **hanya** untuk pengenal mentah (ID akun, anatomi NIP 18 digit, kode dokumen)—**tidak pernah** dipakai untuk label UI atau badge. |
+| **1. Expressive & Human Voice** | **Fraunces** (`res/font/fraunces.ttf`) | `DisplayFont` | Variable soft-serif (`opsz=72`, `SOFT=100`, `WONK=0`). Reserved for human moments: time-of-day greetings, screen titles, result headlines, and `EmpatiAvatar` initials. |
+| **2. Functional & Reading Voice** | **Inter** (`res/font/inter.ttf`) | `BodyFont` + `EmpatiNumeralStyle` | Humanist sans-serif with tall x-height for questionnaires, clinical summaries, chat bubbles, plus `EmpatiNumeralStyle` (`fontFeatureSettings = "tnum"`) so step counters (`3 / 16`) never jitter horizontally. |
+| **3. Telemetry & Identity Voice** | **JetBrains Mono** (`res/font/jetbrains_mono.ttf`) | `MetricFont` (`EmpatiMetricStyle`) | Monospace `13sp/18sp` used **exclusively** for raw identifiers (account IDs, 18-digit NIP anatomy breakdowns, document codes)—**never** for UI labels or badges. |
 
-### Skala Tipografi (`EmpatiTypography`)
+### Typography Scale (`EmpatiTypography`)
 
-| Style Material 3 | Font | Weight | Size / Line Height | Letter Spacing | Kegunaan Utama |
+| Material 3 Style | Font | Weight | Size / Line Height | Letter Spacing | Primary Usage |
 |---|---|---|---|---|---|
 | `displayLarge` | Fraunces (`DisplayFont`) | Normal | `48sp / 54sp` | `-0.8sp` | Hero display |
-| `displayMedium` | Fraunces (`DisplayFont`) | Normal | `40sp / 46sp` | `-0.6sp` | Display medium |
-| `displaySmall` | Fraunces (`DisplayFont`) | Medium | `34sp / 40sp` | `-0.4sp` | Judul `AI-EMPATI` di Splash & Auth |
-| `headlineLarge` | Fraunces (`DisplayFont`) | Medium | `30sp / 38sp` | `-0.3sp` | Sapaan utama Beranda, `ScreenHeader`, `ResultHero` |
-| `headlineMedium` | Fraunces (`DisplayFont`) | Medium | `26sp / 34sp` | `-0.2sp` | Pertanyaan kuesioner (≤90 karakter), judul slide Onboarding, judul bottom sheet |
-| `headlineSmall` | Fraunces (`DisplayFont`) | Medium | `22sp / 30sp` | `-0.1sp` | Pertanyaan kuesioner panjang (>90 karakter), kartu status utama |
-| `titleLarge` | Inter (`BodyFont`) | SemiBold | `20sp / 28sp` | `-0.15sp` | Judul dialog & sub-bagian utama |
-| `titleMedium` | Inter (`BodyFont`) | SemiBold | `16sp / 24sp` | `0sp` | Judul kartu, nama di Profil, header `AI-EMPATI` di Chat |
-| `titleSmall` | Inter (`BodyFont`) | SemiBold | `14sp / 20sp` | `0.05sp` | Judul `ModuleStatusTile`, item persetujuan |
-| `bodyLarge` | Inter (`BodyFont`) | Normal | `16sp / 26sp` | `0sp` | Narasi utama (~1.6x line-height), opsi kuesioner, input form |
-| `bodyMedium` | Inter (`BodyFont`) | Normal | `14sp / 22sp` | `0.05sp` | Poin rekomendasi, gelembung chat, deskripsi kartu |
-| `bodySmall` | Inter (`BodyFont`) | Normal | `12sp / 18sp` | `0.1sp` | Teks pendukung, disclaimer, keterangan field |
-| `labelLarge` | Inter (`BodyFont`) | SemiBold | `14sp / 20sp` | `0.05sp` | Tombol utama (`PrimaryButton`), `FindingChip`, eyebrow header |
-| `labelMedium` | Inter (`BodyFont`) | Medium | `12sp / 16sp` | `0.15sp` | `ToneBadge`, `RiskBadge`, `SectionChip`, `SectionLabel`, label tab bawah |
-| `labelSmall` | Inter (`BodyFont`) | Medium | `11sp / 16sp` | `0.2sp` | Metadata halus |
-| `EmpatiNumeralStyle` | Inter (`BodyFont` + `tnum`) | SemiBold | `12sp / 16sp` | `0.2sp` | Indeks langkah kuesioner (`3 / 16`) dengan angka tabular |
-| `EmpatiMetricStyle` | JetBrains Mono (`MetricFont`) | Medium | `13sp / 18sp` | `0sp` | Nilai ID akun di Profil & inspektor anatomi NIP |
+| `displayMedium` | Fraunces (`DisplayFont`) | Normal | `40sp / 46sp` | `-0.6sp` | Medium display |
+| `displaySmall` | Fraunces (`DisplayFont`) | Medium | `34sp / 40sp` | `-0.4sp` | App brand title on Splash & Auth |
+| `headlineLarge` | Fraunces (`DisplayFont`) | Medium | `30sp / 38sp` | `-0.3sp` | Home greeting, `ScreenHeader`, `ResultHero` |
+| `headlineMedium` | Fraunces (`DisplayFont`) | Medium | `26sp / 34sp` | `-0.2sp` | Questionnaire prompts (≤90 chars), Onboarding slide titles, sheet titles |
+| `headlineSmall` | Fraunces (`DisplayFont`) | Medium | `22sp / 30sp` | `-0.1sp` | Long questionnaire prompts (>90 chars), primary status cards |
+| `titleLarge` | Inter (`BodyFont`) | SemiBold | `20sp / 28sp` | `-0.15sp` | Dialog headings & major subsections |
+| `titleMedium` | Inter (`BodyFont`) | SemiBold | `16sp / 24sp` | `0sp` | Card titles, Profile display name, Chat header title |
+| `titleSmall` | Inter (`BodyFont`) | SemiBold | `14sp / 20sp` | `0.05sp` | `ModuleStatusTile` titles, consent list headings |
+| `bodyLarge` | Inter (`BodyFont`) | Normal | `16sp / 26sp` | `0sp` | Primary clinical narrative (~1.6x line-height), answer options, form inputs |
+| `bodyMedium` | Inter (`BodyFont`) | Normal | `14sp / 22sp` | `0.05sp` | Recommendations, chat bubbles, card descriptions |
+| `bodySmall` | Inter (`BodyFont`) | Normal | `12sp / 18sp` | `0.1sp` | Supporting copy, disclaimers, field helper hints |
+| `labelLarge` | Inter (`BodyFont`) | SemiBold | `14sp / 20sp` | `0.05sp` | `PrimaryButton`, `FindingChip`, eyebrow labels |
+| `labelMedium` | Inter (`BodyFont`) | Medium | `12sp / 16sp` | `0.15sp` | `ToneBadge`, `RiskBadge`, `SectionChip`, `SectionLabel`, bottom nav labels |
+| `labelSmall` | Inter (`BodyFont`) | Medium | `11sp / 16sp` | `0.2sp` | Subtle metadata |
+| `EmpatiNumeralStyle` | Inter (`BodyFont` + `tnum`) | SemiBold | `12sp / 16sp` | `0.2sp` | Questionnaire step index (`3 / 16`) with tabular digits |
+| `EmpatiMetricStyle` | JetBrains Mono (`MetricFont`) | Medium | `13sp / 18sp` | `0sp` | Account ID values in Profile & 18-digit NIP anatomy inspector |
 
 ---
 
-## Token Desain: Spasi, Elevasi, Bentuk & Gerak (`Tokens.kt`)
+## Design Tokens: Spacing, Elevation, Shapes & Motion (`Tokens.kt`)
 
-Didefinisikan secara terpusat di [`Tokens.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Tokens.kt):
+Defined centrally in [`Tokens.kt`](app/src/main/java/com/example/empati/ui/theme/Tokens.kt):
 
-### 1. Spasi & Tata Letak (`EmpatiSpace` — Grid 4dp)
-- **Skala Spasi**: `xxs = 4.dp`, `xs = 8.dp`, `sm = 12.dp`, `md = 16.dp`, `lg = 20.dp`, `xl = 24.dp`, `xxl = 32.dp`, `huge = 40.dp`, `giant = 56.dp`.
-- **Dimensi Semantik**:
-  - `gutter = 24.dp` (margin horizontal layar)
-  - `readableWidth = 560.dp` (lebar maksimum kolom bacaan agar tetap nyaman di tablet & mode lanskap)
-  - `touchTarget = 48.dp` (target sentuh minimum sesuai standar aksesibilitas Android & WCAG)
+### 1. Spacing & Layout (`EmpatiSpace` — 4dp Grid)
+- **Spacing Scale**: `xxs = 4.dp`, `xs = 8.dp`, `sm = 12.dp`, `md = 16.dp`, `lg = 20.dp`, `xl = 24.dp`, `xxl = 32.dp`, `huge = 40.dp`, `giant = 56.dp`.
+- **Semantic Dimensions**:
+  - `gutter = 24.dp` (horizontal screen margin)
+  - `readableWidth = 560.dp` (max line length for tablet & landscape comfort)
+  - `touchTarget = 48.dp` (minimum touch target per Android & WCAG accessibility guidelines)
   - `cardPadding = 24.dp`, `cardPaddingCompact = 18.dp`
 
-### 2. Ukuran Ikon (`EmpatiIcon`) & Elevasi (`EmpatiElevation`)
+### 2. Icon Sizes (`EmpatiIcon`) & Elevation (`EmpatiElevation`)
 - `EmpatiIcon`: `sm = 16.dp`, `md = 20.dp`, `lg = 24.dp`, `xl = 32.dp`.
 - `EmpatiElevation`: `resting = 0.dp`, `raised = 3.dp`, `floating = 10.dp`.
-- **`Modifier.softShadow`**: Bayangan lembut berwarna `MaterialTheme.empati.shadowTint` (`Sage10` transparan di mode terang, otomatis nonaktif di mode gelap karena kedalaman diekspresikan melalui kecerahan permukaan).
+- **`Modifier.softShadow`**: Subtle ambient shadow tinted with `MaterialTheme.empati.shadowTint` (`Sage10` transparent in Light Mode; automatically omitted in Dark Mode where depth uses surface luminance).
 
-### 3. Bentuk Kerikil Halus (`EmpatiShapes` di `Theme.kt`)
-- `extraSmall = 10.dp`, `small = 14.dp`, `medium = 20.dp`, `large = 28.dp`, `extraLarge = 36.dp`, serta `CircleShape` (kapsul penuh) untuk tombol utama, chip, dan lencana.
+### 3. Pebble Shapes (`EmpatiShapes` in `Theme.kt`)
+- `extraSmall = 10.dp`, `small = 14.dp`, `medium = 20.dp`, `large = 28.dp`, `extraLarge = 36.dp`, plus `CircleShape` (full pill) for primary buttons, chips, and badges.
 
-### 4. Sistem Gerak Beraksesibilitas (`EmpatiMotion` & `LocalReducedMotion`)
-- **Durasi**: `Instant = 90ms`, `Quick = 160ms`, `Standard = 280ms`, `Expressive = 520ms`, `Reveal = 720ms`.
-- **Kurva Easing**: `EaseOutSoft = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)` (mendarat lembut tanpa pantulan tajam) dan `EaseInOutSoft = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)`.
-- **Pegas Fisika**: `EmpatiMotion.press()` (`DampingRatioNoBouncy`, `StiffnessMedium`) dan `EmpatiMotion.settle()` (`StiffnessLow`).
-- **Dukungan `LocalReducedMotion`**: Membaca pengaturan sistem `Settings.Global.TRANSITION_ANIMATION_SCALE` melalui `rememberSystemReducedMotion()`. Jika pengguna mengaktifkan *Remove animations*, seluruh komponen (`Reveal`, `StateOrb`, `EmpatiLogo`, `BreathingDots`) langsung tampil pada state akhir tanpa gerakan berulang.
+### 4. Accessible Motion System (`EmpatiMotion` & `LocalReducedMotion`)
+- **Durations**: `Instant = 90ms`, `Quick = 160ms`, `Standard = 280ms`, `Expressive = 520ms`, `Reveal = 720ms`.
+- **Easing Curves**: `EaseOutSoft = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)` (soft deceleration without bounce) and `EaseInOutSoft = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)`.
+- **Physics Springs**: `EmpatiMotion.press()` (`DampingRatioNoBouncy`, `StiffnessMedium`) and `EmpatiMotion.settle()` (`StiffnessLow`).
+- **`LocalReducedMotion` Support**: Observes system `Settings.Global.TRANSITION_ANIMATION_SCALE` via `rememberSystemReducedMotion()`. When users enable *Remove animations*, decorative loops (`Reveal`, `StateOrb`, `EmpatiLogo`, `BreathingDots`) settle cleanly into their resting state.
 
 ---
 
-## Pustaka Komponen Reusable (`Components.kt`)
+## Reusable Component Library (`Components.kt`)
 
-Berada di [`Components.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/components/Components.kt):
+Located in [`Components.kt`](app/src/main/java/com/example/empati/ui/components/Components.kt):
 
-- **Permukaan & Nada**:
+- **Surfaces & Tones**:
   - `EmpatiSurfaces.card()`, `EmpatiSurfaces.inset()`, `EmpatiSurfaces.sunken()`, `EmpatiSurfaces.hairline()`.
   - `RiskLevel.tone()`, `PresentationTone.toneColors()`, `errorTone()`.
-- **Scaffolding Layar**:
-  - `ScreenFrame(insets, scrollable, horizontalPadding)`: Kanvas halaman standar dengan `widthIn(max = 560.dp)` dan padding `24.dp`.
+- **Screen Scaffolding**:
+  - `ScreenFrame(insets, scrollable, horizontalPadding)`: Standard page canvas constrained to `widthIn(max = 560.dp)` with `24.dp` padding.
   - `ScreenTopBar(onBack, trailing)` & `ScreenHeader(title, eyebrow, subtitle)`.
-- **Kartu, Lencana & Chip**:
-  - `TonalCard`: Kontainer kartu ber-radius `28.dp` (`MaterialTheme.shapes.large`) dengan `softShadow`, border `hairline()`, dan dukungan `pressScale` + `focusHalo` bila dapat diklik.
-  - `ToneBadge` & `RiskBadge`: Kapsul status afektif dengan titik warna semantik (`tone.accent`) dan tipografi `labelMedium` *sentence-case*.
-  - `SectionChip`, `SectionLabel`, `SoftIconTile`, `ChoiceChip` (chip seleksi radio/filter dengan animasi ikon centang).
-  - `SegmentedSwitch`: Kontrol segmen 2-opsi dengan *gliding pill thumb* beranimasi (`animateDpAsState`).
-- **Tombol & Kontrol Input**:
-  - `PrimaryButton`: Tombol kapsul utama (`56.dp`) dengan `softShadow`, dukungan state `loading` (`CircularProgressIndicator`), dan ikon panah opsional.
-  - `GhostButton`, `BackIconButton` (`48.dp` lingkaran), `VisibilityToggle` (tampil/sembunyikan PIN).
-  - `EmpatiTextField`: Kolom input permukaan `inset()` dengan dukungan autofill (`ContentType`), halo fokus `2.dp`, garis indikator bawah yang tumbuh dari tengah (`animateFloatAsState`), serta pesan error ber-`LiveRegionMode.Polite`.
-- **Pemberitahuan & Identitas Visual**:
-  - `SoftNotice` (kartu pemberitahuan lembut dengan `liveRegion` opsional) & `LockNotice` (pita kerahasiaan lokal untuk pertanyaan sensitif KBG).
-  - `EmpatiLogo(size, animated, withBackground)`: Merender logo resmi **SRYA Emora** (monogram `"SA"` bergradasi biru-toska dengan ruang negatif berbentuk hati dan ekor balon percakapan) dalam 2 varian multi-resolusi (`mdpi` s/d `xxxhdpi`):
-    - **Tanpa Background (`srya_emora_logo_transparent.png`, `withBackground = false`)**: Digunakan pada `SplashScreen` (`112.dp`) dan `AuthScreen` (`44.dp`) dengan animasi napas lembut (`scale 0.96f..1.04f`).
-    - **Dengan Background Putih (`srya_emora_logo_bg.png`, `withBackground = true`)**: Digunakan pada avatar chatbot `CompanionAvatar` (`48.dp`) dan penanda gelembung pesan `CompanionMark` (`32.dp`) di `ChatScreen.kt`, serta ikon peluncur aplikasi (`ic_launcher` & `ic_launcher_round`).
-  - `EmpatiAvatar` (inisial pengguna dengan `DisplayFont` Fraunces di dalam lingkaran `primaryContainer`).
-  - `StateOrb` (orb afektif di layar Hasil dengan aura radial yang bernapas, cincin progres melingkar, dan ikon inti).
-  - `BreathingDots` (tiga titik berdenyut lembut saat SRYA Emora sedang menyusun jawaban) & `Reveal` (animasi masuk bertahap per indeks).
+- **Cards, Badges & Chips**:
+  - `TonalCard`: `28.dp` radius container (`MaterialTheme.shapes.large`) with `softShadow`, `hairline()` border, and optional `pressScale` + `focusHalo`.
+  - `ToneBadge` & `RiskBadge`: Affective status pills with semantic dot (`tone.accent`) and sentence-case `labelMedium` typography.
+  - `SectionChip`, `SectionLabel`, `SoftIconTile`, `ChoiceChip` (filter/radio selection chip with animated checkmark).
+  - `SegmentedSwitch`: Two-option segmented control with an animated gliding pill thumb (`animateDpAsState`).
+- **Buttons & Input Controls**:
+  - `PrimaryButton`: Full-pill primary CTA (`56.dp`) with `softShadow`, `loading` state (`CircularProgressIndicator`), and optional arrow icon.
+  - `GhostButton`, `BackIconButton` (`48.dp` circle), `VisibilityToggle` (PIN show/hide).
+  - `EmpatiTextField`: `inset()` field with autofill support (`ContentType`), `2.dp` focus halo, center-expanding bottom indicator (`animateFloatAsState`), and `LiveRegionMode.Polite` validation errors.
+- **Notices & Brand Identity**:
+  - `SoftNotice` (calm notice banner with optional `liveRegion`) & `LockNotice` (on-device confidentiality strip for sensitive GBV prompts).
+  - `EmpatiLogo(size, animated, withBackground)`: Multi-density app mark (`mdpi`–`xxxhdpi`) available with transparent background (for `SplashScreen` / `AuthScreen`) or solid background (for `CompanionAvatar` / `CompanionMark` in `ChatScreen` and launcher icons).
+  - `EmpatiAvatar` (user initials set in Fraunces inside `primaryContainer`), `StateOrb`, `BreathingDots`, and `Reveal`.
 
 ---
 
-## Spesifikasi 11 Layar Aplikasi (`ui/screens/`)
+## 11-Screen Application Specification (`ui/screens/`)
 
-### 1. Splash Screen ([`SplashScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/SplashScreen.kt))
-- Menampilkan `EmpatiLogo(size = 112.dp, animated = true)` di atas dua cincin halo `MaterialTheme.empati.aura`, judul `AI-EMPATI` (`displaySmall` Fraunces), dan satu baris pengantar tenang dengan animasi `Reveal`.
+### 1. Splash Screen ([`SplashScreen.kt`](app/src/main/java/com/example/empati/ui/screens/SplashScreen.kt))
+- Renders `EmpatiLogo(size = 112.dp, animated = true)` above twin `MaterialTheme.empati.aura` rings, brand headline (`displaySmall` Fraunces), and a calm single-line tagline via `Reveal`.
 
-### 2. Onboarding ([`OnboardingScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/OnboardingScreen.kt))
-- Pager 3 langkah (`HorizontalPager`) dengan nada afektif per slide (`SlideTone.Calm`, `Attentive`, `Presence`), indikator langkah `Langkah X dari 3`, tombol `Lewati`, medali ilustrasi berlapis dengan cincin bernapas (`OnboardingArtwork`), indikator titik pegas (`8.dp ↔ 28.dp`), dan tata letak responsif yang beradaptasi untuk layar kompak maupun lanskap.
+### 2. Onboarding ([`OnboardingScreen.kt`](app/src/main/java/com/example/empati/ui/screens/OnboardingScreen.kt))
+- 3-step `HorizontalPager` with per-slide affective tones (`SlideTone.Calm`, `Attentive`, `Presence`), tabular step indicator, Skip action, layered breathing artwork (`OnboardingArtwork`), spring pagination pills (`8.dp ↔ 28.dp`), and compact/landscape adaptive layout.
 
-### 3. Portal Otentikasi Multi-Format ([`AuthScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/AuthScreen.kt))
-- Menggunakan `AuthFormState` (`@Stable`, bersih tanpa kredensial demo pra-isi) dan `SegmentedSwitch` untuk beralih antara **Masuk** dan **Daftar**.
-- Kolom `EmpatiTextField` menerima **Email**, **Nomor HP**, **Username**, **NIK 16 digit**, atau **NIP 18 digit**, dilengkapi konfirmasi format otomatis (`SoftNotice` — termasuk penguraian tanggal lahir dan gender untuk NIP 18 digit).
-- Mode registrasi menyajikan `ChoiceChip` untuk **Jenis kelamin** dan **Latar belakang**, diikuti `SoftNotice` informasi enkripsi dan tombol utama `Masuk` / `Daftar dan masuk` (tanpa tombol akun demo).
+### 3. Multi-Format Authentication Portal ([`AuthScreen.kt`](app/src/main/java/com/example/empati/ui/screens/AuthScreen.kt))
+- Uses `@Stable` `AuthFormState` (clean production state with no pre-filled demo credentials) and `SegmentedSwitch` to toggle between Sign In and Register.
+- `EmpatiTextField` accepts **Email**, **Phone Number**, **Username**, **16-digit NIK**, or **18-digit NIP**, with automatic real-time format confirmation (`SoftNotice` — parsing birth date and gender from 18-digit ASN NIPs).
+- Registration mode adds `ChoiceChip` selectors for gender and background, encryption notices, and the primary CTA.
 
-### 4. Home Dashboard ([`HomeScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/HomeScreen.kt))
-- Sapaan waktu (`greetingForHour`), nama pengguna (`headlineLarge` Fraunces), dan `EmpatiAvatar` yang menuju Profil.
-- **Kartu Status Risiko (`LatestScreeningCard` / `EmptyScreeningCard`)**: Menampilkan `RiskBadge` (`Rendah · Batas Wajar`, `Sedang · Perlu Pemantauan`, `Tinggi · Perlu Perhatian`, atau `Sangat Tinggi · Perlu Perhatian`), ringkasan awam, tombol `Skrining ulang`, dan tautan `Lihat riwayat`.
-- Kartu pintasan layanan (*Mulai skrining* & *Konsultasi AI-EMPATI*) serta kartu privasi & rujukan **SAPA 129**.
+### 4. Home Dashboard ([`HomeScreen.kt`](app/src/main/java/com/example/empati/ui/screens/HomeScreen.kt))
+- Time-of-day greeting (`greetingForHour`), user name (`headlineLarge` Fraunces), and `EmpatiAvatar` linking to Profile.
+- **Risk Status Card (`LatestScreeningCard` / `EmptyScreeningCard`)**: Displays qualitative `RiskBadge`, plain-language summary, quick re-screen CTA, and History link.
+- Quick-access service cards (Start Screening & Empati Consultation) plus the privacy & **SAPA 129** referral card.
 
-### 5. Persetujuan / Informed Consent ([`ConsentScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ConsentScreen.kt))
-- Menampilkan `ScreenHeader` (`"Persetujuan skrining"`), daftar 5 komitmen etika & privasi di dalam `TonalCard` dengan `SoftIconTile` (item layanan darurat menggunakan ubin hangat `secondaryContainer` Clay) yang dapat diperluas saat diketuk (`animateContentSize`), serta tombol `Saya setuju dan mulai` yang terpin di bagian bawah.
+### 5. Informed Consent ([`ConsentScreen.kt`](app/src/main/java/com/example/empati/ui/screens/ConsentScreen.kt))
+- Displays `ScreenHeader`, five expandable ethical & privacy commitments inside `TonalCard` rows with `SoftIconTile` (`animateContentSize`), and a pinned bottom confirmation button.
 
-### 6. Kuesioner Dual-Modul ([`QuestionnaireScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/QuestionnaireScreen.kt))
-- Header menampilkan nama modul, penghitung langkah tabular `EmpatiNumeralStyle` (`3 / 16`), dan progress bar beranimasi dengan semantik `progressBarRangeInfo`.
-- Pertanyaan ditampilkan satu per layar (`headlineMedium` / `headlineSmall` Fraunces) dengan transisi geser horizontal (`AnimatedContent`), disertai `LockNotice` pada pertanyaan sensitif KBG.
-- Opsi jawaban (`OptionCard`) memiliki semantik radio (`Role.RadioButton`), `pressScale`, `focusHalo`, dan animasi seleksi halus.
+### 6. Dual-Module Questionnaire ([`QuestionnaireScreen.kt`](app/src/main/java/com/example/empati/ui/screens/QuestionnaireScreen.kt))
+- Header displays module name, `EmpatiNumeralStyle` tabular step counter (`3 / 16`), and animated progress bar with `progressBarRangeInfo` semantics.
+- One question per screen (`headlineMedium` / `headlineSmall` Fraunces) with horizontal slide transitions (`AnimatedContent`) and `LockNotice` on sensitive GBV prompts.
+- Answer options (`OptionCard`) carry `Role.RadioButton` semantics, `pressScale`, and `focusHalo`.
 
-### 7 & 8. Hasil Modul & Analisis Terintegrasi ([`ResultScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ResultScreen.kt))
-- **`ModuleResultScreen` (`ModuleResultContent`)**:
-  - `ResultHero`: Menampilkan **`StateOrb`** (`148.dp`), `ToneBadge` status, judul (`headlineLarge` Fraunces), dan kesimpulan 1 kalimat (`bodyLarge`).
-  - Kartu **Yang perlu diperhatikan / Yang teridentifikasi**: Deretan `FlowRow` berisi `FindingChip` interaktif yang membuka `FindingDetailSheet` (`ModalBottomSheet` penjelasan awam + pintasan diskusi AI-EMPATI).
-  - `StrengthsCard` (**"Yang sudah baik"** dengan nada `calm` untuk faktor pelindung), `SoftNotice` dukungan, dan `NextStepsCard` (**"Langkah selanjutnya"**).
-- **`IntegratedResultScreen` (`IntegratedResultContent`)**:
-  - `ResultHero` dengan kategori sintesis utama, diikuti 2 kolom `ModuleStatusTile` berdampingan (**Hipertensi** & **Kesejahteraan**), `SoftNotice` penjelasan keterkaitan non-kausal (*"Bagaimana keduanya berkaitan"*), `FindingChip` faktor kunci, `StrengthsCard`, `NextStepsCard`, serta tombol `Simpan ke riwayat` dan `Tanyakan ke AI-EMPATI`.
+### 7 & 8. Module Results & Integrated Analysis ([`ResultScreen.kt`](app/src/main/java/com/example/empati/ui/screens/ResultScreen.kt))
+- **`ModuleResultScreen` (`ModuleResultContent`)**: `ResultHero` with `StateOrb` (`148.dp`), `ToneBadge`, Fraunces conclusion, interactive `FindingChip` flow triggering `FindingDetailSheet` (`ModalBottomSheet`), `StrengthsCard` (`calm`), conditional `SoftNotice`, and `NextStepsCard`.
+- **`IntegratedResultScreen` (`IntegratedResultContent`)**: Combined category `ResultHero`, side-by-side `ModuleStatusTile` columns (Hypertension & Well-being), non-causal chronic-stress explanation `SoftNotice`, key factors, strengths, next steps, plus Save to History & Ask Empati CTAs.
 
-### 9. Konsultasi Chatbot SRYA Emora ([`ChatScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ChatScreen.kt))
-- Header bersih menampilkan avatar pendamping (`CompanionAvatar` berlogo `srya_emora_logo_bg` bulat dengan titik indikator aktif berdenyut `StatusDot`) dan judul **`SRYA Emora`** (tanpa kata `"Asisten"`, tanpa subjudul di bawahnya, dan **tanpa lencana nama model teknis** agar pergantian model otomatis di sisi server OpenRouter tidak membingungkan pengguna; nama model aktual hanya dicatat di database riset `public.research_chat_logs`).
-- **Penanganan Keyboard & Insets Ergonomis (*IME-Aware Chatbox*)**:
-  - Kolom chat utama (`ChatContent`) menerapkan `Modifier.imePadding()` secara langsung sehingga baris komposer (`ChatComposer`) dan placeholder input (*"Ceritakan yang Anda rasakan atau tanyakan sesuatu…"*) selalu terangkat dan berada tepat di atas keyboard saat pengguna mulai mengetik.
-  - Saat keyboard aktif (`WindowInsets.isImeVisible == true`), `MainScaffold` secara cerdas menyembunyikan `BottomNavBar` untuk memaksimalkan ruang vertikal obrolan dan mencegah tumpang-tindih visual.
-  - Komponen `ChatScreen` dilengkapi `LaunchedEffect(isImeVisible)` yang secara otomatis menggulir daftar pesan (`LazyColumn`) ke item terakhir saat keyboard terbuka, memastikan konteks pesan tidak tertutup.
-- **Opsi Salin Teks Menyeluruh (*Text Selection & Clipboard Action*)**:
-  - Teks di setiap gelembung pesan (`ChatBubble`) dibungkus dalam `SelectionContainer` dari Jetpack Compose sehingga pengguna dapat menyeleksi kata atau kalimat tertentu secara presisi.
-  - Setiap gelembung pesan (baik respons SRYA Emora maupun pesan pengguna) dilengkapi tombol salin satu ketukan (`Icons.Rounded.ContentCopy`) yang menyalin teks pesan utuh ke clipboard sistem melalui `LocalClipboardManager` dengan notifikasi toast lembut (*"Pesan disalin ke clipboard"*).
-  - Pada bilah komposer (`ChatComposer`), ketika terdapat draf teks (`value.isNotEmpty()`), muncul tombol salin cepat draf berikon `Icons.Rounded.ContentCopy` di sebelah tombol Kirim dengan umpan balik toast (*"Draf pesan disalin ke clipboard"*).
-- Daftar percakapan dengan banner cakupan topik yang hangat (*Teman cerita seputar kesehatan, ketenangan pikiran, dan ruang aman*), indikator mengetik `BreathingDots` (*"SRYA Emora sedang mengetik…"*), deretan chip pertanyaan cepat, dan komposer kapsul mengambang dengan bayangan lembut `softShadow`.
+### 9. Empati Consultation Chatbot ([`ChatScreen.kt`](app/src/main/java/com/example/empati/ui/screens/ChatScreen.kt))
+- Clean presence header showing `CompanionAvatar` with pulsing `StatusDot` and brand title (without cluttering user UI with raw model-switching badges).
+- **IME-Aware Keyboard & Inset Ergonomics**:
+  - `ChatContent` applies `Modifier.imePadding()` directly so `ChatComposer` sits cleanly above the soft keyboard.
+  - When `WindowInsets.isImeVisible == true`, `MainScaffold` hides `BottomNavBar` to maximize vertical reading area.
+  - `LaunchedEffect(isImeVisible)` auto-scrolls `LazyColumn` to the newest message when the keyboard opens.
+- **Full Copy Support (`SelectionContainer` & `ContentCopy`)**:
+  - Message text is wrapped in `SelectionContainer` for partial selection, paired with one-tap `Icons.Rounded.ContentCopy` on each bubble and draft copying on `ChatComposer`.
+- Warm scope banner, `BreathingDots` typing indicator, quick-reply chips, and floating composer with `softShadow`.
 
-### 10. Riwayat Skrining ([`HistoryScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/HistoryScreen.kt))
-- Daftar kronologis kartu evaluasi yang menampilkan `RiskBadge` selaras (`Rendah · Batas Wajar` s/d `Sangat Tinggi · Perlu Perhatian`), tanggal, dan ringkasan kualitatif (item terbaru ditandai secara halus), serta *empty state* dengan CTA memulai skrining.
+### 10. Screening History ([`HistoryScreen.kt`](app/src/main/java/com/example/empati/ui/screens/HistoryScreen.kt))
+- Chronological evaluation timeline displaying aligned `RiskBadge`, timestamps, qualitative summaries, and an empty state CTA.
 
-### 11. Profil & Privasi ([`ProfileScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ProfileScreen.kt))
-- Kartu identitas pengguna dengan `EmpatiAvatar(size = 72.dp)`, nama (`headlineSmall` Fraunces), chip latar belakang & gender, serta domisili.
-- Kartu **Data profil dan demografi** (dapat diedit melalui dialog dengan `EmpatiTextField`; baris ID akun menggunakan `EmpatiMetricStyle`), kartu **Pengaturan dan keamanan** (`FLAG_SECURE`, pengingat, tentang aplikasi), tombol `Keluar atau ganti akun`, dan kartu zona bahaya `Hapus seluruh data saya dari perangkat`.
+### 11. Profile & Privacy ([`ProfileScreen.kt`](app/src/main/java/com/example/empati/ui/screens/ProfileScreen.kt))
+- User identity card (`EmpatiAvatar(size = 72.dp)`, Fraunces name, demographic chips, domicile), editable demographic rows (`EmpatiMetricStyle` for account ID), security settings (`FLAG_SECURE` toggle/info), sign-out, and full local data deletion zone.
 
 ---
 
-## Navigasi & Transisi (`EmpatiApp.kt` & `MainScaffold.kt`)
+## Navigation & Transitions (`EmpatiApp.kt` & `MainScaffold.kt`)
 
-- **Navigasi Hirarkis (`EmpatiApp.kt`)**: Menggunakan `AnimatedContent` berbasis `screenRank` (0 = Splash s/d 7 = IntegratedResult) dengan kurva `EmpatiMotion.expressive()` (geser horizontal lembut `it / 14` + fade) yang otomatis beralih ke crossfade sederhana bila `LocalReducedMotion` aktif.
-- **Bottom Navigation (`MainScaffold.kt` → `BottomNavBar`)**: Bilah bawah bertona `EmpatiSurfaces.card()` dengan pembatas `SoftDivider()`, kapsul aktif `primaryContainer`, dukungan `pressScale` + `focusHalo`, dan 5 tab: **Beranda**, **Skrining** (membuka alur `Screen.Consent`), **Konsultasi**, **Riwayat**, dan **Profil**. Pada tab Konsultasi Chat, bilah bawah disembunyikan otomatis saat keyboard muncul (`WindowInsets.isImeVisible`) sehingga tidak menghalangi input pengguna.
+- **Hierarchical Navigation (`EmpatiApp.kt`)**: Uses `AnimatedContent` keyed on `screenRank` (0 = Splash through 7 = IntegratedResult) with `EmpatiMotion.expressive()` horizontal slides (`it / 14` + fade), automatically falling back to crossfade under `LocalReducedMotion`.
+- **Bottom Navigation (`MainScaffold.kt` → `BottomNavBar`)**: Surface-tinted `EmpatiSurfaces.card()` bar with `SoftDivider()`, active `primaryContainer` pill, `pressScale` + `focusHalo`, and 5 tabs (Home, Screening, Consultation, History, Profile), automatically hidden on Chat while the IME keyboard is visible.
 
 ---
 
-## Aksesibilitas (WCAG 2.2) & Keamanan Visual
+## Accessibility (WCAG 2.2) & Visual Safety
 
-| Aspek | Implementasi di Codebase |
+| Aspect | Implementation in Codebase |
 |---|---|
-| **Kontras Warna (WCAG AAA)** | `StoneLightOnSurface` (`#1B1C19`) di atas `StoneLightBackground` (`#F7F5F0`) menghasilkan rasio kontras **14.3:1**; `StoneLightOnVariant` (`#474B44`) menghasilkan **7.6:1**. |
-| **Target Sentuh Minimum** | `EmpatiSpace.touchTarget = 48.dp` dan `minimumInteractiveComponentSize()` diterapkan pada seluruh tombol, chip, dan item navigasi. |
-| **Fokus Keyboard / D-Pad (WCAG 2.4.7)** | `Modifier.focusHalo` menggambar cincin fokus `2.dp` berwarna `primary` pada seluruh elemen interaktif kustom. |
-| **Ergonomi Keyboard & Chat IME** | `Modifier.imePadding()` mengangkat chatbox secara dinamis tepat di atas keyboard; `isImeVisible` auto-scroll menjaga keterbacaan pesan saat mengetik. |
-| **Seleksi & Salin Teks (Clipboard)** | `SelectionContainer` pada gelembung pesan, tombol salin pesan satu ketukan (`ContentCopy`), dan tombol salin draf teks pada chatbox dengan toast feedback. |
-| **Screen Reader & Live Region** | `LiveRegionMode.Polite` pada pesan error `EmpatiTextField` dan `SoftNotice`; `Role.RadioButton` & `ProgressBarRangeInfo` pada kuesioner; `mergeDescendants = true` pada kolom input. |
-| **Reduced Motion** | `LocalReducedMotion` menghormati pengaturan aksesibilitas sistem Android untuk mematikan animasi berulang/transisi panjang. |
-| **Keamanan Layar (`FLAG_SECURE` Opsional)** | `MainActivity.ENABLE_SCREENSHOT_PROTECTION = false` mengizinkan screenshot & screen recording secara default, sembari menyimpan kode `window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)` agar dapat diaktifkan kembali kapan saja di masa depan. |
+| **Color Contrast (WCAG AAA)** | `StoneLightOnSurface` (`#1B1C19`) on `StoneLightBackground` (`#F7F5F0`) achieves **14.3:1**; `StoneLightOnVariant` (`#474B44`) achieves **7.6:1**. |
+| **Minimum Touch Targets** | `EmpatiSpace.touchTarget = 48.dp` and `minimumInteractiveComponentSize()` applied across buttons, chips, and nav tabs. |
+| **Keyboard / D-Pad Focus (WCAG 2.4.7)** | `Modifier.focusHalo` renders a `2.dp` `primary` focus ring on custom interactive elements. |
+| **IME & Chat Keyboard Ergonomics** | `Modifier.imePadding()` lifts the composer above the keyboard; `isImeVisible` auto-scrolls the timeline. |
+| **Text Selection & Clipboard** | `SelectionContainer` inside bubbles, one-tap `ContentCopy` per message, and draft copy button with toast feedback. |
+| **Screen Readers & Live Regions** | `LiveRegionMode.Polite` on `EmpatiTextField` errors and `SoftNotice`; `Role.RadioButton` & `ProgressBarRangeInfo` in questionnaires; `mergeDescendants = true` on form fields. |
+| **Reduced Motion** | `LocalReducedMotion` respects Android system animation settings by disabling ambient loops and slide motion. |
+| **Optional Screen Security (`FLAG_SECURE`)** | `MainActivity.ENABLE_SCREENSHOT_PROTECTION = false` permits screenshots/recordings for clinical/demo capture while retaining `FLAG_SECURE` opt-in code in `MainActivity.kt`. |
 
 ---
 
-## Referensi File
+## File References
 
-| File | Deskripsi |
+| File | Description |
 |---|---|
-| [`Color.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Color.kt) | Palet warna "Soft Daylight" v4 (Sage, Clay, Mist, Honey, Terracotta, Berry, Stone Light/Dark) |
-| [`Theme.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Theme.kt) | `LightColorScheme`, `DarkColorScheme`, `EmpatiColors` (`MaterialTheme.empati`), `EmpatiShapes`, dan `EmpatiTheme` |
-| [`Type.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Type.kt) | Sistem tipografi 3-suara (`DisplayFont` Fraunces, `BodyFont` Inter + `EmpatiNumeralStyle`, `MetricFont` JetBrains Mono) |
-| [`Tokens.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/theme/Tokens.kt) | `EmpatiSpace`, `EmpatiIcon`, `EmpatiElevation`, `EmpatiMotion`, `LocalReducedMotion`, dan `Modifier.softShadow` |
-| [`Components.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/components/Components.kt) | Pustaka komponen (`ScreenFrame`, `TonalCard`, `ToneBadge`, `RiskBadge`, `StateOrb`, `EmpatiTextField`, `SegmentedSwitch`, `EmpatiLogo`, dll.) |
-| [`EmpatiApp.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/EmpatiApp.kt) | Root composable & animasi transisi antar-layar berbasis `screenRank` |
-| [`MainScaffold.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/MainScaffold.kt) | `BottomNavBar` kustom beraksesibilitas tinggi & transisi antar-tab |
-| [`SplashScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/SplashScreen.kt) | Layar pembuka dengan halo `aura` dan `EmpatiLogo` bernapas |
-| [`OnboardingScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/OnboardingScreen.kt) | Pager 3 langkah dengan `OnboardingArtwork` bernada afektif & tata letak adaptif |
-| [`AuthScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/AuthScreen.kt) | Portal Login & Registrasi multi-format dengan `AuthFormState`, `SegmentedSwitch`, & `IdentityConfirmationCard` |
-| [`HomeScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/HomeScreen.kt) | Beranda dengan kartu status risiko selaras, pintasan layanan, dan kartu privasi SAPA 129 |
-| [`ConsentScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ConsentScreen.kt) | Layar persetujuan dengan kartu komitmen yang dapat diperluas & ubin ikon hangat |
-| [`QuestionnaireScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/QuestionnaireScreen.kt) | Layar kuesioner bertahap dengan `EmpatiNumeralStyle` tabular & semantik aksesibilitas penuh |
-| [`ResultScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ResultScreen.kt) | `ModuleResultScreen` & `IntegratedResultScreen` dengan `StateOrb`, `FindingChip`, `StrengthsCard`, & `FindingDetailSheet` |
-| [`ChatScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ChatScreen.kt) | Layar konsultasi `AI-EMPATI` dengan `BreathingDots` & jaminan kalimat utuh |
-| [`HistoryScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/HistoryScreen.kt) | Daftar riwayat evaluasi kronologis & *empty state* |
-| [`ProfileScreen.kt`](file:///c:/Users/ADVAN/AndroidStudioProjects/Empati/app/src/main/java/com/example/empati/ui/screens/ProfileScreen.kt) | Profil demografi, pengaturan keamanan layar, ganti akun, dan hapus data permanen |
+| [`Color.kt`](app/src/main/java/com/example/empati/ui/theme/Color.kt) | "Soft Daylight" v4 color palette (Sage, Clay, Mist, Honey, Terracotta, Berry, Stone Light/Dark) |
+| [`Theme.kt`](app/src/main/java/com/example/empati/ui/theme/Theme.kt) | `LightColorScheme`, `DarkColorScheme`, `EmpatiColors` (`MaterialTheme.empati`), `EmpatiShapes`, and `EmpatiTheme` |
+| [`Type.kt`](app/src/main/java/com/example/empati/ui/theme/Type.kt) | 3-voice typography system (`DisplayFont` Fraunces, `BodyFont` Inter + `EmpatiNumeralStyle`, `MetricFont` JetBrains Mono) |
+| [`Tokens.kt`](app/src/main/java/com/example/empati/ui/theme/Tokens.kt) | `EmpatiSpace`, `EmpatiIcon`, `EmpatiElevation`, `EmpatiMotion`, `LocalReducedMotion`, and `Modifier.softShadow` |
+| [`Components.kt`](app/src/main/java/com/example/empati/ui/components/Components.kt) | Reusable UI library (`ScreenFrame`, `TonalCard`, `ToneBadge`, `RiskBadge`, `StateOrb`, `EmpatiTextField`, `SegmentedSwitch`, `EmpatiLogo`, etc.) |
+| [`EmpatiApp.kt`](app/src/main/java/com/example/empati/EmpatiApp.kt) | Root composable & `screenRank`-driven animated transitions |
+| [`MainScaffold.kt`](app/src/main/java/com/example/empati/ui/screens/MainScaffold.kt) | Accessible custom `BottomNavBar` & tab transitions |
+| [`SplashScreen.kt`](app/src/main/java/com/example/empati/ui/screens/SplashScreen.kt) | Splash view with `aura` halos and breathing `EmpatiLogo` |
+| [`OnboardingScreen.kt`](app/src/main/java/com/example/empati/ui/screens/OnboardingScreen.kt) | 3-slide pager with affective `OnboardingArtwork` & adaptive layout |
+| [`AuthScreen.kt`](app/src/main/java/com/example/empati/ui/screens/AuthScreen.kt) | Multi-format sign-in & registration portal (`AuthFormState`, `SegmentedSwitch`, `IdentityConfirmationCard`) |
+| [`HomeScreen.kt`](app/src/main/java/com/example/empati/ui/screens/HomeScreen.kt) | Dashboard with aligned risk status card, service shortcuts, and SAPA 129 privacy notice |
+| [`ConsentScreen.kt`](app/src/main/java/com/example/empati/ui/screens/ConsentScreen.kt) | Informed consent screen with expandable commitment rows & warm icon tiles |
+| [`QuestionnaireScreen.kt`](app/src/main/java/com/example/empati/ui/screens/QuestionnaireScreen.kt) | Stepped questionnaire with tabular `EmpatiNumeralStyle` & full semantics |
+| [`ResultScreen.kt`](app/src/main/java/com/example/empati/ui/screens/ResultScreen.kt) | `ModuleResultScreen` & `IntegratedResultScreen` with `StateOrb`, `FindingChip`, `StrengthsCard`, & `FindingDetailSheet` |
+| [`ChatScreen.kt`](app/src/main/java/com/example/empati/ui/screens/ChatScreen.kt) | Empati consultation screen with `BreathingDots`, `SelectionContainer`, and complete-sentence guarantees |
+| [`HistoryScreen.kt`](app/src/main/java/com/example/empati/ui/screens/HistoryScreen.kt) | Chronological evaluation list & empty state |
+| [`ProfileScreen.kt`](app/src/main/java/com/example/empati/ui/screens/ProfileScreen.kt) | Demographic profile, security toggles, account switch, and permanent data wipe |
